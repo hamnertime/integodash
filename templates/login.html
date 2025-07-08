@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Integotec - Unlock Database</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f6f8; color: #212529; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .login-container { background-color: #ffffff; padding: 40px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; width: 100%; max-width: 400px; }
+        h1 { color: #0056b3; margin-bottom: 20px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; text-align: left; }
+        input[type="password"] { width: 100%; padding: 12px; border-radius: 5px; border: 1px solid #ced4da; box-sizing: border-box; }
+        button { background-color: #007bff; color: white; padding: 12px 25px; border: none; border-radius: 5px; font-size: 1.1em; cursor: pointer; transition: background-color 0.2s; width: 100%; }
+        button:hover { background-color: #0056b3; }
+        .flash-message { padding: 15px; margin-bottom: 20px; border-radius: 5px; border: 1px solid transparent; text-align: left; }
+        .flash-error { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h1>Unlock Database</h1>
+        <p>Please enter the master password to continue.</p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash-message flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('login') }}">
+            <div class="form-group">
+                <label for="password">Master Password</label>
+                <input type="password" id="password" name="password" required autofocus>
+            </div>
+            <button type="submit">Unlock</button>
+        </form>
+    </div>
+</body>
+</html>
