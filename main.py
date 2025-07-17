@@ -141,47 +141,66 @@ def login():
 @app.route('/')
 def billing_dashboard():
     try:
-        clients_query = """
+        sort_by = request.args.get('sort_by', 'name')
+        sort_order = request.args.get('sort_order', 'asc')
+
+        allowed_sort_columns = {
+            'name': 'name',
+            'billing_plan': 'billing_plan',
+            'workstations': 'workstation_count',
+            'servers': 'server_count',
+            'users': 'user_count',
+            'hours': 'total_hours',
+            'bill': 'total_bill'
+        }
+
+        if sort_by not in allowed_sort_columns:
+            sort_by = 'name'
+        if sort_order not in ['asc', 'desc']:
+            sort_order = 'asc'
+
+        order_by_clause = f"ORDER BY {allowed_sort_columns[sort_by]} {sort_order.upper()}"
+
+        clients_query = f"""
             WITH monthly_hours AS (
                 SELECT
                     company_account_number,
                     SUM(total_hours_spent) as total_hours
                 FROM ticket_details
                 GROUP BY company_account_number
+            ),
+            client_calcs AS (
+                SELECT
+                    c.account_number, c.name, c.billing_plan, c.contract_term_length,
+                    COUNT(DISTINCT a.id) FILTER (WHERE a.device_type = 'Server') as server_count,
+                    COUNT(DISTINCT a.id) FILTER (WHERE a.device_type != 'Server' OR a.device_type IS NULL) as workstation_count,
+                    COUNT(DISTINCT u.id) as user_count,
+                    COALESCE(mh.total_hours, 0) as total_hours,
+
+                    -- CORRECTED: Use COALESCE to provide a 0.0 default if a plan is missing
+                    CASE WHEN override.override_enabled = 1 THEN override.network_management_fee ELSE COALESCE(defaults.network_management_fee, 0.0) END as final_nmf,
+                    CASE WHEN override.override_enabled = 1 THEN override.per_user_cost ELSE COALESCE(defaults.per_user_cost, 0.0) END as final_user_cost,
+                    CASE WHEN override.override_enabled = 1 THEN override.per_server_cost ELSE COALESCE(defaults.per_server_cost, 0.0) END as final_server_cost,
+                    CASE WHEN override.override_enabled = 1 THEN override.per_workstation_cost ELSE COALESCE(defaults.per_workstation_cost, 0.0) END as final_workstation_cost
+
+                FROM companies c
+                LEFT JOIN assets a ON c.account_number = a.company_account_number
+                LEFT JOIN users u ON c.account_number = u.company_account_number
+                LEFT JOIN monthly_hours mh ON c.account_number = mh.company_account_number
+                LEFT JOIN billing_plans defaults ON c.billing_plan = defaults.billing_plan AND c.contract_term_length = defaults.term_length
+                LEFT JOIN client_billing_overrides override ON c.account_number = override.company_account_number
+                GROUP BY c.account_number
             )
             SELECT
-                c.account_number, c.name, c.billing_plan, c.contract_term_length,
-                COUNT(DISTINCT a.id) FILTER (WHERE a.device_type = 'Server') as server_count,
-                COUNT(DISTINCT a.id) FILTER (WHERE a.device_type != 'Server' OR a.device_type IS NULL) as workstation_count,
-                COUNT(DISTINCT u.id) as user_count,
-                COALESCE(mh.total_hours, 0) as total_hours,
-                COALESCE(override.override_enabled, 0) as override_enabled,
-
-                CASE WHEN override.override_enabled = 1 THEN override.network_management_fee ELSE defaults.network_management_fee END as final_nmf,
-                CASE WHEN override.override_enabled = 1 THEN override.per_user_cost ELSE defaults.per_user_cost END as final_user_cost,
-                CASE WHEN override.override_enabled = 1 THEN override.per_server_cost ELSE defaults.per_server_cost END as final_server_cost,
-                CASE WHEN override.override_enabled = 1 THEN override.per_workstation_cost ELSE defaults.per_workstation_cost END as final_workstation_cost
-
-            FROM companies c
-            LEFT JOIN assets a ON c.account_number = a.company_account_number
-            LEFT JOIN users u ON c.account_number = u.company_account_number
-            LEFT JOIN monthly_hours mh ON c.account_number = mh.company_account_number
-            LEFT JOIN billing_plans defaults ON c.billing_plan = defaults.billing_plan AND c.contract_term_length = defaults.term_length
-            LEFT JOIN client_billing_overrides override ON c.account_number = override.company_account_number
-            GROUP BY c.account_number ORDER BY c.name ASC;
+                *,
+                (final_nmf or 0) + (user_count * (final_user_cost or 0)) + (server_count * (final_server_cost or 0)) + (workstation_count * (final_workstation_cost or 0)) as total_bill
+            FROM client_calcs
+            {order_by_clause};
         """
-        clients_data = query_db(clients_query)
-        clients_with_totals = []
-        for client in clients_data:
-            client_dict = dict(client)
-            total = (client_dict['final_nmf'] or 0) + \
-                    ((client_dict['user_count'] or 0) * (client_dict['final_user_cost'] or 0)) + \
-                    ((client_dict['server_count'] or 0) * (client_dict['final_server_cost'] or 0)) + \
-                    ((client_dict['workstation_count'] or 0) * (client_dict['final_workstation_cost'] or 0))
-            client_dict['total_bill'] = total
-            clients_with_totals.append(client_dict)
 
-        return render_template('billing.html', clients=clients_with_totals)
+        clients_data = query_db(clients_query)
+        return render_template('billing.html', clients=clients_data, sort_by=sort_by, sort_order=sort_order)
+
     except (ValueError, sqlite3.Error) as e:
         session.pop('db_password', None)
         flash(f"Database Error: {e}. Please log in again.", 'error')
