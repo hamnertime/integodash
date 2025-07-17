@@ -23,7 +23,6 @@
         <div class="logo">Integotec Ops Dash</div>
         <div>
             <a href="{{ url_for('billing_dashboard') }}" class="{{ 'active' if request.endpoint == 'billing_dashboard' else '' }}">Billing</a>
-            <a href="{{ url_for('ticket_dashboard') }}" class="{{ 'active' if request.endpoint == 'ticket_dashboard' else '' }}">Tickets</a>
             <a href="{{ url_for('billing_settings') }}" class="{{ 'active' if request.endpoint == 'billing_settings' else '' }}">Settings & Sync</a>
         </div>
     </nav>
@@ -43,7 +42,6 @@
         {% block content %}{% endblock %}
     </div>
 
-    <!-- NEW SCRIPT BLOCK -->
     {% block scripts %}{% endblock %}
 </body>
 </html>

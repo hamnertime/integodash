@@ -225,69 +225,6 @@ def billing_dashboard():
         flash(f"Database Error: {e}. Please log in again.", 'error')
         return redirect(url_for('login'))
 
-@app.route('/ticket_dashboard')
-def ticket_dashboard():
-    try:
-        active_tab = request.args.get('type', 'Incident')
-
-        query = """
-            SELECT t.*, c.name as company_name
-            FROM tickets t
-            LEFT JOIN companies c ON t.company_account_number = c.account_number
-            WHERE t.ticket_type = ?
-            ORDER BY t.updated_at DESC
-        """
-        all_tickets_of_type = query_db(query, [active_tab])
-
-        open_incidents = []
-        attention_needed = []
-        other_tickets = []
-
-        now = datetime.now(timezone.utc)
-        overdue_threshold = now - timedelta(days=1)
-
-        processed_ticket_ids = set()
-
-        # First pass: Find "Open Incidents" - this is a specific category for the Incident tab only
-        if active_tab == 'Incident':
-            for ticket in all_tickets_of_type:
-                if ticket['status'] == 'Open':
-                    open_incidents.append(ticket)
-                    processed_ticket_ids.add(ticket['id'])
-
-        # Second pass: Find tickets that need attention (unassigned or overdue)
-        for ticket in all_tickets_of_type:
-            if ticket['id'] in processed_ticket_ids:
-                continue
-
-            updated_at_dt = datetime.fromisoformat(ticket['updated_at'].replace('Z', '+00:00'))
-
-            # A ticket is unassigned AND in a state that requires action
-            is_unassigned_actionable = (ticket['agent_name'] == 'Unassigned' and ticket['status'] not in ['On Hold', 'Waiting on Customer'])
-
-            # A ticket is assigned but has gone stale in an actionable state
-            is_overdue = (ticket['agent_name'] != 'Unassigned' and ticket['status'] not in ['On Hold', 'Waiting on Customer'] and updated_at_dt < overdue_threshold)
-
-            if is_unassigned_actionable or is_overdue:
-                attention_needed.append(ticket)
-                processed_ticket_ids.add(ticket['id'])
-
-        # Final pass: All other open tickets
-        for ticket in all_tickets_of_type:
-            if ticket['id'] not in processed_ticket_ids:
-                other_tickets.append(ticket)
-
-        return render_template(
-            'ticket_dashboard.html',
-            open_incidents=open_incidents,
-            attention_needed=attention_needed,
-            other_tickets=other_tickets,
-            active_tab=active_tab
-        )
-    except (ValueError, sqlite3.Error) as e:
-        session.pop('db_password', None)
-        flash(f"Database Error: {e}. Please log in again.", 'error')
-        return redirect(url_for('login'))
 
 @app.route('/client/<account_number>')
 def client_settings(account_number):

@@ -80,7 +80,7 @@ def create_database():
 
         print("Populating default job schedules...")
         default_jobs = [
-            ('Sync Billing Data (Users, Companies, Hours)', 'pull_billing_data.py', 1440, 1),
+            ('Sync Billing Data (Users, Companies, Hours)', 'pull_freshservice.py', 1440, 1),
             ('Sync Datto RMM Assets', 'pull_datto.py', 1440, 1),
             ('Assign Missing Freshservice IDs', 'set_account_numbers.py', 1440, 0),
             ('Push IDs to Datto', 'push_account_nums_to_datto.py', 1440, 0)
