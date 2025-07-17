@@ -41,6 +41,7 @@
                     <th>Workstations</th>
                     <th>Servers</th>
                     <th>Users</th>
+                    <th>Hours (Last Month)</th>
                     <th>Calculated Bill</th>
                 </tr>
             </thead>
@@ -53,12 +54,13 @@
                         <td>{{ client['workstation_count'] }}</td>
                         <td>{{ client['server_count'] }}</td>
                         <td>{{ client['user_count'] }}</td>
+                        <td>{{ "%.2f"|format(client['total_hours']) }}</td>
                         <td>${{ "%.2f"|format(client['total_bill']) }}</td>
                     </tr>
                     {% endfor %}
                 {% else %}
                     <tr>
-                        <td colspan="6" style="text-align: center;">No clients found in the database. Run sync scripts from the settings page.</td>
+                        <td colspan="7" style="text-align: center;">No clients found in the database. Run sync scripts from the settings page.</td>
                     </tr>
                 {% endif %}
             </tbody>

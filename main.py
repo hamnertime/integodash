@@ -142,11 +142,19 @@ def login():
 def billing_dashboard():
     try:
         clients_query = """
+            WITH monthly_hours AS (
+                SELECT
+                    company_account_number,
+                    SUM(total_hours_spent) as total_hours
+                FROM ticket_details
+                GROUP BY company_account_number
+            )
             SELECT
                 c.account_number, c.name, c.billing_plan, c.contract_term_length,
                 COUNT(DISTINCT a.id) FILTER (WHERE a.device_type = 'Server') as server_count,
                 COUNT(DISTINCT a.id) FILTER (WHERE a.device_type != 'Server' OR a.device_type IS NULL) as workstation_count,
                 COUNT(DISTINCT u.id) as user_count,
+                COALESCE(mh.total_hours, 0) as total_hours,
                 COALESCE(override.override_enabled, 0) as override_enabled,
 
                 CASE WHEN override.override_enabled = 1 THEN override.network_management_fee ELSE defaults.network_management_fee END as final_nmf,
@@ -157,6 +165,7 @@ def billing_dashboard():
             FROM companies c
             LEFT JOIN assets a ON c.account_number = a.company_account_number
             LEFT JOIN users u ON c.account_number = u.company_account_number
+            LEFT JOIN monthly_hours mh ON c.account_number = mh.company_account_number
             LEFT JOIN billing_plans defaults ON c.billing_plan = defaults.billing_plan AND c.contract_term_length = defaults.term_length
             LEFT JOIN client_billing_overrides override ON c.account_number = override.company_account_number
             GROUP BY c.account_number ORDER BY c.name ASC;
@@ -178,13 +187,11 @@ def billing_dashboard():
         flash(f"Database Error: {e}. Please log in again.", 'error')
         return redirect(url_for('login'))
 
-
 @app.route('/client/<account_number>', methods=['GET', 'POST'])
 def client_settings(account_number):
     try:
         db = get_db()
         if request.method == 'POST':
-            # This logic now inserts or updates the client's specific override entry
             override_enabled = 1 if 'override_enabled' in request.form else 0
             nmf = float(request.form.get('network_management_fee', 0))
             puc = float(request.form.get('per_user_cost', 0))
@@ -250,7 +257,6 @@ def client_settings(account_number):
             "total": (effective_rates['nmf'] or 0) + (user_count * effective_rates['puc']) + (server_count * effective_rates['psc']) + (workstation_count * effective_rates['pwc'])
         }
 
-        # Fetch recent ticket details
         recent_tickets = query_db("SELECT * FROM ticket_details WHERE company_account_number = ? ORDER BY last_updated_at DESC", [account_number])
 
         return render_template('client_settings.html',
@@ -263,12 +269,11 @@ def client_settings(account_number):
                                user_count=user_count,
                                server_count=server_count,
                                workstation_count=workstation_count,
-                               recent_tickets=recent_tickets) # Pass tickets to template
+                               recent_tickets=recent_tickets)
     except (ValueError, sqlite3.Error) as e:
         session.pop('db_password', None)
         flash(f"Database Error: {e}. Please log in again.", 'error')
         return redirect(url_for('login'))
-
 
 @app.route('/settings', methods=['GET', 'POST'])
 def billing_settings():
