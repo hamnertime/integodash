@@ -94,7 +94,17 @@ def create_database():
             )
         """)
 
-        cur.execute("CREATE TABLE IF NOT EXISTS ticket_work_hours (company_account_number TEXT, month TEXT, hours REAL, PRIMARY KEY (company_account_number, month), FOREIGN KEY (company_account_number) REFERENCES companies (account_number))")
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS ticket_details (
+                ticket_id INTEGER PRIMARY KEY,
+                company_account_number TEXT,
+                subject TEXT,
+                last_updated_at TEXT,
+                closed_at TEXT,
+                total_hours_spent REAL,
+                FOREIGN KEY (company_account_number) REFERENCES companies (account_number)
+            )
+        """)
 
         cur.execute("""
             CREATE TABLE scheduler_jobs (
@@ -119,6 +129,7 @@ def create_database():
         default_jobs = [
             ('Sync Billing Data (Companies & Users)', 'pull_freshservice.py', 1440, 1),
             ('Sync Datto RMM Assets', 'pull_datto.py', 1440, 1),
+            ('Sync Ticket Details & Hours', 'pull_ticket_details.py', 1440, 1),
             ('Assign Missing Freshservice Account Numbers', 'set_account_numbers.py', 1440, 0),
             ('Push Account Numbers to Datto RMM', 'push_account_nums_to_datto.py', 1440, 0)
         ]
@@ -158,11 +169,14 @@ def create_database():
 
     except sqlite3.Error as e:
         print(f"\n❌ An error occurred: {e}", file=sys.stderr)
-        if con: con.close()
-        if os.path.exists(DB_FILE): os.remove(DB_FILE)
+        if con:
+            con.close()
+        if os.path.exists(DB_FILE):
+            os.remove(DB_FILE)
         sys.exit(1)
     finally:
-        if con: con.close()
+        if con:
+            con.close()
 
 if __name__ == "__main__":
     create_database()

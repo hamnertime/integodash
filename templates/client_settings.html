@@ -82,6 +82,30 @@
             </form>
         </div>
 
+        <h2>Recent Ticket Activity (Last 30 Days)</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Ticket ID</th>
+                    <th>Subject</th>
+                    <th>Date Closed</th>
+                    <th>Total Hours</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ticket in recent_tickets %}
+                <tr>
+                    <td><a href="https://integotecllc.freshservice.com/a/tickets/{{ ticket.ticket_id }}" target="_blank">#{{ ticket.ticket_id }}</a></td>
+                    <td>{{ ticket.subject }}</td>
+                    <td>{{ ticket.closed_at | humanize if ticket.closed_at else 'Still Open' }}</td>
+                    <td>{{ "%.2f"|format(ticket.total_hours_spent) }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4">No recent tickets with time entries found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
         <h2>Tracked Assets & Users</h2>
         <div class="grid-container">
             <div>

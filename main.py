@@ -178,11 +178,13 @@ def billing_dashboard():
         flash(f"Database Error: {e}. Please log in again.", 'error')
         return redirect(url_for('login'))
 
+
 @app.route('/client/<account_number>', methods=['GET', 'POST'])
 def client_settings(account_number):
     try:
         db = get_db()
         if request.method == 'POST':
+            # This logic now inserts or updates the client's specific override entry
             override_enabled = 1 if 'override_enabled' in request.form else 0
             nmf = float(request.form.get('network_management_fee', 0))
             puc = float(request.form.get('per_user_cost', 0))
@@ -226,7 +228,6 @@ def client_settings(account_number):
         """
         plan_details = query_db(effective_plan_query, [account_number], one=True)
 
-        # Determine the final effective rates to use for the receipt
         effective_rates = {
             'nmf': plan_details['override_nmf'] if plan_details['override_enabled'] else plan_details['default_nmf'],
             'puc': plan_details['override_puc'] if plan_details['override_enabled'] else plan_details['default_puc'],
@@ -249,6 +250,9 @@ def client_settings(account_number):
             "total": (effective_rates['nmf'] or 0) + (user_count * effective_rates['puc']) + (server_count * effective_rates['psc']) + (workstation_count * effective_rates['pwc'])
         }
 
+        # Fetch recent ticket details
+        recent_tickets = query_db("SELECT * FROM ticket_details WHERE company_account_number = ? ORDER BY last_updated_at DESC", [account_number])
+
         return render_template('client_settings.html',
                                client=client_info,
                                assets=assets,
@@ -258,11 +262,13 @@ def client_settings(account_number):
                                receipt_data=receipt_data,
                                user_count=user_count,
                                server_count=server_count,
-                               workstation_count=workstation_count)
+                               workstation_count=workstation_count,
+                               recent_tickets=recent_tickets) # Pass tickets to template
     except (ValueError, sqlite3.Error) as e:
         session.pop('db_password', None)
         flash(f"Database Error: {e}. Please log in again.", 'error')
         return redirect(url_for('login'))
+
 
 @app.route('/settings', methods=['GET', 'POST'])
 def billing_settings():
