@@ -63,19 +63,19 @@
                 <div class="billing-form-grid">
                     <div>
                         <label>Network Management Fee</label>
-                        <input type="number" step="0.01" name="network_management_fee" value="{{ '%.2f'|format(plan_details.override_nmf or plan_details.default_nmf) }}">
+                        <input type="number" step="0.01" name="network_management_fee" value="{{ '%.2f'|format(plan_details.override_nmf if plan_details.override_nmf is not none else plan_details.default_nmf) }}">
                     </div>
                     <div>
                         <label>Per User Cost</label>
-                        <input type="number" step="0.01" name="per_user_cost" value="{{ '%.2f'|format(plan_details.override_puc or plan_details.default_puc) }}">
+                        <input type="number" step="0.01" name="per_user_cost" value="{{ '%.2f'|format(plan_details.override_puc if plan_details.override_puc is not none else plan_details.default_puc) }}">
                     </div>
                     <div>
                         <label>Per Workstation Cost</label>
-                        <input type="number" step="0.01" name="per_workstation_cost" value="{{ '%.2f'|format(plan_details.override_pwc or plan_details.default_pwc) }}">
+                        <input type="number" step="0.01" name="per_workstation_cost" value="{{ '%.2f'|format(plan_details.override_pwc if plan_details.override_pwc is not none else plan_details.default_pwc) }}">
                     </div>
                     <div>
                         <label>Per Server Cost</label>
-                        <input type="number" step="0.01" name="per_server_cost" value="{{ '%.2f'|format(plan_details.override_psc or plan_details.default_psc) }}">
+                        <input type="number" step="0.01" name="per_server_cost" value="{{ '%.2f'|format(plan_details.override_psc if plan_details.override_psc is not none else plan_details.default_psc) }}">
                     </div>
                 </div>
                 <div class="button-container"><button type="submit">Save Override Settings</button></div>
