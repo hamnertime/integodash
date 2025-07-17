@@ -58,7 +58,6 @@ def create_database():
         cur.execute("CREATE TABLE IF NOT EXISTS billing_plans (contract_type TEXT, billing_plan TEXT, billed_by TEXT, base_price REAL, per_user_cost REAL, per_server_cost REAL, per_workstation_cost REAL, PRIMARY KEY (contract_type, billing_plan))")
         cur.execute("CREATE TABLE IF NOT EXISTS billing_events (id INTEGER PRIMARY KEY, company_account_number TEXT, event_date TEXT, description TEXT, notes TEXT, FOREIGN KEY (company_account_number) REFERENCES companies (account_number))")
         cur.execute("CREATE TABLE IF NOT EXISTS ticket_work_hours (company_account_number TEXT, month TEXT, hours REAL, PRIMARY KEY (company_account_number, month), FOREIGN KEY (company_account_number) REFERENCES companies (account_number))")
-        cur.execute("CREATE TABLE IF NOT EXISTS tickets (id INTEGER PRIMARY KEY, subject TEXT, status TEXT, priority TEXT, source TEXT, ticket_type TEXT, created_at TEXT, updated_at TEXT, agent_id INTEGER, agent_name TEXT, requester_id INTEGER, requester_name TEXT, company_account_number TEXT, FOREIGN KEY (company_account_number) REFERENCES companies (account_number))")
 
         print("Creating 'scheduler_jobs' table...")
         cur.execute("""
@@ -81,8 +80,7 @@ def create_database():
 
         print("Populating default job schedules...")
         default_jobs = [
-            ('Sync Tickets', 'pull_tickets.py', 3, 1),
-            ('Sync Billing Data (Users, Companies, Hours)', 'pull_billing_data.py', 1440, 1), # 1440 minutes = 24 hours
+            ('Sync Billing Data (Users, Companies, Hours)', 'pull_billing_data.py', 1440, 1),
             ('Sync Datto RMM Assets', 'pull_datto.py', 1440, 1),
             ('Assign Missing Freshservice IDs', 'set_account_numbers.py', 1440, 0),
             ('Push IDs to Datto', 'push_account_nums_to_datto.py', 1440, 0)
