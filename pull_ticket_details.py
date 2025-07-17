@@ -14,7 +14,7 @@ except ImportError:
 # --- Configuration & Utility Functions ---
 DB_FILE = "brainhair.db"
 FRESHSERVICE_DOMAIN = "integotecllc.freshservice.com"
-MAX_RETRIES = 3 # Max number of retries for a single API call
+MAX_RETRIES = 3
 
 def get_db_connection(db_path, password):
     if not password: raise ValueError("A database password is required.")
@@ -80,7 +80,7 @@ def get_time_entries_for_ticket(base_url, headers, ticket_id, start_date, end_da
                 continue
 
             if response.status_code == 404:
-                return 0 # No time entries for this ticket
+                return 0
 
             response.raise_for_status()
             data = response.json()
@@ -88,13 +88,12 @@ def get_time_entries_for_ticket(base_url, headers, ticket_id, start_date, end_da
 
             for entry in time_entries:
                 entry_created_at = datetime.fromisoformat(entry['created_at'].replace('Z', '+00:00'))
-                # CORRECTED: Filter time entries to be within the specified date range
                 if start_date <= entry_created_at <= end_date:
                     time_str = entry.get('time_spent', '00:00')
                     h, m = map(int, time_str.split(':'))
                     total_hours += h + (m / 60.0)
 
-            return total_hours # Success, exit retry loop
+            return total_hours
 
         except requests.exceptions.RequestException as e:
             print(f"  -> WARN: Could not fetch time for ticket {ticket_id}: {e}", file=sys.stderr)
@@ -165,12 +164,18 @@ if __name__ == "__main__":
 
             if total_hours > 0:
                 print(f"  -> Found {total_hours:.2f} hours for Ticket #{ticket_id} ('{company_info['name']}')")
+
+                # CORRECTED LOGIC: Check status and use updated_at if closed
+                closed_date = None
+                if ticket.get('status') == 5:
+                    closed_date = ticket.get('updated_at')
+
                 ticket_details_to_insert.append((
                     ticket_id,
                     account_number,
                     ticket.get('subject', 'No Subject'),
                     ticket.get('updated_at'),
-                    ticket.get('closed_at'),
+                    closed_date,
                     total_hours
                 ))
 

@@ -21,6 +21,52 @@ app = Flask(__name__)
 app.secret_key = os.urandom(24)
 scheduler = BackgroundScheduler()
 
+# --- Helper Function for Template ---
+def humanize_time(dt_str):
+    """Converts an ISO 8601 string to a human-readable relative time."""
+    if not dt_str:
+        return "N/A"
+    try:
+        # Handle timezone-aware strings
+        dt = datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
+    except (ValueError, TypeError):
+        return dt_str # Return original string if parsing fails
+
+    now = datetime.now(timezone.utc)
+    delta = now - dt
+
+    if delta.days > 0:
+        return f"{delta.days}d ago"
+    elif delta.seconds >= 3600:
+        return f"{delta.seconds // 3600}h ago"
+    elif delta.seconds >= 60:
+        return f"{delta.seconds // 60}m ago"
+    else:
+        return "Just now"
+
+def days_old(dt_str):
+    """Calculates how many days old a ticket is."""
+    if not dt_str:
+        return "N/A"
+    try:
+        dt = datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
+    except (ValueError, TypeError):
+        return ""
+
+    now = datetime.now(timezone.utc)
+    delta = now - dt
+    if delta.days == 0:
+        return "Today"
+    elif delta.days == 1:
+        return "1 day old"
+    else:
+        return f"{delta.days} days old"
+
+# CORRECTED: Register the custom filters with the Jinja2 environment
+app.jinja_env.filters['humanize'] = humanize_time
+app.jinja_env.filters['days_old'] = days_old
+
+
 # --- Database Functions ---
 def get_db_connection(password):
     if not password: raise ValueError("A database password is required.")
@@ -177,7 +223,6 @@ def billing_dashboard():
                     COUNT(DISTINCT u.id) as user_count,
                     COALESCE(mh.total_hours, 0) as total_hours,
 
-                    -- CORRECTED: Use COALESCE to provide a 0.0 default if a plan is missing
                     CASE WHEN override.override_enabled = 1 THEN override.network_management_fee ELSE COALESCE(defaults.network_management_fee, 0.0) END as final_nmf,
                     CASE WHEN override.override_enabled = 1 THEN override.per_user_cost ELSE COALESCE(defaults.per_user_cost, 0.0) END as final_user_cost,
                     CASE WHEN override.override_enabled = 1 THEN override.per_server_cost ELSE COALESCE(defaults.per_server_cost, 0.0) END as final_server_cost,
