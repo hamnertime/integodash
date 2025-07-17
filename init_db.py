@@ -55,7 +55,7 @@ def create_database():
         cur.execute("CREATE TABLE IF NOT EXISTS companies (account_number TEXT PRIMARY KEY, name TEXT UNIQUE, freshservice_id INTEGER UNIQUE, contract_type TEXT, billing_plan TEXT, status TEXT)")
         cur.execute("CREATE TABLE IF NOT EXISTS assets (id INTEGER PRIMARY KEY, company_account_number TEXT, datto_uid TEXT UNIQUE, hostname TEXT, friendly_name TEXT, device_type TEXT, status TEXT, date_added TEXT, operating_system TEXT, FOREIGN KEY (company_account_number) REFERENCES companies (account_number))")
         cur.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, company_account_number TEXT, freshservice_id INTEGER UNIQUE, full_name TEXT, email TEXT UNIQUE, status TEXT, date_added TEXT, FOREIGN KEY (company_account_number) REFERENCES companies (account_number))")
-        cur.execute("CREATE TABLE IF NOT EXISTS billing_plans (contract_type TEXT, billing_plan TEXT, billed_by TEXT, base_price REAL, per_user_cost REAL, per_server_cost REAL, per_workstation_cost REAL, PRIMARY KEY (contract_type, billing_plan))")
+        cur.execute("CREATE TABLE IF NOT EXISTS billing_plans (id INTEGER PRIMARY KEY AUTOINCREMENT, company_account_number TEXT, billing_plan TEXT, billed_by TEXT, base_price REAL, per_user_cost REAL, per_server_cost REAL, per_workstation_cost REAL, override_enabled BOOLEAN DEFAULT 0, UNIQUE (company_account_number, billing_plan), FOREIGN KEY (company_account_number) REFERENCES companies (account_number))")
         cur.execute("CREATE TABLE IF NOT EXISTS billing_events (id INTEGER PRIMARY KEY, company_account_number TEXT, event_date TEXT, description TEXT, notes TEXT, FOREIGN KEY (company_account_number) REFERENCES companies (account_number))")
         cur.execute("CREATE TABLE IF NOT EXISTS ticket_work_hours (company_account_number TEXT, month TEXT, hours REAL, PRIMARY KEY (company_account_number, month), FOREIGN KEY (company_account_number) REFERENCES companies (account_number))")
 
@@ -89,6 +89,22 @@ def create_database():
             INSERT INTO scheduler_jobs (job_name, script_path, interval_minutes, enabled)
             VALUES (?, ?, ?, ?)
         """, default_jobs)
+
+        print("Populating default billing plans based on your client list...")
+        default_billing_plans = [
+            # Plan Name, Billed By, Base Price, Per User, Per Server, Per Workstation
+            (None, 'MSP Basic', 'Per Device', 50.00, 10.00, 40.00, 20.00, 0),
+            (None, 'MSP Advanced', 'Per Device', 75.00, 15.00, 50.00, 25.00, 0),
+            (None, 'MSP Premium', 'Per Device', 100.00, 20.00, 60.00, 30.00, 0),
+            (None, 'MSP Platinum', 'Per User', 150.00, 50.00, 0.00, 0.00, 0),
+            (None, 'MSP Legacy', 'Per Device', 40.00, 5.00, 30.00, 15.00, 0),
+            (None, 'MSP Network Essentials', 'Per Device', 25.00, 0.00, 0.00, 10.00, 0),
+            (None, 'Break Fix', 'Per Device', 0.00, 0.00, 0.00, 0.00, 0),
+            (None, 'Pro Services', 'Per Device', 0.00, 0.00, 0.00, 0.00, 0)
+        ]
+
+        cur.executemany("INSERT INTO billing_plans (company_account_number, billing_plan, billed_by, base_price, per_user_cost, per_server_cost, per_workstation_cost, override_enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", default_billing_plans)
+
 
         con.commit()
         print(f"\n✅ Success! Encrypted database '{DB_FILE}' created and configured with default schedules.")

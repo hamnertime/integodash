@@ -196,15 +196,31 @@ def billing_dashboard():
                 COUNT(DISTINCT CASE WHEN a.operating_system LIKE '%Server%' THEN a.id END) as server_count,
                 COUNT(DISTINCT CASE WHEN a.operating_system NOT LIKE '%Server%' AND a.operating_system IS NOT NULL THEN a.id END) as workstation_count,
                 COUNT(DISTINCT u.id) as user_count,
-                COALESCE(bp.base_price, 0) as base_price,
-                COALESCE(bp.per_user_cost, 0) as per_user_cost,
-                COALESCE(bp.per_server_cost, 0) as per_server_cost,
-                COALESCE(bp.per_workstation_cost, 0) as per_workstation_cost,
-                COALESCE(bp.billed_by, 'Not Configured') as billed_by
+                CASE
+                    WHEN bp_client.override_enabled = 1 THEN bp_client.base_price
+                    ELSE COALESCE(bp_default.base_price, 0)
+                END as base_price,
+                CASE
+                    WHEN bp_client.override_enabled = 1 THEN bp_client.per_user_cost
+                    ELSE COALESCE(bp_default.per_user_cost, 0)
+                END as per_user_cost,
+                CASE
+                    WHEN bp_client.override_enabled = 1 THEN bp_client.per_server_cost
+                    ELSE COALESCE(bp_default.per_server_cost, 0)
+                END as per_server_cost,
+                CASE
+                    WHEN bp_client.override_enabled = 1 THEN bp_client.per_workstation_cost
+                    ELSE COALESCE(bp_default.per_workstation_cost, 0)
+                END as per_workstation_cost,
+                CASE
+                    WHEN bp_client.override_enabled = 1 THEN bp_client.billed_by
+                    ELSE COALESCE(bp_default.billed_by, 'Not Configured')
+                END as billed_by
             FROM companies c
             LEFT JOIN assets a ON c.account_number = a.company_account_number
             LEFT JOIN users u ON c.account_number = u.company_account_number
-            LEFT JOIN billing_plans bp ON c.contract_type = bp.contract_type AND c.billing_plan = bp.billing_plan
+            LEFT JOIN billing_plans bp_client ON c.account_number = bp_client.company_account_number AND c.billing_plan = bp_client.billing_plan
+            LEFT JOIN billing_plans bp_default ON bp_default.company_account_number IS NULL AND c.billing_plan = bp_default.billing_plan
             GROUP BY c.account_number ORDER BY c.name ASC;
         """
         clients_data = query_db(clients_query)
@@ -215,8 +231,8 @@ def billing_dashboard():
             if client_dict['billed_by'] == 'Per User':
                 total += client_dict['user_count'] * client_dict['per_user_cost']
             elif client_dict['billed_by'] == 'Per Device':
-                total += client_dict['workstation_count'] * client_dict['per_workstation_cost']
-                total += client_dict['server_count'] * client_dict['per_server_cost']
+                total += (client_dict['workstation_count'] * client_dict['per_workstation_cost'])
+                total += (client_dict['server_count'] * client_dict['per_server_cost'])
             client_dict['total_bill'] = total
             clients_with_totals.append(client_dict)
         return render_template('billing.html', clients=clients_with_totals)
@@ -226,17 +242,54 @@ def billing_dashboard():
         return redirect(url_for('login'))
 
 
-@app.route('/client/<account_number>')
+@app.route('/client/<account_number>', methods=['GET', 'POST'])
 def client_settings(account_number):
     try:
+        db = get_db()
+        if request.method == 'POST':
+            override_enabled = 1 if 'override_enabled' in request.form else 0
+            billed_by = request.form.get('billed_by')
+            base_price = float(request.form.get('base_price', 0))
+            per_user_cost = float(request.form.get('per_user_cost', 0))
+            per_server_cost = float(request.form.get('per_server_cost', 0))
+            per_workstation_cost = float(request.form.get('per_workstation_cost', 0))
+
+            client_info = query_db("SELECT billing_plan FROM companies WHERE account_number = ?", [account_number], one=True)
+
+            db.execute("""
+                INSERT OR REPLACE INTO billing_plans (company_account_number, billing_plan, billed_by, base_price, per_user_cost, per_server_cost, per_workstation_cost, override_enabled)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (account_number, client_info['billing_plan'], billed_by, base_price, per_user_cost, per_server_cost, per_workstation_cost, override_enabled))
+            db.commit()
+            flash("Client billing override saved successfully!", 'success')
+            return redirect(url_for('client_settings', account_number=account_number))
+
         client_info = query_db("SELECT * FROM companies WHERE account_number = ?", [account_number], one=True)
         if not client_info:
             flash(f"Client with account number {account_number} not found.", 'error')
             return redirect(url_for('billing_dashboard'))
+
+        # This query now gets the effective plan, whether it's the client's override or the default
+        billing_plan_query = """
+            SELECT
+                COALESCE(bp_client.billed_by, bp_default.billed_by, 'Per Device') as billed_by,
+                COALESCE(bp_client.base_price, bp_default.base_price, 0.0) as base_price,
+                COALESCE(bp_client.per_user_cost, bp_default.per_user_cost, 0.0) as per_user_cost,
+                COALESCE(bp_client.per_server_cost, bp_default.per_server_cost, 0.0) as per_server_cost,
+                COALESCE(bp_client.per_workstation_cost, bp_default.per_workstation_cost, 0.0) as per_workstation_cost,
+                bp_client.override_enabled as override_enabled
+            FROM companies c
+            LEFT JOIN billing_plans bp_client ON c.account_number = bp_client.company_account_number AND c.billing_plan = bp_client.billing_plan
+            LEFT JOIN billing_plans bp_default ON bp_default.company_account_number IS NULL AND c.billing_plan = bp_default.billing_plan
+            WHERE c.account_number = ?
+        """
+        billing_plan = query_db(billing_plan_query, [account_number], one=True)
+
         assets = query_db("SELECT * FROM assets WHERE company_account_number = ? ORDER BY hostname", [account_number])
         users = query_db("SELECT * FROM users WHERE company_account_number = ? ORDER BY full_name", [account_number])
         ticket_hours = query_db("SELECT * FROM ticket_work_hours WHERE company_account_number = ? ORDER BY month DESC", [account_number])
-        return render_template('client_settings.html', client=client_info, assets=assets, users=users, ticket_hours=ticket_hours)
+
+        return render_template('client_settings.html', client=client_info, assets=assets, users=users, ticket_hours=ticket_hours, billing_plan=billing_plan)
     except (ValueError, sqlite3.Error) as e:
         session.pop('db_password', None)
         flash(f"Database Error: {e}. Please log in again.", 'error')
@@ -247,21 +300,48 @@ def billing_settings():
     try:
         db = get_db()
         if request.method == 'POST':
-            plans_to_update = []
-            num_plans = len([key for key in request.form if key.startswith('billed_by_')])
-            for i in range(1, num_plans + 1):
-                plans_to_update.append((request.form.get(f'contract_type_{i}'), request.form.get(f'billing_plan_{i}'), request.form.get(f'billed_by_{i}'), float(request.form.get(f'base_price_{i}', 0)), float(request.form.get(f'per_user_cost_{i}', 0)), float(request.form.get(f'per_server_cost_{i}', 0)), float(request.form.get(f'per_workstation_cost_{i}', 0))))
-            db.executemany("INSERT OR REPLACE INTO billing_plans (contract_type, billing_plan, billed_by, base_price, per_user_cost, per_server_cost, per_workstation_cost) VALUES (?, ?, ?, ?, ?, ?, ?);", plans_to_update)
+            plan_id = request.form.get('id')
+            billing_plan_name = request.form.get('billing_plan')
+            billed_by = request.form.get('billed_by')
+            base_price = float(request.form.get('base_price', 0))
+            per_user_cost = float(request.form.get('per_user_cost', 0))
+            per_server_cost = float(request.form.get('per_server_cost', 0))
+            per_workstation_cost = float(request.form.get('per_workstation_cost', 0))
+
+            if plan_id: # Existing plan
+                db.execute("""
+                    UPDATE billing_plans SET billing_plan = ?, billed_by = ?, base_price = ?, per_user_cost = ?, per_server_cost = ?, per_workstation_cost = ?
+                    WHERE id = ? AND company_account_number IS NULL
+                """, (billing_plan_name, billed_by, base_price, per_user_cost, per_server_cost, per_workstation_cost, plan_id))
+            else: # New plan
+                 db.execute("""
+                    INSERT INTO billing_plans (company_account_number, billing_plan, billed_by, base_price, per_user_cost, per_server_cost, per_workstation_cost)
+                    VALUES (NULL, ?, ?, ?, ?, ?, ?)
+                """, (billing_plan_name, billed_by, base_price, per_user_cost, per_server_cost, per_workstation_cost))
+
             db.commit()
-            flash("Billing plan settings saved successfully!", 'success')
+            flash("Default billing plan settings saved successfully!", 'success')
             return redirect(url_for('billing_settings'))
-        all_plans = query_db("SELECT DISTINCT c.contract_type, c.billing_plan, COALESCE(bp.billed_by, 'Per Device') as billed_by, COALESCE(bp.base_price, 0.0) as base_price, COALESCE(bp.per_user_cost, 0.0) as per_user_cost, COALESCE(bp.per_server_cost, 0.0) as per_server_cost, COALESCE(bp.per_workstation_cost, 0.0) as per_workstation_cost FROM companies c LEFT JOIN billing_plans bp ON c.contract_type = bp.contract_type AND c.billing_plan = bp.billing_plan ORDER BY c.contract_type, c.billing_plan;")
+
+        default_plans = query_db("SELECT * FROM billing_plans WHERE company_account_number IS NULL ORDER BY billing_plan;")
         scheduler_jobs = query_db("SELECT * FROM scheduler_jobs ORDER BY id")
-        return render_template('settings.html', all_plans=all_plans, scheduler_jobs=scheduler_jobs)
+        return render_template('settings.html', all_plans=default_plans, scheduler_jobs=scheduler_jobs)
+
     except (ValueError, sqlite3.Error) as e:
         session.pop('db_password', None)
         flash(f"Database Error: {e}. Please log in again.", 'error')
         return redirect(url_for('login'))
+
+@app.route('/settings/plans/delete/<int:plan_id>', methods=['POST'])
+def delete_billing_plan(plan_id):
+    try:
+        db = get_db()
+        db.execute("DELETE FROM billing_plans WHERE id = ? AND company_account_number IS NULL", (plan_id,))
+        db.commit()
+        flash("Default billing plan deleted.", 'success')
+    except (ValueError, sqlite3.Error) as e:
+        flash(f"Error deleting plan: {e}", 'error')
+    return redirect(url_for('billing_settings'))
 
 @app.route('/settings/scheduler/update/<int:job_id>', methods=['POST'])
 def update_scheduler_job(job_id):
