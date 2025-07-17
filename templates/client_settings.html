@@ -13,20 +13,19 @@
         table { width: 100%; border-collapse: collapse; background-color: #ffffff; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 1em; margin-bottom: 20px; }
         th, td { border: 1px solid #ced4da; padding: 12px 15px; text-align: left; vertical-align: middle; }
         th { background-color: #e9ecef; font-weight: 600; }
-        tr:nth-child(even) { background-color: #f8f9fa; }
         .nav-link { display: block; text-align: center; margin-bottom: 30px; font-size: 1.1em; }
-        .grid-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 30px; }
+        .grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
         .info-card { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .info-card h3 { margin-top: 0; color: #0056b3; }
-        .info-card p { margin: 5px 0; }
-        .info-card strong { color: #343a40; }
         .billing-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; align-items: center; }
         .billing-form-grid label { font-weight: bold; }
-        .billing-form-grid input, .billing-form-grid select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .billing-form-grid input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
         .button-container { text-align: right; margin-top: 20px; }
-        .details-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-bottom: 20px; }
-        .details-grid > div { background-color: #f8f9fa; padding: 15px; border-radius: 5px; }
         .override-toggle { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; font-size: 1.1em; }
+        .receipt-table { width: 100%; }
+        .receipt-table td { border: none; padding: 8px 0; }
+        .receipt-table .label { text-align: left; }
+        .receipt-table .value { text-align: right; }
+        .receipt-table .total-row td { border-top: 2px solid #333; font-weight: bold; padding-top: 10px; }
     </style>
 </head>
 <body>
@@ -34,127 +33,71 @@
         <h1>{{ client.name }}</h1>
         <a href="/" class="nav-link">← Back to Dashboard</a>
 
-        <div class="info-card">
-            <h3>Client Overview</h3>
-            <div class="details-grid">
-                <div><strong>Account Number:</strong><br>{{ client.account_number }}</div>
-                <div><strong>Status:</strong><br>{{ client.status }}</div>
-                <div><strong>Assigned Plan:</strong><br>{{ client.billing_plan }}</div>
-                <div><strong>Total Users:</strong><br>{{ users|length }}</div>
-                <div><strong>Total Workstations:</strong><br>{{ assets|selectattr('device_type', 'ne', 'Server')|list|length }}</div>
-                <div><strong>Total Servers:</strong><br>{{ assets|selectattr('device_type', 'eq', 'Server')|list|length }}</div>
+        <div class="grid-container">
+            <div class="info-card">
+                <h3>Client Details</h3>
+                <p><strong>Account Number:</strong> {{ client.account_number }}</p>
+                <p><strong>Assigned Plan:</strong> {{ client.billing_plan }}</p>
+                <p><strong>Contract Term:</strong> {{ client.contract_term_length }}</p>
+                <p><strong>Contract Start:</strong> {{ client.contract_start_date }}</p>
+            </div>
+            <div class="info-card">
+                <h3>Billing Receipt</h3>
+                <table class="receipt-table">
+                    <tr><td class="label">Network Management Fee</td><td class="value">${{ "%.2f"|format(receipt_data.nmf) }}</td></tr>
+                    <tr><td class="label">User Cost ({{ user_count }} users × ${{ "%.2f"|format(effective_rates.puc) }})</td><td class="value">${{ "%.2f"|format(receipt_data.user_charge) }}</td></tr>
+                    <tr><td class="label">Workstation Cost ({{ workstation_count }} devices × ${{ "%.2f"|format(effective_rates.pwc) }})</td><td class="value">${{ "%.2f"|format(receipt_data.workstation_charge) }}</td></tr>
+                    <tr><td class="label">Server Cost ({{ server_count }} servers × ${{ "%.2f"|format(effective_rates.psc) }})</td><td class="value">${{ "%.2f"|format(receipt_data.server_charge) }}</td></tr>
+                    <tr class="total-row"><td class="label">Estimated Total</td><td class="value">${{ "%.2f"|format(receipt_data.total) }}</td></tr>
+                </table>
             </div>
         </div>
 
         <div class="info-card" style="margin-top: 20px;">
-            <h3>Billing Plan Settings</h3>
+            <h3>Billing Override Settings</h3>
             <form method="POST" action="{{ url_for('client_settings', account_number=client.account_number) }}">
                 <div class="override-toggle">
-                    <input type="checkbox" id="override_enabled" name="override_enabled" {% if billing_plan.override_enabled %}checked{% endif %}>
-                    <label for="override_enabled"><strong>Enable Billing Override for this Client</strong></label>
+                    <input type="checkbox" id="override_enabled" name="override_enabled" {% if plan_details.override_enabled %}checked{% endif %}>
+                    <label for="override_enabled"><strong>Enable Override</strong> (Use these values instead of the default)</label>
                 </div>
-                <p>When enabled, the values below will be used instead of the default settings for the <strong>{{ client.billing_plan }}</strong> plan.</p>
-
                 <div class="billing-form-grid">
                     <div>
-                        <label for="billed_by">Billed By</label>
-                        <select id="billed_by" name="billed_by">
-                            <option value="Per Device" {% if billing_plan.billed_by == 'Per Device' %}selected{% endif %}>Per Device</option>
-                            <option value="Per User" {% if billing_plan.billed_by == 'Per User' %}selected{% endif %}>Per User</option>
-                        </select>
-                    </div>
-                     <div>
-                        <label for="base_price">Base Price ($)</label>
-                        <input type="number" step="0.01" id="base_price" name="base_price" value="{{ '%.2f'|format(billing_plan.base_price) }}">
+                        <label>Network Management Fee</label>
+                        <input type="number" step="0.01" name="network_management_fee" value="{{ '%.2f'|format(plan_details.override_nmf or plan_details.default_nmf) }}">
                     </div>
                     <div>
-                        <label for="per_user_cost">Per User Cost ($)</label>
-                        <input type="number" step="0.01" id="per_user_cost" name="per_user_cost" value="{{ '%.2f'|format(billing_plan.per_user_cost) }}">
+                        <label>Per User Cost</label>
+                        <input type="number" step="0.01" name="per_user_cost" value="{{ '%.2f'|format(plan_details.override_puc or plan_details.default_puc) }}">
                     </div>
                     <div>
-                        <label for="per_workstation_cost">Per Workstation Cost ($)</label>
-                        <input type="number" step="0.01" id="per_workstation_cost" name="per_workstation_cost" value="{{ '%.2f'|format(billing_plan.per_workstation_cost) }}">
+                        <label>Per Workstation Cost</label>
+                        <input type="number" step="0.01" name="per_workstation_cost" value="{{ '%.2f'|format(plan_details.override_pwc or plan_details.default_pwc) }}">
                     </div>
                     <div>
-                        <label for="per_server_cost">Per Server Cost ($)</label>
-                        <input type="number" step="0.01" id="per_server_cost" name="per_server_cost" value="{{ '%.2f'|format(billing_plan.per_server_cost) }}">
+                        <label>Per Server Cost</label>
+                        <input type="number" step="0.01" name="per_server_cost" value="{{ '%.2f'|format(plan_details.override_psc or plan_details.default_psc) }}">
                     </div>
                 </div>
-                <div class="button-container">
-                    <button type="submit">Save Settings</button>
-                </div>
+                <div class="button-container"><button type="submit">Save Override Settings</button></div>
             </form>
         </div>
 
-
+        <h2>Tracked Assets & Users</h2>
         <div class="grid-container">
             <div>
-                <h2>Datto RMM Assets ({{ assets|length }})</h2>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Hostname</th>
-                            <th>Type</th>
-                            <th>OS</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for asset in assets %}
-                        <tr>
-                            <td>{{ asset.hostname }}</td>
-                            <td>{{ asset.device_type }}</td>
-                            <td>{{ asset.operating_system }}</td>
-                        </tr>
-                        {% else %}
-                        <tr><td colspan="3">No assets found.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                <h4>Datto RMM Assets ({{ assets|length }})</h4>
+                <table><thead><tr><th>Hostname</th><th>Type</th><th>OS</th></tr></thead><tbody>
+                    {% for asset in assets %}<tr><td>{{ asset.hostname }}</td><td>{{ asset.device_type }}</td><td>{{ asset.operating_system }}</td></tr>{% else %}<tr><td colspan="3">No assets found.</td></tr>{% endfor %}
+                </tbody></table>
             </div>
             <div>
-                <h2>Freshservice Users ({{ users|length }})</h2>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Full Name</th>
-                            <th>Email</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for user in users %}
-                        <tr>
-                            <td>{{ user.full_name }}</td>
-                            <td>{{ user.email }}</td>
-                            <td>{{ user.status }}</td>
-                        </tr>
-                        {% else %}
-                        <tr><td colspan="3">No users found.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                <h4>Freshservice Users ({{ users|length }})</h4>
+                <table><thead><tr><th>Full Name</th><th>Email</th><th>Status</th></tr></thead><tbody>
+                    {% for user in users %}<tr><td>{{ user.full_name }}</td><td>{{ user.email }}</td><td>{{ user.status }}</td></tr>{% else %}<tr><td colspan="3">No users found.</td></tr>{% endfor %}
+                </tbody></table>
             </div>
         </div>
 
-        <h2>Recent Billable Hours</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Month</th>
-                    <th>Total Hours</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for entry in ticket_hours %}
-                <tr>
-                    <td>{{ entry.month }}</td>
-                    <td>{{ "%.2f"|format(entry.hours) }}</td>
-                </tr>
-                {% else %}
-                <tr><td colspan="2">No recent time entries found.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
     </div>
 </body>
 </html>

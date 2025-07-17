@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from flask import Flask, render_template, g, request, redirect, url_for, flash, session, jsonify
 from apscheduler.schedulers.background import BackgroundScheduler
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 
 # Use the sqlcipher3 library provided by the wheels package
 try:
@@ -19,90 +19,38 @@ except ImportError:
 DATABASE = 'brainhair.db'
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
-
-# Initialize the scheduler, but DO NOT start it yet.
 scheduler = BackgroundScheduler()
-
-# --- Helper Function for Template ---
-def humanize_time(dt_str):
-    """Converts an ISO 8601 string to a human-readable relative time."""
-    if not dt_str:
-        return "N/A"
-    try:
-        dt = datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
-    except (ValueError, TypeError):
-        return dt_str
-
-    now = datetime.now(timezone.utc)
-    delta = now - dt
-
-    if delta.days > 0:
-        return f"{delta.days}d ago"
-    elif delta.seconds >= 3600:
-        return f"{delta.seconds // 3600}h ago"
-    elif delta.seconds >= 60:
-        return f"{delta.seconds // 60}m ago"
-    else:
-        return "Just now"
-
-def days_old(dt_str):
-    """Calculates how many days old a ticket is."""
-    if not dt_str:
-        return "N/A"
-    try:
-        dt = datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
-    except (ValueError, TypeError):
-        return ""
-
-    now = datetime.now(timezone.utc)
-    delta = now - dt
-    if delta.days == 0:
-        return "Today"
-    elif delta.days == 1:
-        return "1 day old"
-    else:
-        return f"{delta.days} days old"
-
-# Add the helpers to the Jinja2 environment
-app.jinja_env.filters['humanize'] = humanize_time
-app.jinja_env.filters['days_old'] = days_old
-
 
 # --- Database Functions ---
 def get_db_connection(password):
-    """Connects to the encrypted database with a provided password."""
-    if not password:
-        raise ValueError("A database password is required.")
+    if not password: raise ValueError("A database password is required.")
     con = sqlite3.connect(DATABASE, timeout=10)
-    cur = con.cursor()
-    cur.execute(f"PRAGMA key = '{password}';")
+    con.execute(f"PRAGMA key = '{password}';")
     con.row_factory = sqlite3.Row
     return con
 
 def get_db():
-    """Connects to the db for a web request, using the password from the session."""
-    db = getattr(g, '_database', None)
-    if db is None:
-        session_password = session.get('db_password')
-        if not session_password:
-            raise ValueError("Database password not found in session.")
-
+    if not hasattr(g, '_database'):
+        password = session.get('db_password')
+        if not password: raise ValueError("Database password not found in session.")
         try:
-            db = g._database = get_db_connection(session_password)
-            db.execute("SELECT name FROM sqlite_master WHERE type='table' LIMIT 1;")
+            g._database = get_db_connection(password)
+            g._database.execute("SELECT name FROM sqlite_master WHERE type='table' LIMIT 1;")
         except sqlite3.DatabaseError:
-            if hasattr(g, '_database') and g._database:
-                g._database.close()
             g._database = None
             raise ValueError("Invalid master password.")
-
-    return db
+    return g._database
 
 @app.teardown_appcontext
 def close_connection(exception):
     db = getattr(g, '_database', None)
-    if db is not None:
-        db.close()
+    if db is not None: db.close()
+
+def query_db(query, args=(), one=False):
+    cur = get_db().execute(query, args)
+    rv = cur.fetchall()
+    cur.close()
+    return (rv[0] if rv else None) if one else rv
 
 # --- Scheduler Functions ---
 def run_job(job_id, script_path, password):
@@ -163,84 +111,72 @@ def login():
         password_attempt = request.form.get('password')
         try:
             con = get_db_connection(password_attempt)
+
             if not scheduler.running:
                 print("--- First successful login. Starting background scheduler. ---")
                 try:
                     jobs = con.execute("SELECT id, script_path, interval_minutes FROM scheduler_jobs WHERE enabled = 1").fetchall()
                     for job in jobs:
-                        scheduler.add_job(run_job, 'interval', minutes=job['interval_minutes'], args=[job['id'], job['script_path'], password_attempt], id=str(job['id']), next_run_time=datetime.now() + timedelta(seconds=10))
+                        scheduler.add_job(
+                            run_job, 'interval',
+                            minutes=job['interval_minutes'],
+                            args=[job['id'], job['script_path'], password_attempt],
+                            id=str(job['id']),
+                            next_run_time=datetime.now() + timedelta(seconds=10)
+                        )
                     scheduler.start()
                     print("--- Scheduler Started ---")
                 except Exception as e:
                     flash(f"Warning: Could not start the background scheduler. Error: {e}", "error")
+
             con.close()
             session['db_password'] = password_attempt
             flash('Database unlocked successfully!', 'success')
             return redirect(url_for('billing_dashboard'))
         except (ValueError, sqlite3.Error):
             flash(f"Login failed: Invalid master password.", 'error')
-    return render_template('login.html')
 
-def query_db(query, args=(), one=False):
-    cur = get_db().execute(query, args)
-    rv = cur.fetchall()
-    cur.close()
-    return (rv[0] if rv else None) if one else rv
+    return render_template('login.html')
 
 @app.route('/')
 def billing_dashboard():
     try:
         clients_query = """
             SELECT
-                c.account_number, c.name, c.contract_type, c.billing_plan,
-                COUNT(DISTINCT CASE WHEN a.operating_system LIKE '%Server%' THEN a.id END) as server_count,
-                COUNT(DISTINCT CASE WHEN a.operating_system NOT LIKE '%Server%' AND a.operating_system IS NOT NULL THEN a.id END) as workstation_count,
+                c.account_number, c.name, c.billing_plan, c.contract_term_length,
+                COUNT(DISTINCT a.id) FILTER (WHERE a.device_type = 'Server') as server_count,
+                COUNT(DISTINCT a.id) FILTER (WHERE a.device_type != 'Server' OR a.device_type IS NULL) as workstation_count,
                 COUNT(DISTINCT u.id) as user_count,
-                CASE
-                    WHEN bp_client.override_enabled = 1 THEN bp_client.base_price
-                    ELSE COALESCE(bp_default.base_price, 0)
-                END as base_price,
-                CASE
-                    WHEN bp_client.override_enabled = 1 THEN bp_client.per_user_cost
-                    ELSE COALESCE(bp_default.per_user_cost, 0)
-                END as per_user_cost,
-                CASE
-                    WHEN bp_client.override_enabled = 1 THEN bp_client.per_server_cost
-                    ELSE COALESCE(bp_default.per_server_cost, 0)
-                END as per_server_cost,
-                CASE
-                    WHEN bp_client.override_enabled = 1 THEN bp_client.per_workstation_cost
-                    ELSE COALESCE(bp_default.per_workstation_cost, 0)
-                END as per_workstation_cost,
-                CASE
-                    WHEN bp_client.override_enabled = 1 THEN bp_client.billed_by
-                    ELSE COALESCE(bp_default.billed_by, 'Not Configured')
-                END as billed_by
+                COALESCE(override.override_enabled, 0) as override_enabled,
+
+                CASE WHEN override.override_enabled = 1 THEN override.network_management_fee ELSE defaults.network_management_fee END as final_nmf,
+                CASE WHEN override.override_enabled = 1 THEN override.per_user_cost ELSE defaults.per_user_cost END as final_user_cost,
+                CASE WHEN override.override_enabled = 1 THEN override.per_server_cost ELSE defaults.per_server_cost END as final_server_cost,
+                CASE WHEN override.override_enabled = 1 THEN override.per_workstation_cost ELSE defaults.per_workstation_cost END as final_workstation_cost
+
             FROM companies c
             LEFT JOIN assets a ON c.account_number = a.company_account_number
             LEFT JOIN users u ON c.account_number = u.company_account_number
-            LEFT JOIN billing_plans bp_client ON c.account_number = bp_client.company_account_number AND c.billing_plan = bp_client.billing_plan
-            LEFT JOIN billing_plans bp_default ON bp_default.company_account_number IS NULL AND c.billing_plan = bp_default.billing_plan
+            LEFT JOIN billing_plans defaults ON c.billing_plan = defaults.billing_plan AND c.contract_term_length = defaults.term_length
+            LEFT JOIN client_billing_overrides override ON c.account_number = override.company_account_number
             GROUP BY c.account_number ORDER BY c.name ASC;
         """
         clients_data = query_db(clients_query)
         clients_with_totals = []
         for client in clients_data:
             client_dict = dict(client)
-            total = client_dict['base_price']
-            if client_dict['billed_by'] == 'Per User':
-                total += client_dict['user_count'] * client_dict['per_user_cost']
-            elif client_dict['billed_by'] == 'Per Device':
-                total += (client_dict['workstation_count'] * client_dict['per_workstation_cost'])
-                total += (client_dict['server_count'] * client_dict['per_server_cost'])
+            total = (client_dict['final_nmf'] or 0) + \
+                    ((client_dict['user_count'] or 0) * (client_dict['final_user_cost'] or 0)) + \
+                    ((client_dict['server_count'] or 0) * (client_dict['final_server_cost'] or 0)) + \
+                    ((client_dict['workstation_count'] or 0) * (client_dict['final_workstation_cost'] or 0))
             client_dict['total_bill'] = total
             clients_with_totals.append(client_dict)
+
         return render_template('billing.html', clients=clients_with_totals)
     except (ValueError, sqlite3.Error) as e:
         session.pop('db_password', None)
         flash(f"Database Error: {e}. Please log in again.", 'error')
         return redirect(url_for('login'))
-
 
 @app.route('/client/<account_number>', methods=['GET', 'POST'])
 def client_settings(account_number):
@@ -248,48 +184,81 @@ def client_settings(account_number):
         db = get_db()
         if request.method == 'POST':
             override_enabled = 1 if 'override_enabled' in request.form else 0
-            billed_by = request.form.get('billed_by')
-            base_price = float(request.form.get('base_price', 0))
-            per_user_cost = float(request.form.get('per_user_cost', 0))
-            per_server_cost = float(request.form.get('per_server_cost', 0))
-            per_workstation_cost = float(request.form.get('per_workstation_cost', 0))
-
-            client_info = query_db("SELECT billing_plan FROM companies WHERE account_number = ?", [account_number], one=True)
+            nmf = float(request.form.get('network_management_fee', 0))
+            puc = float(request.form.get('per_user_cost', 0))
+            psc = float(request.form.get('per_server_cost', 0))
+            pwc = float(request.form.get('per_workstation_cost', 0))
 
             db.execute("""
-                INSERT OR REPLACE INTO billing_plans (company_account_number, billing_plan, billed_by, base_price, per_user_cost, per_server_cost, per_workstation_cost, override_enabled)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (account_number, client_info['billing_plan'], billed_by, base_price, per_user_cost, per_server_cost, per_workstation_cost, override_enabled))
+                INSERT INTO client_billing_overrides (company_account_number, network_management_fee, per_user_cost, per_server_cost, per_workstation_cost, override_enabled)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(company_account_number) DO UPDATE SET
+                    network_management_fee = excluded.network_management_fee,
+                    per_user_cost = excluded.per_user_cost,
+                    per_server_cost = excluded.per_server_cost,
+                    per_workstation_cost = excluded.per_workstation_cost,
+                    override_enabled = excluded.override_enabled;
+            """, (account_number, nmf, puc, psc, pwc, override_enabled))
             db.commit()
-            flash("Client billing override saved successfully!", 'success')
+            flash("Client billing settings saved successfully!", 'success')
             return redirect(url_for('client_settings', account_number=account_number))
 
         client_info = query_db("SELECT * FROM companies WHERE account_number = ?", [account_number], one=True)
         if not client_info:
-            flash(f"Client with account number {account_number} not found.", 'error')
+            flash(f"Client {account_number} not found.", 'error')
             return redirect(url_for('billing_dashboard'))
 
-        # This query now gets the effective plan, whether it's the client's override or the default
-        billing_plan_query = """
+        effective_plan_query = """
             SELECT
-                COALESCE(bp_client.billed_by, bp_default.billed_by, 'Per Device') as billed_by,
-                COALESCE(bp_client.base_price, bp_default.base_price, 0.0) as base_price,
-                COALESCE(bp_client.per_user_cost, bp_default.per_user_cost, 0.0) as per_user_cost,
-                COALESCE(bp_client.per_server_cost, bp_default.per_server_cost, 0.0) as per_server_cost,
-                COALESCE(bp_client.per_workstation_cost, bp_default.per_workstation_cost, 0.0) as per_workstation_cost,
-                bp_client.override_enabled as override_enabled
+                defaults.network_management_fee as default_nmf,
+                defaults.per_user_cost as default_puc,
+                defaults.per_server_cost as default_psc,
+                defaults.per_workstation_cost as default_pwc,
+                override.network_management_fee as override_nmf,
+                override.per_user_cost as override_puc,
+                override.per_server_cost as override_psc,
+                override.per_workstation_cost as override_pwc,
+                COALESCE(override.override_enabled, 0) as override_enabled
             FROM companies c
-            LEFT JOIN billing_plans bp_client ON c.account_number = bp_client.company_account_number AND c.billing_plan = bp_client.billing_plan
-            LEFT JOIN billing_plans bp_default ON bp_default.company_account_number IS NULL AND c.billing_plan = bp_default.billing_plan
+            LEFT JOIN billing_plans defaults ON c.billing_plan = defaults.billing_plan AND c.contract_term_length = defaults.term_length
+            LEFT JOIN client_billing_overrides override ON c.account_number = override.company_account_number
             WHERE c.account_number = ?
         """
-        billing_plan = query_db(billing_plan_query, [account_number], one=True)
+        plan_details = query_db(effective_plan_query, [account_number], one=True)
+
+        # Determine the final effective rates to use for the receipt
+        effective_rates = {
+            'nmf': plan_details['override_nmf'] if plan_details['override_enabled'] else plan_details['default_nmf'],
+            'puc': plan_details['override_puc'] if plan_details['override_enabled'] else plan_details['default_puc'],
+            'psc': plan_details['override_psc'] if plan_details['override_enabled'] else plan_details['default_psc'],
+            'pwc': plan_details['override_pwc'] if plan_details['override_enabled'] else plan_details['default_pwc']
+        }
 
         assets = query_db("SELECT * FROM assets WHERE company_account_number = ? ORDER BY hostname", [account_number])
         users = query_db("SELECT * FROM users WHERE company_account_number = ? ORDER BY full_name", [account_number])
-        ticket_hours = query_db("SELECT * FROM ticket_work_hours WHERE company_account_number = ? ORDER BY month DESC", [account_number])
 
-        return render_template('client_settings.html', client=client_info, assets=assets, users=users, ticket_hours=ticket_hours, billing_plan=billing_plan)
+        user_count = len(users)
+        server_count = sum(1 for asset in assets if asset['device_type'] == 'Server')
+        workstation_count = len(assets) - server_count
+
+        receipt_data = {
+            "nmf": effective_rates['nmf'],
+            "user_charge": user_count * effective_rates['puc'],
+            "server_charge": server_count * effective_rates['psc'],
+            "workstation_charge": workstation_count * effective_rates['pwc'],
+            "total": (effective_rates['nmf'] or 0) + (user_count * effective_rates['puc']) + (server_count * effective_rates['psc']) + (workstation_count * effective_rates['pwc'])
+        }
+
+        return render_template('client_settings.html',
+                               client=client_info,
+                               assets=assets,
+                               users=users,
+                               plan_details=plan_details,
+                               effective_rates=effective_rates,
+                               receipt_data=receipt_data,
+                               user_count=user_count,
+                               server_count=server_count,
+                               workstation_count=workstation_count)
     except (ValueError, sqlite3.Error) as e:
         session.pop('db_password', None)
         flash(f"Database Error: {e}. Please log in again.", 'error')
@@ -297,50 +266,67 @@ def client_settings(account_number):
 
 @app.route('/settings', methods=['GET', 'POST'])
 def billing_settings():
-    try:
-        db = get_db()
-        if request.method == 'POST':
-            plan_id = request.form.get('id')
-            billing_plan_name = request.form.get('billing_plan')
-            billed_by = request.form.get('billed_by')
-            base_price = float(request.form.get('base_price', 0))
-            per_user_cost = float(request.form.get('per_user_cost', 0))
-            per_server_cost = float(request.form.get('per_server_cost', 0))
-            per_workstation_cost = float(request.form.get('per_workstation_cost', 0))
-
-            if plan_id: # Existing plan
-                db.execute("""
-                    UPDATE billing_plans SET billing_plan = ?, billed_by = ?, base_price = ?, per_user_cost = ?, per_server_cost = ?, per_workstation_cost = ?
-                    WHERE id = ? AND company_account_number IS NULL
-                """, (billing_plan_name, billed_by, base_price, per_user_cost, per_server_cost, per_workstation_cost, plan_id))
-            else: # New plan
-                 db.execute("""
-                    INSERT INTO billing_plans (company_account_number, billing_plan, billed_by, base_price, per_user_cost, per_server_cost, per_workstation_cost)
-                    VALUES (NULL, ?, ?, ?, ?, ?, ?)
-                """, (billing_plan_name, billed_by, base_price, per_user_cost, per_server_cost, per_workstation_cost))
-
-            db.commit()
-            flash("Default billing plan settings saved successfully!", 'success')
-            return redirect(url_for('billing_settings'))
-
-        default_plans = query_db("SELECT * FROM billing_plans WHERE company_account_number IS NULL ORDER BY billing_plan;")
-        scheduler_jobs = query_db("SELECT * FROM scheduler_jobs ORDER BY id")
-        return render_template('settings.html', all_plans=default_plans, scheduler_jobs=scheduler_jobs)
-
-    except (ValueError, sqlite3.Error) as e:
-        session.pop('db_password', None)
-        flash(f"Database Error: {e}. Please log in again.", 'error')
-        return redirect(url_for('login'))
-
-@app.route('/settings/plans/delete/<int:plan_id>', methods=['POST'])
-def delete_billing_plan(plan_id):
-    try:
-        db = get_db()
-        db.execute("DELETE FROM billing_plans WHERE id = ? AND company_account_number IS NULL", (plan_id,))
+    db = get_db()
+    if request.method == 'POST':
+        plan_id = request.form.get('plan_id')
+        nmf = float(request.form.get('network_management_fee', 0))
+        puc = float(request.form.get('per_user_cost', 0))
+        psc = float(request.form.get('per_server_cost', 0))
+        pwc = float(request.form.get('per_workstation_cost', 0))
+        db.execute("""
+            UPDATE billing_plans SET
+                network_management_fee = ?, per_user_cost = ?, per_server_cost = ?, per_workstation_cost = ?
+            WHERE id = ?
+        """, (nmf, puc, psc, pwc, plan_id))
         db.commit()
-        flash("Default billing plan deleted.", 'success')
-    except (ValueError, sqlite3.Error) as e:
-        flash(f"Error deleting plan: {e}", 'error')
+        flash("Default plan updated successfully!", 'success')
+        return redirect(url_for('billing_settings'))
+
+    all_plans_raw = query_db("SELECT * FROM billing_plans ORDER BY billing_plan, term_length")
+    grouped_plans = OrderedDict()
+    for plan in all_plans_raw:
+        if plan['billing_plan'] not in grouped_plans:
+            grouped_plans[plan['billing_plan']] = []
+        grouped_plans[plan['billing_plan']].append(plan)
+
+    scheduler_jobs = query_db("SELECT * FROM scheduler_jobs ORDER BY id")
+    return render_template('settings.html', grouped_plans=grouped_plans, scheduler_jobs=scheduler_jobs)
+
+@app.route('/settings/plan/add', methods=['POST'])
+def add_billing_plan():
+    db = get_db()
+    plan_name = request.form.get('new_plan_name')
+    if not plan_name:
+        flash("New plan name cannot be empty.", 'error')
+        return redirect(url_for('billing_settings'))
+
+    existing = query_db("SELECT 1 FROM billing_plans WHERE billing_plan = ?", [plan_name], one=True)
+    if existing:
+        flash(f"A plan named '{plan_name}' already exists.", 'error')
+        return redirect(url_for('billing_settings'))
+
+    terms = ["Month to Month", "1-Year", "2-Year", "3-Year"]
+    new_plan_entries = [(plan_name, term, 0, 0, 0, 0) for term in terms]
+
+    db.executemany("""
+        INSERT INTO billing_plans (billing_plan, term_length, network_management_fee, per_user_cost, per_server_cost, per_workstation_cost)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, new_plan_entries)
+    db.commit()
+    flash(f"New billing plan '{plan_name}' added successfully.", 'success')
+    return redirect(url_for('billing_settings'))
+
+@app.route('/settings/plan/delete', methods=['POST'])
+def delete_billing_plan_group():
+    db = get_db()
+    plan_name = request.form.get('plan_name_to_delete')
+    if not plan_name:
+        flash("Invalid request to delete a plan.", 'error')
+        return redirect(url_for('billing_settings'))
+
+    db.execute("DELETE FROM billing_plans WHERE billing_plan = ?", [plan_name])
+    db.commit()
+    flash(f"Billing plan '{plan_name}' and all its terms have been deleted.", 'success')
     return redirect(url_for('billing_settings'))
 
 @app.route('/settings/scheduler/update/<int:job_id>', methods=['POST'])
@@ -362,17 +348,28 @@ def run_now(job_id):
     if not password:
         flash("Session expired. Please log in again.", 'error')
         return redirect(url_for('login'))
+
     try:
         con = get_db_connection(password)
         job = con.execute("SELECT script_path FROM scheduler_jobs WHERE id = ?", (job_id,)).fetchone()
         con.close()
-        if job:
-            app.apscheduler.add_job(run_job, args=[job_id, job['script_path'], password], id=f"manual_run_{job_id}_{time.time()}")
+
+        if job and scheduler.running:
+            scheduler.add_job(
+                run_job,
+                args=[job_id, job['script_path'], password],
+                id=f"manual_run_{job_id}_{time.time()}",
+                misfire_grace_time=None,
+                coalesce=False
+            )
             flash(f"Job '{job['script_path']}' has been triggered to run now.", 'success')
+        elif not scheduler.running:
+             flash("Cannot run job: Scheduler is not running.", 'error')
         else:
             flash(f"Job ID {job_id} not found.", 'error')
     except Exception as e:
         flash(f"Failed to trigger job: {e}", 'error')
+
     return redirect(url_for('billing_settings'))
 
 @app.route('/scheduler/log/<int:job_id>')
@@ -384,25 +381,24 @@ def get_log(job_id):
             return jsonify({'log': log['last_run_log']})
         else:
             return jsonify({'log': 'No log found for this job yet.'})
-    except (ValueError, sqlite3.Error) as e:
+    except (ValueError, sqlite3.Error):
         return jsonify({'log': 'Error: Could not access database. Please log in again.'}), 500
 
-# --- Main Execution Block ---
+
 if __name__ == '__main__':
-    if not (os.path.exists('cert.pem') and os.path.exists('key.pem')):
-        print("Error: SSL certificate not found. Run 'python generate_cert.py' first.", file=sys.stderr)
-        sys.exit(1)
     if not os.path.exists(DATABASE):
-        print(f"Error: Database '{DATABASE}' not found. Run 'python init_db.py' first.", file=sys.stderr)
+        print(f"Database not found at '{DATABASE}'. Run 'python init_db.py' first.", file=sys.stderr)
         sys.exit(1)
 
     app.apscheduler = scheduler
     print("--- Starting Flask Web Server ---")
     print("--- Background scheduler will start after first successful login. ---")
+
     try:
-        app.run(debug=False, host='0.0.0.0', port=5002, ssl_context=('cert.pem', 'key.pem'))
+        app.run(debug=True, host='0.0.0.0', port=5002, ssl_context='adhoc')
     except KeyboardInterrupt:
-        print("\n--- Shutting down web server and scheduler ---")
+        print("\n--- Shutting down web server... ---")
     finally:
         if scheduler.running:
+            print("--- Shutting down scheduler... ---")
             scheduler.shutdown()
