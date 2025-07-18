@@ -215,31 +215,41 @@ def billing_dashboard():
                 FROM ticket_details
                 GROUP BY company_account_number
             ),
-            client_calcs AS (
+            asset_counts AS (
                 SELECT
-                    c.account_number, c.name, c.billing_plan, c.contract_term_length,
-                    COUNT(DISTINCT a.id) FILTER (WHERE a.device_type = 'Server') as server_count,
-                    COUNT(DISTINCT a.id) FILTER (WHERE a.device_type != 'Server' OR a.device_type IS NULL) as workstation_count,
-                    COUNT(DISTINCT u.id) as user_count,
-                    COALESCE(mh.total_hours, 0) as total_hours,
-
-                    CASE WHEN override.override_enabled = 1 THEN override.network_management_fee ELSE COALESCE(defaults.network_management_fee, 0.0) END as final_nmf,
-                    CASE WHEN override.override_enabled = 1 THEN override.per_user_cost ELSE COALESCE(defaults.per_user_cost, 0.0) END as final_user_cost,
-                    CASE WHEN override.override_enabled = 1 THEN override.per_server_cost ELSE COALESCE(defaults.per_server_cost, 0.0) END as final_server_cost,
-                    CASE WHEN override.override_enabled = 1 THEN override.per_workstation_cost ELSE COALESCE(defaults.per_workstation_cost, 0.0) END as final_workstation_cost
-
-                FROM companies c
-                LEFT JOIN assets a ON c.account_number = a.company_account_number
-                LEFT JOIN users u ON c.account_number = u.company_account_number
-                LEFT JOIN monthly_hours mh ON c.account_number = mh.company_account_number
-                LEFT JOIN billing_plans defaults ON c.billing_plan = defaults.billing_plan AND c.contract_term_length = defaults.term_length
-                LEFT JOIN client_billing_overrides override ON c.account_number = override.company_account_number
-                GROUP BY c.account_number
+                    company_account_number,
+                    COUNT(id) FILTER (WHERE device_type = 'Server') as server_count,
+                    COUNT(id) FILTER (WHERE device_type != 'Server' OR device_type IS NULL) as workstation_count
+                FROM assets
+                GROUP BY company_account_number
+            ),
+            user_counts AS (
+                SELECT
+                    company_account_number,
+                    COUNT(id) as user_count
+                FROM users
+                GROUP BY company_account_number
             )
             SELECT
-                *,
-                (final_nmf or 0) + (user_count * (final_user_cost or 0)) + (server_count * (final_server_cost or 0)) + (workstation_count * (final_workstation_cost or 0)) as total_bill
-            FROM client_calcs
+                c.account_number,
+                c.name,
+                c.billing_plan,
+                COALESCE(ac.workstation_count, 0) as workstation_count,
+                COALESCE(ac.server_count, 0) as server_count,
+                COALESCE(uc.user_count, 0) as user_count,
+                COALESCE(mh.total_hours, 0) as total_hours,
+                (
+                    (CASE WHEN override.override_enabled = 1 THEN override.network_management_fee ELSE COALESCE(defaults.network_management_fee, 0.0) END) +
+                    (COALESCE(uc.user_count, 0) * (CASE WHEN override.override_enabled = 1 THEN override.per_user_cost ELSE COALESCE(defaults.per_user_cost, 0.0) END)) +
+                    (COALESCE(ac.server_count, 0) * (CASE WHEN override.override_enabled = 1 THEN override.per_server_cost ELSE COALESCE(defaults.per_server_cost, 0.0) END)) +
+                    (COALESCE(ac.workstation_count, 0) * (CASE WHEN override.override_enabled = 1 THEN override.per_workstation_cost ELSE COALESCE(defaults.per_workstation_cost, 0.0) END))
+                ) as total_bill
+            FROM companies c
+            LEFT JOIN asset_counts ac ON c.account_number = ac.company_account_number
+            LEFT JOIN user_counts uc ON c.account_number = uc.company_account_number
+            LEFT JOIN monthly_hours mh ON c.account_number = mh.company_account_number
+            LEFT JOIN billing_plans defaults ON c.billing_plan = defaults.billing_plan AND c.contract_term_length = defaults.term_length
+            LEFT JOIN client_billing_overrides override ON c.account_number = override.company_account_number
             {order_by_clause};
         """
 
