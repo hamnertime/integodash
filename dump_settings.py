@@ -25,7 +25,6 @@ def dump_billing_plans(password):
         cur = con.cursor()
         cur.execute(f"PRAGMA key = '{password}';")
 
-        # Test the connection with a simple query before proceeding
         cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='billing_plans';")
         if cur.fetchone() is None:
             print("Error: 'billing_plans' table not found. Is the database initialized correctly?", file=sys.stderr)
@@ -33,7 +32,7 @@ def dump_billing_plans(password):
 
         print("\nReading default billing plans from the database...")
 
-        # Query to select only the default plans
+        # CORRECTED: Removed the unnecessary WHERE clause
         cur.execute("""
             SELECT
                 billing_plan,
@@ -43,7 +42,6 @@ def dump_billing_plans(password):
                 per_server_cost,
                 per_workstation_cost
             FROM billing_plans
-            WHERE company_account_number IS NULL
             ORDER BY billing_plan, term_length
         """)
 
@@ -55,16 +53,12 @@ def dump_billing_plans(password):
 
         print("\n--- Copy the following Python list into your init_db.py script ---")
 
-        # Start printing the list
         print("\ndefault_plans_data = [")
 
-        # Format and print each row as a tuple
         for plan in plans:
-            # Unpack the tuple for clarity
             (billing_plan, term, nmf, puc, psc, pwc) = plan
             print(f"    ('{billing_plan}', '{term}', {nmf:.2f}, {puc:.2f}, {psc:.2f}, {pwc:.2f}),")
 
-        # End the list
         print("]")
         print("\n--- End of list ---")
 
@@ -79,7 +73,6 @@ def dump_billing_plans(password):
 if __name__ == "__main__":
     print("--- Billing Plan Settings Dumper ---")
 
-    # Prompt for password
     master_password = getpass.getpass("Enter the master password for the database: ")
     if not master_password:
         print("Error: Master password cannot be empty.", file=sys.stderr)
