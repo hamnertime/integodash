@@ -194,7 +194,9 @@ def billing_dashboard():
             'name': 'name',
             'billing_plan': 'billing_plan',
             'workstations': 'workstation_count',
-            'servers': 'server_count',
+            'hosts': 'host_count',
+            'vms': 'vm_count',
+            'backup': 'total_backup_bytes',
             'users': 'user_count',
             'hours': 'total_hours',
             'bill': 'total_bill'
@@ -218,9 +220,9 @@ def billing_dashboard():
             asset_counts AS (
                 SELECT
                     company_account_number,
-                    COUNT(id) FILTER (WHERE device_type = 'Server' AND server_type = 'Host') as host_count,
-                    COUNT(id) FILTER (WHERE device_type = 'Server' AND server_type = 'VM') as vm_count,
-                    COUNT(id) FILTER (WHERE device_type != 'Server' OR device_type IS NULL) as workstation_count,
+                    COUNT(id) FILTER (WHERE server_type = 'Host') as host_count,
+                    COUNT(id) FILTER (WHERE server_type = 'VM') as vm_count,
+                    COUNT(id) FILTER (WHERE server_type = 'Computer' OR server_type IS NULL) as workstation_count,
                     SUM(backup_data_bytes) as total_backup_bytes
                 FROM assets
                 GROUP BY company_account_number
@@ -237,7 +239,9 @@ def billing_dashboard():
                 c.name,
                 c.billing_plan,
                 COALESCE(ac.workstation_count, 0) as workstation_count,
-                COALESCE(ac.host_count, 0) + COALESCE(ac.vm_count, 0) as server_count,
+                COALESCE(ac.host_count, 0) as host_count,
+                COALESCE(ac.vm_count, 0) as vm_count,
+                COALESCE(ac.total_backup_bytes, 0) as total_backup_bytes,
                 COALESCE(uc.user_count, 0) as user_count,
                 COALESCE(mh.total_hours, 0) as total_hours,
                 (
