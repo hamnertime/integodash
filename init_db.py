@@ -17,34 +17,34 @@ DB_FILE = "brainhair.db"
 # This list contains the default billing rates for all plans and terms.
 # You can customize these values before running the script for the first time.
 default_plans_data = [
-    ('Break Fix', '1-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 30.00, 1.0, 15.00),
-    ('Break Fix', '2-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 30.00, 1.0, 15.00),
-    ('Break Fix', '3-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 30.00, 1.0, 15.00),
-    ('Break Fix', 'Month to Month', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 30.00, 1.0, 15.00),
-    ('MSP Advanced', '1-Year', 0.00, 0.00, 25.00, 25.00, 0.00, 0.00, 30.00, 1.0, 15.00),
-    ('MSP Advanced', '2-Year', 0.00, 0.00, 25.00, 25.00, 0.00, 0.00, 30.00, 1.0, 15.00),
-    ('MSP Advanced', '3-Year', 0.00, 0.00, 25.00, 25.00, 0.00, 0.00, 30.00, 1.0, 15.00),
-    ('MSP Advanced', 'Month to Month', 0.00, 0.00, 25.00, 25.00, 0.00, 0.00, 30.00, 1.0, 15.00),
-    ('MSP Basic', '1-Year', 0.00, 0.00, 10.00, 10.00, 0.00, 0.00, 30.00, 1.0, 15.00),
-    ('MSP Basic', '2-Year', 0.00, 0.00, 10.00, 10.00, 0.00, 0.00, 30.00, 1.0, 15.00),
-    ('MSP Basic', '3-Year', 0.00, 0.00, 10.00, 10.00, 0.00, 0.00, 30.00, 1.0, 15.00),
-    ('MSP Basic', 'Month to Month', 0.00, 0.00, 10.00, 10.00, 0.00, 0.00, 30.00, 1.0, 15.00),
-    ('MSP Legacy', '1-Year', 100.00, 10.00, 50.00, 25.00, 0.00, 0.00, 30.00, 1.0, 15.00),
-    ('MSP Legacy', '2-Year', 100.00, 9.50, 50.00, 23.75, 0.00, 0.00, 30.00, 1.0, 15.00),
-    ('MSP Legacy', '3-Year', 100.00, 9.00, 50.00, 22.50, 0.00, 0.00, 30.00, 1.0, 15.00),
-    ('MSP Legacy', 'Month to Month', 100.00, 10.00, 50.00, 25.00, 0.00, 0.00, 30.00, 1.0, 15.00),
-    ('MSP Platinum', '1-Year', 0.00, 120.00, 0.00, 0.00, 0.00, 0.00, 30.00, 1.0, 15.00),
-    ('MSP Platinum', '2-Year', 0.00, 115.00, 0.00, 0.00, 0.00, 0.00, 30.00, 1.0, 15.00),
-    ('MSP Platinum', '3-Year', 0.00, 110.00, 0.00, 0.00, 0.00, 0.00, 30.00, 1.0, 15.00),
-    ('MSP Platinum', 'Month to Month', 0.00, 125.00, 0.00, 0.00, 0.00, 0.00, 30.00, 1.0, 15.00),
-    ('MSP Premium', '1-Year', 0.00, 95.00, 0.00, 0.00, 0.00, 0.00, 30.00, 1.0, 15.00),
-    ('MSP Premium', '2-Year', 0.00, 90.00, 0.00, 0.00, 0.00, 0.00, 30.00, 1.0, 15.00),
-    ('MSP Premium', '3-Year', 0.00, 85.00, 0.00, 0.00, 0.00, 0.00, 30.00, 1.0, 15.00),
-    ('MSP Premium', 'Month to Month', 0.00, 100.00, 0.00, 0.00, 0.00, 0.00, 30.00, 1.0, 15.00),
-    ('Pro Services', '1-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 30.00, 1.0, 15.00),
-    ('Pro Services', '2-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 30.00, 1.0, 15.00),
-    ('Pro Services', '3-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 30.00, 1.0, 15.00),
-    ('Pro Services', 'Month to Month', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 30.00, 1.0, 15.00),
+    ('Break Fix', '1-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('Break Fix', '2-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('Break Fix', '3-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('Break Fix', 'Month to Month', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Advanced', '1-Year', 0.00, 0.00, 25.00, 25.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Advanced', '2-Year', 0.00, 0.00, 25.00, 25.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Advanced', '3-Year', 0.00, 0.00, 25.00, 25.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Advanced', 'Month to Month', 0.00, 0.00, 25.00, 25.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Basic', '1-Year', 0.00, 0.00, 10.00, 10.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Basic', '2-Year', 0.00, 0.00, 10.00, 10.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Basic', '3-Year', 0.00, 0.00, 10.00, 10.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Basic', 'Month to Month', 0.00, 0.00, 10.00, 10.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Legacy', '1-Year', 100.00, 10.00, 50.00, 25.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Legacy', '2-Year', 100.00, 9.50, 50.00, 23.75, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Legacy', '3-Year', 100.00, 9.00, 50.00, 22.50, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Legacy', 'Month to Month', 100.00, 10.00, 50.00, 25.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Platinum', '1-Year', 0.00, 120.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Platinum', '2-Year', 0.00, 115.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Platinum', '3-Year', 0.00, 110.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Platinum', 'Month to Month', 0.00, 125.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Premium', '1-Year', 0.00, 95.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Premium', '2-Year', 0.00, 90.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Premium', '3-Year', 0.00, 85.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Premium', 'Month to Month', 0.00, 100.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('Pro Services', '1-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('Pro Services', '2-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('Pro Services', '3-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('Pro Services', 'Month to Month', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
 ]
 
 
@@ -114,7 +114,8 @@ def create_database():
                 per_workstation_cost REAL DEFAULT 0,
                 per_host_cost REAL DEFAULT 0,
                 per_vm_cost REAL DEFAULT 0,
-                backup_base_fee REAL DEFAULT 0,
+                backup_base_fee_workstation REAL DEFAULT 25,
+                backup_base_fee_server REAL DEFAULT 50,
                 backup_included_tb REAL DEFAULT 1,
                 backup_per_tb_fee REAL DEFAULT 15,
                 UNIQUE (billing_plan, term_length)
@@ -131,7 +132,8 @@ def create_database():
                 per_workstation_cost REAL,
                 per_host_cost REAL,
                 per_vm_cost REAL,
-                backup_base_fee REAL,
+                backup_base_fee_workstation REAL,
+                backup_base_fee_server REAL,
                 backup_included_tb REAL,
                 backup_per_tb_fee REAL,
                 override_enabled BOOLEAN DEFAULT 0,
@@ -185,8 +187,8 @@ def create_database():
 
         print("Populating default billing plans...")
         cur.executemany("""
-            INSERT INTO billing_plans (billing_plan, term_length, network_management_fee, per_user_cost, per_server_cost, per_workstation_cost, per_host_cost, per_vm_cost, backup_base_fee, backup_included_tb, backup_per_tb_fee)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO billing_plans (billing_plan, term_length, network_management_fee, per_user_cost, per_server_cost, per_workstation_cost, per_host_cost, per_vm_cost, backup_base_fee_workstation, backup_base_fee_server, backup_included_tb, backup_per_tb_fee)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, default_plans_data)
 
         con.commit()

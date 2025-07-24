@@ -26,6 +26,7 @@
         .receipt-table .label { text-align: left; }
         .receipt-table .value { text-align: right; }
         .receipt-table .total-row td { border-top: 2px solid #333; font-weight: bold; padding-top: 10px; }
+        .backup-breakdown { padding-left: 20px; font-size: 0.9em; color: #555; }
     </style>
 </head>
 <body>
@@ -49,7 +50,12 @@
                     <tr><td class="label">Workstation Cost ({{ workstation_count }} devices × ${{ "%.2f"|format(effective_rates.pwc) }})</td><td class="value">${{ "%.2f"|format(receipt_data.workstation_charge) }}</td></tr>
                     <tr><td class="label">Host Cost ({{ host_count }} hosts × ${{ "%.2f"|format(effective_rates.phc) }})</td><td class="value">${{ "%.2f"|format(receipt_data.host_charge) }}</td></tr>
                     <tr><td class="label">VM Cost ({{ vm_count }} VMs × ${{ "%.2f"|format(effective_rates.pvc) }})</td><td class="value">${{ "%.2f"|format(receipt_data.vm_charge) }}</td></tr>
-                    <tr><td class="label">Backup Charge ({{ "%.2f"|format(total_backup_tb) }} TB)</td><td class="value">${{ "%.2f"|format(receipt_data.backup_charge) }}</td></tr>
+                    <tr><td class="label"><strong>Backup Charge</strong></td><td class="value"><strong>${{ "%.2f"|format(receipt_data.backup_charge) }}</strong></td></tr>
+                    <tr class="backup-breakdown"><td class="label">Workstation Backup Base Fee ({{ backed_up_workstations }} devices × ${{ "%.2f"|format(effective_rates.bbfw) }})</td><td class="value">${{ "%.2f"|format(receipt_data.backup_base_workstation) }}</td></tr>
+                    <tr class="backup-breakdown"><td class="label">Server Backup Base Fee ({{ backed_up_servers }} devices × ${{ "%.2f"|format(effective_rates.bbfs) }})</td><td class="value">${{ "%.2f"|format(receipt_data.backup_base_server) }}</td></tr>
+                    <tr class="backup-breakdown"><td class="label">Total Included Storage</td><td class="value">{{ "%.2f"|format(receipt_data.total_included_tb) }} TB</td></tr>
+                    <tr class="backup-breakdown"><td class="label">Total Used Storage</td><td class="value">{{ "%.2f"|format(total_backup_tb) }} TB</td></tr>
+                    <tr class="backup-breakdown"><td class="label">Storage Overage ({{ "%.2f"|format(receipt_data.overage_tb) }} TB × ${{ "%.2f"|format(effective_rates.bpt) }})</td><td class="value">${{ "%.2f"|format(receipt_data.overage_charge) }}</td></tr>
                     <tr class="total-row"><td class="label">Estimated Total</td><td class="value">${{ "%.2f"|format(receipt_data.total) }}</td></tr>
                 </table>
             </div>
@@ -84,8 +90,12 @@
                         <input type="number" step="0.01" name="per_vm_cost" value="{{ '%.2f'|format(plan_details.override_pvc if plan_details.override_pvc is not none else plan_details.default_pvc) }}">
                     </div>
                     <div>
-                        <label>Backup Base Fee</label>
-                        <input type="number" step="0.01" name="backup_base_fee" value="{{ '%.2f'|format(plan_details.override_bbf if plan_details.override_bbf is not none else plan_details.default_bbf) }}">
+                        <label>Backup Base Fee (Workstation)</label>
+                        <input type="number" step="0.01" name="backup_base_fee_workstation" value="{{ '%.2f'|format(plan_details.override_bbfw if plan_details.override_bbfw is not none else plan_details.default_bbfw) }}">
+                    </div>
+                    <div>
+                        <label>Backup Base Fee (Server)</label>
+                        <input type="number" step="0.01" name="backup_base_fee_server" value="{{ '%.2f'|format(plan_details.override_bbfs if plan_details.override_bbfs is not none else plan_details.default_bbfs) }}">
                     </div>
                     <div>
                         <label>Backup Included (TB)</label>
