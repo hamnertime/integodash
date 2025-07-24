@@ -527,7 +527,7 @@ if __name__ == '__main__':
     print("--- Background scheduler will start after first successful login. ---")
 
     try:
-        app.run(debug=True, host='0.0.0.0', port=5002, ssl_context='adhoc')
+        app.run(debug=True, host='0.0.0.0', port=5002, ssl_context=('cert.pem', 'key.pem'))
     except KeyboardInterrupt:
         print("\n--- Shutting down web server... ---")
     finally:
