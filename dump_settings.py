@@ -13,7 +13,7 @@ DB_FILE = "brainhair.db"
 def dump_billing_plans(password):
     """
     Connects to the database, queries the default billing plans,
-    and prints them in a Python-friendly format.
+    and prints them in a Python-friendly format suitable for init_db.py.
     """
     if not os.path.exists(DB_FILE):
         print(f"Error: Database file '{DB_FILE}' not found in the current directory.", file=sys.stderr)
@@ -32,7 +32,7 @@ def dump_billing_plans(password):
 
         print("\nReading default billing plans from the database...")
 
-        # CORRECTED: Removed the unnecessary WHERE clause
+        # Updated to select all current billing columns
         cur.execute("""
             SELECT
                 billing_plan,
@@ -40,7 +40,12 @@ def dump_billing_plans(password):
                 network_management_fee,
                 per_user_cost,
                 per_server_cost,
-                per_workstation_cost
+                per_workstation_cost,
+                per_host_cost,
+                per_vm_cost,
+                backup_base_fee,
+                backup_included_tb,
+                backup_per_tb_fee
             FROM billing_plans
             ORDER BY billing_plan, term_length
         """)
@@ -56,8 +61,10 @@ def dump_billing_plans(password):
         print("\ndefault_plans_data = [")
 
         for plan in plans:
-            (billing_plan, term, nmf, puc, psc, pwc) = plan
-            print(f"    ('{billing_plan}', '{term}', {nmf:.2f}, {puc:.2f}, {psc:.2f}, {pwc:.2f}),")
+            # Unpack all columns, including the new ones
+            (billing_plan, term, nmf, puc, psc_legacy, pwc, phc, pvc, bbf, bit, bpt) = plan
+            # Format the output string to match the new structure
+            print(f"    ('{billing_plan}', '{term}', {nmf:.2f}, {puc:.2f}, {psc_legacy:.2f}, {pwc:.2f}, {phc:.2f}, {pvc:.2f}, {bbf:.2f}, {bit:.2f}, {bpt:.2f}),")
 
         print("]")
         print("\n--- End of list ---")
