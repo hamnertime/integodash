@@ -47,7 +47,9 @@
                     <tr><td class="label">Network Management Fee</td><td class="value">${{ "%.2f"|format(receipt_data.nmf) }}</td></tr>
                     <tr><td class="label">User Cost ({{ user_count }} users × ${{ "%.2f"|format(effective_rates.puc) }})</td><td class="value">${{ "%.2f"|format(receipt_data.user_charge) }}</td></tr>
                     <tr><td class="label">Workstation Cost ({{ workstation_count }} devices × ${{ "%.2f"|format(effective_rates.pwc) }})</td><td class="value">${{ "%.2f"|format(receipt_data.workstation_charge) }}</td></tr>
-                    <tr><td class="label">Server Cost ({{ server_count }} servers × ${{ "%.2f"|format(effective_rates.psc) }})</td><td class="value">${{ "%.2f"|format(receipt_data.server_charge) }}</td></tr>
+                    <tr><td class="label">Host Cost ({{ host_count }} hosts × ${{ "%.2f"|format(effective_rates.phc) }})</td><td class="value">${{ "%.2f"|format(receipt_data.host_charge) }}</td></tr>
+                    <tr><td class="label">VM Cost ({{ vm_count }} VMs × ${{ "%.2f"|format(effective_rates.pvc) }})</td><td class="value">${{ "%.2f"|format(receipt_data.vm_charge) }}</td></tr>
+                    <tr><td class="label">Backup Charge ({{ "%.2f"|format(total_backup_tb) }} TB)</td><td class="value">${{ "%.2f"|format(receipt_data.backup_charge) }}</td></tr>
                     <tr class="total-row"><td class="label">Estimated Total</td><td class="value">${{ "%.2f"|format(receipt_data.total) }}</td></tr>
                 </table>
             </div>
@@ -74,8 +76,24 @@
                         <input type="number" step="0.01" name="per_workstation_cost" value="{{ '%.2f'|format(plan_details.override_pwc if plan_details.override_pwc is not none else plan_details.default_pwc) }}">
                     </div>
                     <div>
-                        <label>Per Server Cost</label>
-                        <input type="number" step="0.01" name="per_server_cost" value="{{ '%.2f'|format(plan_details.override_psc if plan_details.override_psc is not none else plan_details.default_psc) }}">
+                        <label>Per Host Cost</label>
+                        <input type="number" step="0.01" name="per_host_cost" value="{{ '%.2f'|format(plan_details.override_phc if plan_details.override_phc is not none else plan_details.default_phc) }}">
+                    </div>
+                    <div>
+                        <label>Per VM Cost</label>
+                        <input type="number" step="0.01" name="per_vm_cost" value="{{ '%.2f'|format(plan_details.override_pvc if plan_details.override_pvc is not none else plan_details.default_pvc) }}">
+                    </div>
+                    <div>
+                        <label>Backup Base Fee</label>
+                        <input type="number" step="0.01" name="backup_base_fee" value="{{ '%.2f'|format(plan_details.override_bbf if plan_details.override_bbf is not none else plan_details.default_bbf) }}">
+                    </div>
+                    <div>
+                        <label>Backup Included (TB)</label>
+                        <input type="number" step="0.01" name="backup_included_tb" value="{{ '%.2f'|format(plan_details.override_bit if plan_details.override_bit is not none else plan_details.default_bit) }}">
+                    </div>
+                    <div>
+                        <label>Backup Per TB Fee</label>
+                        <input type="number" step="0.01" name="backup_per_tb_fee" value="{{ '%.2f'|format(plan_details.override_bpt if plan_details.override_bpt is not none else plan_details.default_bpt) }}">
                     </div>
                 </div>
                 <div class="button-container"><button type="submit">Save Override Settings</button></div>
@@ -110,8 +128,8 @@
         <div class="grid-container">
             <div>
                 <h4>Datto RMM Assets ({{ assets|length }})</h4>
-                <table><thead><tr><th>Hostname</th><th>Type</th><th>OS</th></tr></thead><tbody>
-                    {% for asset in assets %}<tr><td>{{ asset.hostname }}</td><td>{{ asset.device_type }}</td><td>{{ asset.operating_system }}</td></tr>{% else %}<tr><td colspan="3">No assets found.</td></tr>{% endfor %}
+                <table><thead><tr><th>Hostname</th><th>Type</th><th>Server Type</th><th>OS</th><th>Backup Usage (TB)</th></tr></thead><tbody>
+                    {% for asset in assets %}<tr><td>{{ asset.hostname }}</td><td>{{ asset.device_type }}</td><td>{{ asset.server_type or 'N/A' }}</td><td>{{ asset.operating_system }}</td><td>{{ "%.4f"|format(asset.backup_data_tb) }}</td></tr>{% else %}<tr><td colspan="5">No assets found.</td></tr>{% endfor %}
                 </tbody></table>
             </div>
             <div>

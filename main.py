@@ -218,8 +218,10 @@ def billing_dashboard():
             asset_counts AS (
                 SELECT
                     company_account_number,
-                    COUNT(id) FILTER (WHERE device_type = 'Server') as server_count,
-                    COUNT(id) FILTER (WHERE device_type != 'Server' OR device_type IS NULL) as workstation_count
+                    COUNT(id) FILTER (WHERE device_type = 'Server' AND server_type = 'Host') as host_count,
+                    COUNT(id) FILTER (WHERE device_type = 'Server' AND server_type = 'VM') as vm_count,
+                    COUNT(id) FILTER (WHERE device_type != 'Server' OR device_type IS NULL) as workstation_count,
+                    SUM(backup_data_bytes) as total_backup_bytes
                 FROM assets
                 GROUP BY company_account_number
             ),
@@ -235,14 +237,17 @@ def billing_dashboard():
                 c.name,
                 c.billing_plan,
                 COALESCE(ac.workstation_count, 0) as workstation_count,
-                COALESCE(ac.server_count, 0) as server_count,
+                COALESCE(ac.host_count, 0) + COALESCE(ac.vm_count, 0) as server_count,
                 COALESCE(uc.user_count, 0) as user_count,
                 COALESCE(mh.total_hours, 0) as total_hours,
                 (
                     (CASE WHEN override.override_enabled = 1 THEN override.network_management_fee ELSE COALESCE(defaults.network_management_fee, 0.0) END) +
                     (COALESCE(uc.user_count, 0) * (CASE WHEN override.override_enabled = 1 THEN override.per_user_cost ELSE COALESCE(defaults.per_user_cost, 0.0) END)) +
-                    (COALESCE(ac.server_count, 0) * (CASE WHEN override.override_enabled = 1 THEN override.per_server_cost ELSE COALESCE(defaults.per_server_cost, 0.0) END)) +
-                    (COALESCE(ac.workstation_count, 0) * (CASE WHEN override.override_enabled = 1 THEN override.per_workstation_cost ELSE COALESCE(defaults.per_workstation_cost, 0.0) END))
+                    (COALESCE(ac.workstation_count, 0) * (CASE WHEN override.override_enabled = 1 THEN override.per_workstation_cost ELSE COALESCE(defaults.per_workstation_cost, 0.0) END)) +
+                    (COALESCE(ac.host_count, 0) * (CASE WHEN override.override_enabled = 1 THEN override.per_host_cost ELSE COALESCE(defaults.per_host_cost, 0.0) END)) +
+                    (COALESCE(ac.vm_count, 0) * (CASE WHEN override.override_enabled = 1 THEN override.per_vm_cost ELSE COALESCE(defaults.per_vm_cost, 0.0) END)) +
+                    (CASE WHEN COALESCE(ac.total_backup_bytes, 0) > 0 THEN (CASE WHEN override.override_enabled = 1 THEN override.backup_base_fee ELSE COALESCE(defaults.backup_base_fee, 0.0) END) ELSE 0 END) +
+                    (MAX(0, (COALESCE(ac.total_backup_bytes, 0) / 1099511627776.0) - (CASE WHEN override.override_enabled = 1 THEN override.backup_included_tb ELSE COALESCE(defaults.backup_included_tb, 1.0) END)) * (CASE WHEN override.override_enabled = 1 THEN override.backup_per_tb_fee ELSE COALESCE(defaults.backup_per_tb_fee, 15.0) END))
                 ) as total_bill
             FROM companies c
             LEFT JOIN asset_counts ac ON c.account_number = ac.company_account_number
@@ -269,19 +274,27 @@ def client_settings(account_number):
             override_enabled = 1 if 'override_enabled' in request.form else 0
             nmf = float(request.form.get('network_management_fee', 0))
             puc = float(request.form.get('per_user_cost', 0))
-            psc = float(request.form.get('per_server_cost', 0))
             pwc = float(request.form.get('per_workstation_cost', 0))
+            phc = float(request.form.get('per_host_cost', 0))
+            pvc = float(request.form.get('per_vm_cost', 0))
+            bbf = float(request.form.get('backup_base_fee', 0))
+            bit = float(request.form.get('backup_included_tb', 0))
+            bpt = float(request.form.get('backup_per_tb_fee', 0))
 
             db.execute("""
-                INSERT INTO client_billing_overrides (company_account_number, network_management_fee, per_user_cost, per_server_cost, per_workstation_cost, override_enabled)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO client_billing_overrides (company_account_number, network_management_fee, per_user_cost, per_workstation_cost, per_host_cost, per_vm_cost, backup_base_fee, backup_included_tb, backup_per_tb_fee, override_enabled)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(company_account_number) DO UPDATE SET
                     network_management_fee = excluded.network_management_fee,
                     per_user_cost = excluded.per_user_cost,
-                    per_server_cost = excluded.per_server_cost,
                     per_workstation_cost = excluded.per_workstation_cost,
+                    per_host_cost = excluded.per_host_cost,
+                    per_vm_cost = excluded.per_vm_cost,
+                    backup_base_fee = excluded.backup_base_fee,
+                    backup_included_tb = excluded.backup_included_tb,
+                    backup_per_tb_fee = excluded.backup_per_tb_fee,
                     override_enabled = excluded.override_enabled;
-            """, (account_number, nmf, puc, psc, pwc, override_enabled))
+            """, (account_number, nmf, puc, pwc, phc, pvc, bbf, bit, bpt, override_enabled))
             db.commit()
             flash("Client billing settings saved successfully!", 'success')
             return redirect(url_for('client_settings', account_number=account_number))
@@ -295,12 +308,20 @@ def client_settings(account_number):
             SELECT
                 defaults.network_management_fee as default_nmf,
                 defaults.per_user_cost as default_puc,
-                defaults.per_server_cost as default_psc,
                 defaults.per_workstation_cost as default_pwc,
+                defaults.per_host_cost as default_phc,
+                defaults.per_vm_cost as default_pvc,
+                defaults.backup_base_fee as default_bbf,
+                defaults.backup_included_tb as default_bit,
+                defaults.backup_per_tb_fee as default_bpt,
                 override.network_management_fee as override_nmf,
                 override.per_user_cost as override_puc,
-                override.per_server_cost as override_psc,
                 override.per_workstation_cost as override_pwc,
+                override.per_host_cost as override_phc,
+                override.per_vm_cost as override_pvc,
+                override.backup_base_fee as override_bbf,
+                override.backup_included_tb as override_bit,
+                override.backup_per_tb_fee as override_bpt,
                 COALESCE(override.override_enabled, 0) as override_enabled
             FROM companies c
             LEFT JOIN billing_plans defaults ON c.billing_plan = defaults.billing_plan AND c.contract_term_length = defaults.term_length
@@ -312,23 +333,39 @@ def client_settings(account_number):
         effective_rates = {
             'nmf': plan_details['override_nmf'] if plan_details['override_enabled'] else plan_details['default_nmf'],
             'puc': plan_details['override_puc'] if plan_details['override_enabled'] else plan_details['default_puc'],
-            'psc': plan_details['override_psc'] if plan_details['override_enabled'] else plan_details['default_psc'],
-            'pwc': plan_details['override_pwc'] if plan_details['override_enabled'] else plan_details['default_pwc']
+            'pwc': plan_details['override_pwc'] if plan_details['override_enabled'] else plan_details['default_pwc'],
+            'phc': plan_details['override_phc'] if plan_details['override_enabled'] else plan_details['default_phc'],
+            'pvc': plan_details['override_pvc'] if plan_details['override_enabled'] else plan_details['default_pvc'],
+            'bbf': plan_details['override_bbf'] if plan_details['override_enabled'] else plan_details['default_bbf'],
+            'bit': plan_details['override_bit'] if plan_details['override_enabled'] else plan_details['default_bit'],
+            'bpt': plan_details['override_bpt'] if plan_details['override_enabled'] else plan_details['default_bpt'],
         }
 
-        assets = query_db("SELECT * FROM assets WHERE company_account_number = ? ORDER BY hostname", [account_number])
+        assets = query_db("SELECT *, (backup_data_bytes / 1099511627776.0) as backup_data_tb FROM assets WHERE company_account_number = ? ORDER BY hostname", [account_number])
         users = query_db("SELECT * FROM users WHERE company_account_number = ? ORDER BY full_name", [account_number])
 
         user_count = len(users)
-        server_count = sum(1 for asset in assets if asset['device_type'] == 'Server')
-        workstation_count = len(assets) - server_count
+        host_count = sum(1 for asset in assets if asset['server_type'] == 'Host')
+        vm_count = sum(1 for asset in assets if asset['server_type'] == 'VM')
+        workstation_count = len(assets) - host_count - vm_count
+        total_backup_bytes = sum(asset['backup_data_bytes'] or 0 for asset in assets)
+        total_backup_tb = total_backup_bytes / 1099511627776.0
+
+        backup_charge = 0
+        if total_backup_bytes > 0:
+            backup_charge += effective_rates['bbf'] or 0
+            overage_tb = max(0, total_backup_tb - (effective_rates['bit'] or 0))
+            backup_charge += overage_tb * (effective_rates['bpt'] or 0)
+
 
         receipt_data = {
             "nmf": effective_rates['nmf'],
             "user_charge": user_count * effective_rates['puc'],
-            "server_charge": server_count * effective_rates['psc'],
             "workstation_charge": workstation_count * effective_rates['pwc'],
-            "total": (effective_rates['nmf'] or 0) + (user_count * effective_rates['puc']) + (server_count * effective_rates['psc']) + (workstation_count * effective_rates['pwc'])
+            "host_charge": host_count * effective_rates['phc'],
+            "vm_charge": vm_count * effective_rates['pvc'],
+            "backup_charge": backup_charge,
+            "total": (effective_rates['nmf'] or 0) + (user_count * effective_rates['puc']) + (workstation_count * effective_rates['pwc']) + (host_count * effective_rates['phc']) + (vm_count * effective_rates['pvc']) + backup_charge
         }
 
         recent_tickets = query_db("SELECT * FROM ticket_details WHERE company_account_number = ? ORDER BY last_updated_at DESC", [account_number])
@@ -341,8 +378,10 @@ def client_settings(account_number):
                                effective_rates=effective_rates,
                                receipt_data=receipt_data,
                                user_count=user_count,
-                               server_count=server_count,
+                               host_count=host_count,
+                               vm_count=vm_count,
                                workstation_count=workstation_count,
+                               total_backup_tb=total_backup_tb,
                                recent_tickets=recent_tickets)
     except (ValueError, sqlite3.Error) as e:
         session.pop('db_password', None)
@@ -356,13 +395,17 @@ def billing_settings():
         plan_id = request.form.get('plan_id')
         nmf = float(request.form.get('network_management_fee', 0))
         puc = float(request.form.get('per_user_cost', 0))
-        psc = float(request.form.get('per_server_cost', 0))
         pwc = float(request.form.get('per_workstation_cost', 0))
+        phc = float(request.form.get('per_host_cost', 0))
+        pvc = float(request.form.get('per_vm_cost', 0))
+        bbf = float(request.form.get('backup_base_fee', 0))
+        bit = float(request.form.get('backup_included_tb', 0))
+        bpt = float(request.form.get('backup_per_tb_fee', 0))
         db.execute("""
             UPDATE billing_plans SET
-                network_management_fee = ?, per_user_cost = ?, per_server_cost = ?, per_workstation_cost = ?
+                network_management_fee = ?, per_user_cost = ?, per_workstation_cost = ?, per_host_cost = ?, per_vm_cost = ?, backup_base_fee = ?, backup_included_tb = ?, backup_per_tb_fee = ?
             WHERE id = ?
-        """, (nmf, puc, psc, pwc, plan_id))
+        """, (nmf, puc, pwc, phc, pvc, bbf, bit, bpt, plan_id))
         db.commit()
         flash("Default plan updated successfully!", 'success')
         return redirect(url_for('billing_settings'))
@@ -391,11 +434,11 @@ def add_billing_plan():
         return redirect(url_for('billing_settings'))
 
     terms = ["Month to Month", "1-Year", "2-Year", "3-Year"]
-    new_plan_entries = [(plan_name, term, 0, 0, 0, 0) for term in terms]
+    new_plan_entries = [(plan_name, term, 0, 0, 0, 0, 0, 0, 30.00, 1.0, 15.00) for term in terms]
 
     db.executemany("""
-        INSERT INTO billing_plans (billing_plan, term_length, network_management_fee, per_user_cost, per_server_cost, per_workstation_cost)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO billing_plans (billing_plan, term_length, network_management_fee, per_user_cost, per_workstation_cost, per_host_cost, per_vm_cost, backup_base_fee, backup_included_tb, backup_per_tb_fee)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, new_plan_entries)
     db.commit()
     flash(f"New billing plan '{plan_name}' added successfully.", 'success')

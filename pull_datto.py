@@ -1,6 +1,8 @@
 import requests
 import os
 import sys
+import getpass
+import json
 from datetime import datetime, timezone
 
 try:
@@ -12,6 +14,7 @@ except ImportError:
 # --- Configuration ---
 DB_FILE = "brainhair.db"
 DATTO_VARIABLE_NAME = "AccountNumber"
+BACKUP_UDF_ID = 6 # The user-defined field for backup data in bytes
 
 # --- Utility Functions ---
 def get_db_connection(db_path, password):
@@ -91,15 +94,17 @@ def populate_assets_database(db_password, assets_to_insert):
         con, cur = get_db_connection(DB_FILE, db_password)
         print(f"\nAttempting to insert/update {len(assets_to_insert)} assets into the database...")
         cur.executemany("""
-            INSERT INTO assets (company_account_number, datto_uid, hostname, friendly_name, device_type, operating_system, status, date_added)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO assets (company_account_number, datto_uid, hostname, friendly_name, device_type, server_type, operating_system, status, date_added, backup_data_bytes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(datto_uid) DO UPDATE SET
                 company_account_number=excluded.company_account_number,
                 hostname=excluded.hostname,
                 friendly_name=excluded.friendly_name,
                 device_type=excluded.device_type,
+                server_type=excluded.server_type,
                 operating_system=excluded.operating_system,
-                status=excluded.status;
+                status=excluded.status,
+                backup_data_bytes=excluded.backup_data_bytes;
         """, assets_to_insert)
         con.commit()
         print(f" Successfully inserted/updated {cur.rowcount} assets in '{DB_FILE}'.")
@@ -112,14 +117,21 @@ def populate_assets_database(db_password, assets_to_insert):
 
 # --- Main Execution ---
 if __name__ == "__main__":
-    print(" Datto RMM Data Syncer")
+    print(" Datto RMM Data Syncer (DEBUG MODE)")
     print("==========================================")
     if not os.path.exists(DB_FILE):
         sys.exit(f"Error: Database file '{DB_FILE}' not found. Please run init_db.py script first.")
 
     DB_MASTER_PASSWORD = os.environ.get('DB_MASTER_PASSWORD')
     if not DB_MASTER_PASSWORD:
-        sys.exit("Error: The DB_MASTER_PASSWORD environment variable must be set.")
+        print("DB_MASTER_PASSWORD environment variable not set.")
+        try:
+            DB_MASTER_PASSWORD = getpass.getpass("Please enter the database password: ")
+        except (getpass.GetPassWarning, NameError):
+             DB_MASTER_PASSWORD = input("Please enter the database password: ")
+    if not DB_MASTER_PASSWORD:
+        sys.exit("FATAL: No database password provided. Aborting.")
+
 
     endpoint, api_key, secret_key = get_datto_creds_from_db(DB_MASTER_PASSWORD)
     token = get_datto_access_token(endpoint, api_key, secret_key)
@@ -150,15 +162,59 @@ if __name__ == "__main__":
             for device in devices_in_site:
                 creation_ms = device.get('creationDate')
                 date_added_str = datetime.fromtimestamp(creation_ms / 1000, tz=timezone.utc).isoformat() if creation_ms else None
+
+                # Determine server type based on multiple factors
+                server_type = None
+                if (device.get('deviceType') or {}).get('category') == 'Server':
+                    is_vm = False
+                    # Primary check: 'model' field as requested by user
+                    if device.get('model') == 'Virtual Machine':
+                        is_vm = True
+                        print(f"   -> DEBUG ({device.get('hostname')}): Identified as VM based on Model: '{device.get('model')}'")
+                    else:
+                        # Fallback check: Look for clues in description or UDFs if model is not set
+                        description = (device.get('description') or '').lower()
+                        udf_dict_for_check = device.get('udf', {}) or {}
+                        udf3 = (udf_dict_for_check.get('udf3') or '').lower()
+
+                        if 'virtual' in description or 'vm' in description or 'msft virtual disk' in udf3:
+                            is_vm = True
+                            print(f"   -> DEBUG ({device.get('hostname')}): Identified as VM based on fallback check (Description: '{description}', UDF3: '{udf3}')")
+
+                    if is_vm:
+                        server_type = 'VM'
+                    else:
+                        server_type = 'Host'
+                        print(f"   -> DEBUG ({device.get('hostname')}): Identified as Host (Model: '{device.get('model')}', Description: '{(device.get('description') or '').lower()}')")
+
+
+                # Get backup data from UDF
+                backup_data_bytes = 0
+                udf_dict = device.get('udf', {}) # Get the dictionary, default to empty
+                if udf_dict: # Check if the dictionary is not None or empty
+                    value_str = udf_dict.get(f'udf{BACKUP_UDF_ID}') # Get the value for 'udf6'
+                    print(f"   -> DEBUG ({device.get('hostname')}): Found UDF dict. Raw value for udf{BACKUP_UDF_ID} is: '{value_str}'")
+                    if value_str:
+                        try:
+                            backup_data_bytes = int(value_str)
+                        except (ValueError, TypeError):
+                            print(f"   -> DEBUG ({device.get('hostname')}): Could not convert UDF value '{value_str}' to integer.")
+                            backup_data_bytes = 0
+                else:
+                    print(f"   -> DEBUG ({device.get('hostname')}): No 'udf' key found in device data.")
+
+
                 assets_to_insert.append((
                     account_number,
                     device.get('uid'),
                     device.get('hostname'),
                     device.get('description'),
                     (device.get('deviceType') or {}).get('category'),
+                    server_type,
                     device.get('operatingSystem'),
                     'Active',
-                    date_added_str
+                    date_added_str,
+                    backup_data_bytes
                 ))
 
     if assets_to_insert:
