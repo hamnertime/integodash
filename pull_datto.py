@@ -3,6 +3,7 @@ import os
 import sys
 import getpass
 import json
+import time
 from datetime import datetime, timezone
 
 try:
@@ -14,7 +15,8 @@ except ImportError:
 # --- Configuration ---
 DB_FILE = "brainhair.db"
 DATTO_VARIABLE_NAME = "AccountNumber"
-BACKUP_UDF_ID = 6 # The user-defined field for backup data in bytes
+BACKUP_UDF_ID = 6
+SERVER_TYPE_UDF_ID = 7 # The UDF number set by the PowerShell component
 
 # --- Utility Functions ---
 def get_db_connection(db_path, password):
@@ -37,9 +39,7 @@ def get_datto_creds_from_db(db_password):
             raise ValueError("Datto credentials not found in the database.")
         return creds[0], creds[1], creds[2] # endpoint, key, secret
     except sqlite3.Error as e:
-        # This will fail if the password is wrong
         sys.exit(f"Database error while fetching credentials: {e}. Is the password correct?")
-
 
 # --- API Functions ---
 def get_datto_access_token(api_endpoint, api_key, api_secret_key):
@@ -54,7 +54,7 @@ def get_datto_access_token(api_endpoint, api_key, api_secret_key):
         print(f"Error getting Datto access token: {e}", file=sys.stderr)
         return None
 
-def make_api_request(api_endpoint, access_token, api_request_path):
+def get_paginated_api_request(api_endpoint, access_token, api_request_path):
     all_items = []
     next_page_url = f"{api_endpoint}/api{api_request_path}"
     headers = {'Authorization': f'Bearer {access_token}'}
@@ -68,7 +68,7 @@ def make_api_request(api_endpoint, access_token, api_request_path):
             all_items.extend(items_on_page)
             next_page_url = response_data.get('pageDetails', {}).get('nextPageUrl') or response_data.get('nextPageUrl')
         except requests.exceptions.RequestException as e:
-            print(f"An error occurred during API request for {api_request_path}: {e}", file=sys.stderr)
+            print(f"An error occurred during paginated API request for {api_request_path}: {e}", file=sys.stderr)
             return None
     return all_items
 
@@ -117,14 +117,12 @@ def populate_assets_database(db_password, assets_to_insert):
 
 # --- Main Execution ---
 if __name__ == "__main__":
-    print(" Datto RMM Data Syncer (DEBUG MODE)")
-    print("==========================================")
+    print("--- Datto RMM Data Syncer ---")
     if not os.path.exists(DB_FILE):
         sys.exit(f"Error: Database file '{DB_FILE}' not found. Please run init_db.py script first.")
 
     DB_MASTER_PASSWORD = os.environ.get('DB_MASTER_PASSWORD')
     if not DB_MASTER_PASSWORD:
-        print("DB_MASTER_PASSWORD environment variable not set.")
         try:
             DB_MASTER_PASSWORD = getpass.getpass("Please enter the database password: ")
         except (getpass.GetPassWarning, NameError):
@@ -132,12 +130,11 @@ if __name__ == "__main__":
     if not DB_MASTER_PASSWORD:
         sys.exit("FATAL: No database password provided. Aborting.")
 
-
     endpoint, api_key, secret_key = get_datto_creds_from_db(DB_MASTER_PASSWORD)
     token = get_datto_access_token(endpoint, api_key, secret_key)
     if not token: sys.exit("\n❌ Failed to obtain access token.")
 
-    sites = make_api_request(endpoint, token, "/v2/account/sites")
+    sites = get_paginated_api_request(endpoint, token, "/v2/account/sites")
     if sites is None: sys.exit("\nCould not retrieve sites list.")
     print(f"\nFound {len(sites)} total sites in Datto.")
 
@@ -155,7 +152,8 @@ if __name__ == "__main__":
             continue
 
         print(f"   -> Found Account Number: {account_number}. Fetching devices...")
-        devices_in_site = make_api_request(endpoint, token, f"/v2/site/{site_uid}/devices")
+        # We only need the summary data now, which is much faster
+        devices_in_site = get_paginated_api_request(endpoint, token, f"/v2/site/{site_uid}/devices")
 
         if devices_in_site:
             print(f"   -> Found {len(devices_in_site)} devices. Preparing for DB insert.")
@@ -163,46 +161,21 @@ if __name__ == "__main__":
                 creation_ms = device.get('creationDate')
                 date_added_str = datetime.fromtimestamp(creation_ms / 1000, tz=timezone.utc).isoformat() if creation_ms else None
 
-                # Determine server type based on multiple factors
+                udf_dict = device.get('udf', {}) or {}
+
+                # Read server type directly from our reliable UDF
                 server_type = None
                 if (device.get('deviceType') or {}).get('category') == 'Server':
-                    is_vm = False
-                    # Primary check: 'model' field as requested by user
-                    if device.get('model') == 'Virtual Machine':
-                        is_vm = True
-                        print(f"   -> DEBUG ({device.get('hostname')}): Identified as VM based on Model: '{device.get('model')}'")
-                    else:
-                        # Fallback check: Look for clues in description or UDFs if model is not set
-                        description = (device.get('description') or '').lower()
-                        udf_dict_for_check = device.get('udf', {}) or {}
-                        udf3 = (udf_dict_for_check.get('udf3') or '').lower()
+                    server_type = udf_dict.get(f'udf{SERVER_TYPE_UDF_ID}') # e.g., 'Host' or 'VM'
 
-                        if 'virtual' in description or 'vm' in description or 'msft virtual disk' in udf3:
-                            is_vm = True
-                            print(f"   -> DEBUG ({device.get('hostname')}): Identified as VM based on fallback check (Description: '{description}', UDF3: '{udf3}')")
-
-                    if is_vm:
-                        server_type = 'VM'
-                    else:
-                        server_type = 'Host'
-                        print(f"   -> DEBUG ({device.get('hostname')}): Identified as Host (Model: '{device.get('model')}', Description: '{(device.get('description') or '').lower()}')")
-
-
-                # Get backup data from UDF
+                # Read backup data from its UDF
                 backup_data_bytes = 0
-                udf_dict = device.get('udf', {}) # Get the dictionary, default to empty
-                if udf_dict: # Check if the dictionary is not None or empty
-                    value_str = udf_dict.get(f'udf{BACKUP_UDF_ID}') # Get the value for 'udf6'
-                    print(f"   -> DEBUG ({device.get('hostname')}): Found UDF dict. Raw value for udf{BACKUP_UDF_ID} is: '{value_str}'")
-                    if value_str:
-                        try:
-                            backup_data_bytes = int(value_str)
-                        except (ValueError, TypeError):
-                            print(f"   -> DEBUG ({device.get('hostname')}): Could not convert UDF value '{value_str}' to integer.")
-                            backup_data_bytes = 0
-                else:
-                    print(f"   -> DEBUG ({device.get('hostname')}): No 'udf' key found in device data.")
-
+                value_str = udf_dict.get(f'udf{BACKUP_UDF_ID}')
+                if value_str:
+                    try:
+                        backup_data_bytes = int(value_str)
+                    except (ValueError, TypeError):
+                        backup_data_bytes = 0
 
                 assets_to_insert.append((
                     account_number,
