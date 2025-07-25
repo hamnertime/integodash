@@ -71,12 +71,12 @@
                 {% if clients %}
                     {% for client in clients %}
                     <tr>
-                        <td><strong><a href="{{ url_for('client_settings', account_number=client.account_number) }}">{{ client.name }}</a></strong></td>
+                        <td><strong><a href="{{ url_for('client_breakdown', account_number=client.account_number) }}">{{ client.name }}</a></strong></td>
                         <td>{{ client['billing_plan'] }}</td>
-                        <td>{{ client['workstation_count'] }}</td>
-                        <td>{{ client['host_count'] }}</td>
-                        <td>{{ client['vm_count'] }}</td>
-                        <td>{{ client['user_count'] }}</td>
+                        <td>{{ client['workstations'] }}</td>
+                        <td>{{ client['hosts'] }}</td>
+                        <td>{{ client['vms'] }}</td>
+                        <td>{{ client['users'] }}</td>
                         <td>{{ "%.2f"|format(client['total_backup_bytes'] / 1099511627776.0) }}</td>
                         <td>{{ "%.2f"|format(client['total_hours']) }}</td>
                         <td>${{ "%.2f"|format(client['total_bill']) }}</td>
@@ -84,7 +84,7 @@
                     {% endfor %}
                 {% else %}
                     <tr>
-                        <td colspan="10" style="text-align: center;">No clients found in the database. Run sync scripts from the settings page.</td>
+                        <td colspan="9" style="text-align: center;">No clients found in the database. Run sync scripts from the settings page.</td>
                     </tr>
                 {% endif %}
             </tbody>

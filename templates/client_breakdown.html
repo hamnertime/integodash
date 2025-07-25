@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Integotec - {{ client.name }}</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f6f8; color: #212529; margin: 0; padding: 20px; }
+        .container { max-width: 90%; margin: 0 auto; }
+        h1, h2, h3 { color: #0056b3; }
+        h1 { text-align: center; margin-bottom: 10px; }
+        h2 { margin-top: 40px; border-top: 1px solid #ccc; padding-top: 20px;}
+        table { width: 100%; border-collapse: collapse; background-color: #ffffff; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 1em; margin-bottom: 20px; }
+        th, td { border: 1px solid #ced4da; padding: 12px 15px; text-align: left; vertical-align: middle; }
+        th { background-color: #e9ecef; font-weight: 600; }
+        .nav-links { display: flex; justify-content: center; gap: 20px; margin-bottom: 30px; font-size: 1.1em; }
+        .grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+        .info-card { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .receipt-table { width: 100%; }
+        .receipt-table td { border: none; padding: 8px 0; }
+        .receipt-table .label { text-align: left; }
+        .receipt-table .value { text-align: right; }
+        .receipt-table .total-row td { border-top: 2px solid #333; font-weight: bold; padding-top: 10px; }
+        .backup-breakdown { padding-left: 20px; font-size: 0.9em; color: #555; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>{{ client.name }}</h1>
+        <div class="nav-links">
+            <a href="{{ url_for('billing_dashboard') }}">← Back to Dashboard</a>
+            <a href="{{ url_for('client_settings', account_number=client.account_number) }}">Go to Override Settings →</a>
+        </div>
+
+        <div class="grid-container">
+            <div class="info-card">
+                <h3>Client Details</h3>
+                <p><strong>Account Number:</strong> {{ client.account_number }}</p>
+                <p><strong>Assigned Plan:</strong> {{ client.billing_plan }}</p>
+                <p><strong>Contract Term:</strong> {{ client.contract_term_length }}</p>
+                <p><strong>Contract Start:</strong> {{ client.contract_start_date }}</p>
+            </div>
+            <div class="info-card">
+                <h3>Billing Receipt</h3>
+                <table class="receipt-table">
+                    <tr><td class="label">Network Management Fee</td><td class="value">${{ "%.2f"|format(receipt_data.nmf) }}</td></tr>
+                    <tr><td class="label">User Cost ({{ quantities.users }} users × ${{ "%.2f"|format(effective_rates.per_user_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.user_charge) }}</td></tr>
+                    <tr><td class="label">Workstation Cost ({{ quantities.workstations }} devices × ${{ "%.2f"|format(effective_rates.per_workstation_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.workstation_charge) }}</td></tr>
+                    <tr><td class="label">Host Cost ({{ quantities.hosts }} hosts × ${{ "%.2f"|format(effective_rates.per_host_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.host_charge) }}</td></tr>
+                    <tr><td class="label">VM Cost ({{ quantities.vms }} VMs × ${{ "%.2f"|format(effective_rates.per_vm_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.vm_charge) }}</td></tr>
+                    <tr><td class="label">Switch Cost ({{ quantities.switches }} switches × ${{ "%.2f"|format(effective_rates.per_switch_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.switch_charge) }}</td></tr>
+                    <tr><td class="label">Firewall Cost ({{ quantities.firewalls }} firewalls × ${{ "%.2f"|format(effective_rates.per_firewall_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.firewall_charge) }}</td></tr>
+
+                    <tr><td class="label"><strong>Backup Charge</strong></td><td class="value"><strong>${{ "%.2f"|format(receipt_data.backup_charge) }}</strong></td></tr>
+                    <tr class="backup-breakdown"><td class="label">Workstation Backup Base Fee ({{ backed_up_workstations }} devices × ${{ "%.2f"|format(effective_rates.backup_base_fee_workstation) }})</td><td class="value">${{ "%.2f"|format(receipt_data.backup_base_workstation) }}</td></tr>
+                    <tr class="backup-breakdown"><td class="label">Server Backup Base Fee ({{ backed_up_servers }} devices × ${{ "%.2f"|format(effective_rates.backup_base_fee_server) }})</td><td class="value">${{ "%.2f"|format(receipt_data.backup_base_server) }}</td></tr>
+                    <tr class="backup-breakdown"><td class="label">Total Included Storage</td><td class="value">{{ "%.2f"|format(receipt_data.total_included_tb) }} TB</td></tr>
+                    <tr class="backup-breakdown"><td class="label">Total Used Storage</td><td class="value">{{ "%.2f"|format(total_backup_tb) }} TB</td></tr>
+                    <tr class="backup-breakdown"><td class="label">Storage Overage ({{ "%.2f"|format(receipt_data.overage_tb) }} TB × ${{ "%.2f"|format(effective_rates.backup_per_tb_fee) }})</td><td class="value">${{ "%.2f"|format(receipt_data.overage_charge) }}</td></tr>
+                    <tr class="total-row"><td class="label">Estimated Total</td><td class="value">${{ "%.2f"|format(receipt_data.total) }}</td></tr>
+                </table>
+            </div>
+        </div>
+
+        <h2>Recent Ticket Activity (Last 30 Days)</h2>
+        <table>
+            <thead><tr><th>Ticket ID</th><th>Subject</th><th>Date Closed</th><th>Total Hours</th></tr></thead>
+            <tbody>
+                {% for ticket in recent_tickets %}
+                <tr>
+                    <td><a href="https://integotecllc.freshservice.com/a/tickets/{{ ticket.ticket_id }}" target="_blank">#{{ ticket.ticket_id }}</a></td>
+                    <td>{{ ticket.subject }}</td>
+                    <td>{{ ticket.closed_at | humanize if ticket.closed_at else 'Still Open' }}</td>
+                    <td>{{ "%.2f"|format(ticket.total_hours_spent) }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4">No recent tickets with time entries found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h2>Tracked Assets & Users</h2>
+        <div class="grid-container">
+            <div>
+                <h4>Datto RMM Assets ({{ assets|length }})</h4>
+                <table><thead><tr><th>Hostname</th><th>Type</th><th>Server Type</th><th>OS</th><th>Backup Usage (TB)</th></tr></thead><tbody>
+                    {% for asset in assets %}<tr><td>{{ asset.hostname }}</td><td>{{ asset.device_type }}</td><td>{{ asset.server_type or 'N/A' }}</td><td>{{ asset.operating_system }}</td><td>{{ "%.4f"|format(asset.backup_data_tb) }}</td></tr>{% else %}<tr><td colspan="5">No assets found.</td></tr>{% endfor %}
+                </tbody></table>
+            </div>
+            <div>
+                <h4>Freshservice Users ({{ users|length }})</h4>
+                <table><thead><tr><th>Full Name</th><th>Email</th><th>Status</th></tr></thead><tbody>
+                    {% for user in users %}<tr><td>{{ user.full_name }}</td><td>{{ user.email }}</td><td>{{ user.status }}</td></tr>{% else %}<tr><td colspan="3">No users found.</td></tr>{% endfor %}
+                </tbody></table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
