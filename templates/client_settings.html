@@ -37,24 +37,24 @@
                     <div class="header override">Override Value</div>
                     <div class="header">Enable</div>
 
-                    {% macro rate_input(name, label) %}
+                    {% macro rate_input(name, label, short_name) %}
                         <label for="{{ name }}">{{ label }}</label>
                         <input type="text" value="${{ '%.2f'|format(defaults[name]) if defaults and defaults[name] is not none else 'N/A' }}" disabled>
                         <input type="number" step="0.01" name="{{ name }}" id="{{ name }}" value="{{ overrides[name] if overrides and overrides[name] is not none }}">
-                        <input type="checkbox" name="override_{{ name }}_enabled" {% if overrides and overrides['override_' + name + '_enabled'] %}checked{% endif %} title="Enable Override">
+                        <input type="checkbox" name="override_{{ short_name }}_enabled" {% if overrides and overrides['override_' + short_name + '_enabled'] %}checked{% endif %} title="Enable Override">
                     {% endmacro %}
 
-                    {{ rate_input('network_management_fee', 'Network Mgmt Fee') }}
-                    {{ rate_input('per_user_cost', 'Per User Cost') }}
-                    {{ rate_input('per_workstation_cost', 'Per Workstation Cost') }}
-                    {{ rate_input('per_host_cost', 'Per Host Cost') }}
-                    {{ rate_input('per_vm_cost', 'Per VM Cost') }}
-                    {{ rate_input('per_switch_cost', 'Per Switch Cost') }}
-                    {{ rate_input('per_firewall_cost', 'Per Firewall Cost') }}
-                    {{ rate_input('backup_base_fee_workstation', 'Backup Base (Workstation)') }}
-                    {{ rate_input('backup_base_fee_server', 'Backup Base (Server)') }}
-                    {{ rate_input('backup_included_tb', 'Backup Included (TB)') }}
-                    {{ rate_input('backup_per_tb_fee', 'Backup per TB Fee') }}
+                    {{ rate_input('network_management_fee', 'Network Mgmt Fee', 'nmf') }}
+                    {{ rate_input('per_user_cost', 'Per User Cost', 'puc') }}
+                    {{ rate_input('per_workstation_cost', 'Per Workstation Cost', 'pwc') }}
+                    {{ rate_input('per_host_cost', 'Per Host Cost', 'phc') }}
+                    {{ rate_input('per_vm_cost', 'Per VM Cost', 'pvc') }}
+                    {{ rate_input('per_switch_cost', 'Per Switch Cost', 'psc') }}
+                    {{ rate_input('per_firewall_cost', 'Per Firewall Cost', 'pfc') }}
+                    {{ rate_input('backup_base_fee_workstation', 'Backup Base (Workstation)', 'bbfw') }}
+                    {{ rate_input('backup_base_fee_server', 'Backup Base (Server)', 'bbfs') }}
+                    {{ rate_input('backup_included_tb', 'Backup Included (TB)', 'bit') }}
+                    {{ rate_input('backup_per_tb_fee', 'Backup per TB Fee', 'bpt') }}
                 </div>
             </div>
 
