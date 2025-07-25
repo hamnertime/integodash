@@ -151,6 +151,12 @@ def billing_dashboard():
             if asset['backup_data_bytes']: assets_by_client[acc_num]['backup_bytes'] += asset['backup_data_bytes']
 
         clients_data = []
+        rate_key_map = {
+            'network_management_fee': 'nmf', 'per_user_cost': 'puc', 'per_workstation_cost': 'pwc',
+            'per_host_cost': 'phc', 'per_vm_cost': 'pvc', 'per_switch_cost': 'psc', 'per_firewall_cost': 'pfc',
+            'backup_base_fee_workstation': 'bbfw', 'backup_base_fee_server': 'bbfs',
+            'backup_included_tb': 'bit', 'backup_per_tb_fee': 'bpt'
+        }
         for client in clients_raw:
             client_dict = dict(client)
             acc_num = client['account_number']
@@ -173,9 +179,12 @@ def billing_dashboard():
             rates = {}
             if default_plan:
                 for rate_key in default_plan.keys():
-                    if rate_key in ['id', 'billing_plan', 'term_length']: continue
-                    override_key_enabled = f'override_{rate_key}_enabled'
+                    if rate_key in ['id', 'billing_plan', 'term_length', 'per_server_cost']: continue
+                    short_key = rate_key_map.get(rate_key)
+                    if not short_key: continue
+                    override_key_enabled = f'override_{short_key}_enabled'
                     rates[rate_key] = client_overrides[rate_key] if client_overrides and override_key_enabled in client_overrides.keys() and client_overrides[override_key_enabled] else default_plan[rate_key]
+
 
             total_bill = rates.get('network_management_fee', 0) or 0
             total_bill += quantities['users'] * (rates.get('per_user_cost', 0) or 0)
@@ -234,11 +243,20 @@ def client_breakdown(account_number):
         }
 
         rates = {}
+        rate_key_map = {
+            'network_management_fee': 'nmf', 'per_user_cost': 'puc', 'per_workstation_cost': 'pwc',
+            'per_host_cost': 'phc', 'per_vm_cost': 'pvc', 'per_switch_cost': 'psc', 'per_firewall_cost': 'pfc',
+            'backup_base_fee_workstation': 'bbfw', 'backup_base_fee_server': 'bbfs',
+            'backup_included_tb': 'bit', 'backup_per_tb_fee': 'bpt'
+        }
         if plan_details:
             for rate_key in plan_details.keys():
-                if rate_key in ['id', 'billing_plan', 'term_length']: continue
-                override_key_enabled = f'override_{rate_key}_enabled'
+                if rate_key in ['id', 'billing_plan', 'term_length', 'per_server_cost']: continue
+                short_key = rate_key_map.get(rate_key)
+                if not short_key: continue
+                override_key_enabled = f'override_{short_key}_enabled'
                 rates[rate_key] = overrides[rate_key] if overrides and override_key_enabled in overrides.keys() and overrides[override_key_enabled] else plan_details[rate_key]
+
 
         receipt = {
             'nmf': rates.get('network_management_fee', 0) or 0,
