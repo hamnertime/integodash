@@ -194,7 +194,7 @@ def billing_dashboard():
             total_bill += quantities['switches'] * (rates.get('per_switch_cost', 0) or 0)
             total_bill += quantities['firewalls'] * (rates.get('per_firewall_cost', 0) or 0)
 
-            total_backup_tb = client_dict['total_backup_bytes'] / 1099511627776.0
+            total_backup_tb = client_dict['total_backup_bytes'] / 1000000000000.0
             backed_up_assets = query_db("SELECT device_type, server_type FROM assets WHERE company_account_number = ? AND backup_data_bytes > 0", [acc_num])
             backed_up_workstations = sum(1 for a in backed_up_assets if not (a['server_type'] in ('Host', 'VM') or a['device_type'] == 'Server'))
             backed_up_servers = len(backed_up_assets) - backed_up_workstations
@@ -227,7 +227,7 @@ def client_breakdown(account_number):
             flash(f"Client {account_number} not found.", 'error')
             return redirect(url_for('billing_dashboard'))
 
-        assets = query_db("SELECT *, (backup_data_bytes / 1099511627776.0) as backup_data_tb FROM assets WHERE company_account_number = ? ORDER BY hostname", [account_number])
+        assets = query_db("SELECT *, (backup_data_bytes / 1000000000000.0) as backup_data_tb FROM assets WHERE company_account_number = ? ORDER BY hostname", [account_number])
         users = query_db("SELECT * FROM users WHERE company_account_number = ? ORDER BY full_name", [account_number])
         recent_tickets = query_db("SELECT * FROM ticket_details WHERE company_account_number = ? ORDER BY last_updated_at DESC", [account_number])
         plan_details = query_db("SELECT * FROM billing_plans WHERE billing_plan = ? AND term_length = ?", [client_info['billing_plan'], client_info['contract_term_length']], one=True)
@@ -271,7 +271,7 @@ def client_breakdown(account_number):
         backed_up_workstations = sum(1 for a in assets if a['backup_data_bytes'] and not (a['server_type'] in ('Host', 'VM') or a['device_type'] == 'Server'))
         backed_up_servers = sum(1 for a in assets if a['backup_data_bytes'] and (a['server_type'] in ('Host', 'VM') or a['device_type'] == 'Server'))
         total_backup_bytes = sum(a['backup_data_bytes'] for a in assets if a['backup_data_bytes'])
-        total_backup_tb = total_backup_bytes / 1099511627776.0 if total_backup_bytes else 0
+        total_backup_tb = total_backup_bytes / 1000000000000.0 if total_backup_bytes else 0
 
         receipt['backup_base_workstation'] = backed_up_workstations * (rates.get('backup_base_fee_workstation', 25) or 25)
         receipt['backup_base_server'] = backed_up_servers * (rates.get('backup_base_fee_server', 50) or 50)
