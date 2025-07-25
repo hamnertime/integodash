@@ -281,7 +281,16 @@ def client_breakdown(account_number):
 
         receipt['backup_charge'] = receipt['backup_base_workstation'] + receipt['backup_base_server'] + receipt['overage_charge']
 
-        receipt['total'] = sum(v for k, v in receipt.items() if k.endswith('_charge') or k == 'nmf')
+        receipt['total'] = (
+            receipt.get('nmf', 0) +
+            receipt.get('user_charge', 0) +
+            receipt.get('workstation_charge', 0) +
+            receipt.get('host_charge', 0) +
+            receipt.get('vm_charge', 0) +
+            receipt.get('switch_charge', 0) +
+            receipt.get('firewall_charge', 0) +
+            receipt.get('backup_charge', 0)
+        )
 
         return render_template('client_breakdown.html',
                                client=client_info, assets=assets, users=users,
