@@ -83,6 +83,8 @@
                     <th>Per Workstation Cost ($)</th>
                     <th>Per Host Cost ($)</th>
                     <th>Per VM Cost ($)</th>
+                    <th>Per Switch Cost ($)</th>
+                    <th>Per Firewall Cost ($)</th>
                     <th>Backup Base Fee (Workstation) ($)</th>
                     <th>Backup Base Fee (Server) ($)</th>
                     <th>Backup Included (TB)</th>
@@ -101,6 +103,8 @@
                         <td><input type="number" step="0.01" name="per_workstation_cost" value="{{ '%.2f'|format(plan.per_workstation_cost) }}"></td>
                         <td><input type="number" step="0.01" name="per_host_cost" value="{{ '%.2f'|format(plan.per_host_cost) }}"></td>
                         <td><input type="number" step="0.01" name="per_vm_cost" value="{{ '%.2f'|format(plan.per_vm_cost) }}"></td>
+                        <td><input type="number" step="0.01" name="per_switch_cost" value="{{ '%.2f'|format(plan.per_switch_cost) }}"></td>
+                        <td><input type="number" step="0.01" name="per_firewall_cost" value="{{ '%.2f'|format(plan.per_firewall_cost) }}"></td>
                         <td><input type="number" step="0.01" name="backup_base_fee_workstation" value="{{ '%.2f'|format(plan.backup_base_fee_workstation) }}"></td>
                         <td><input type="number" step="0.01" name="backup_base_fee_server" value="{{ '%.2f'|format(plan.backup_base_fee_server) }}"></td>
                         <td><input type="number" step="0.01" name="backup_included_tb" value="{{ '%.2f'|format(plan.backup_included_tb) }}"></td>

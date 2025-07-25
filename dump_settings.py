@@ -43,7 +43,10 @@ def dump_billing_plans(password):
                 per_workstation_cost,
                 per_host_cost,
                 per_vm_cost,
-                backup_base_fee,
+                per_switch_cost,
+                per_firewall_cost,
+                backup_base_fee_workstation,
+                backup_base_fee_server,
                 backup_included_tb,
                 backup_per_tb_fee
             FROM billing_plans
@@ -62,9 +65,9 @@ def dump_billing_plans(password):
 
         for plan in plans:
             # Unpack all columns, including the new ones
-            (billing_plan, term, nmf, puc, psc_legacy, pwc, phc, pvc, bbf, bit, bpt) = plan
+            (billing_plan, term, nmf, puc, psc, pwc, phc, pvc, pswitchc, pfirewallc, bbfw, bbfs, bit, bpt) = plan
             # Format the output string to match the new structure
-            print(f"    ('{billing_plan}', '{term}', {nmf:.2f}, {puc:.2f}, {psc_legacy:.2f}, {pwc:.2f}, {phc:.2f}, {pvc:.2f}, {bbf:.2f}, {bit:.2f}, {bpt:.2f}),")
+            print(f"    ('{billing_plan}', '{term}', {nmf:.2f}, {puc:.2f}, {psc:.2f}, {pwc:.2f}, {phc:.2f}, {pvc:.2f}, {pswitchc:.2f}, {pfirewallc:.2f}, {bbfw:.2f}, {bbfs:.2f}, {bit:.2f}, {bpt:.2f}),")
 
         print("]")
         print("\n--- End of list ---")
