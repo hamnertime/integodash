@@ -145,10 +145,16 @@ def billing_dashboard():
         assets_by_client = defaultdict(lambda: {'workstations': 0, 'hosts': 0, 'vms': 0, 'backup_bytes': 0})
         for asset in assets_raw:
             acc_num = asset['company_account_number']
-            if asset['server_type'] == 'Host': assets_by_client[acc_num]['hosts'] += 1
-            elif asset['server_type'] == 'VM': assets_by_client[acc_num]['vms'] += 1
-            else: assets_by_client[acc_num]['workstations'] += 1
-            if asset['backup_data_bytes']: assets_by_client[acc_num]['backup_bytes'] += asset['backup_data_bytes']
+            if asset['device_type'] == 'Server':
+                if asset['server_type'] == 'VM':
+                    assets_by_client[acc_num]['vms'] += 1
+                else: # This includes 'Host', 'Computer', None, etc.
+                    assets_by_client[acc_num]['hosts'] += 1
+            else: # Not a server, must be a workstation
+                assets_by_client[acc_num]['workstations'] += 1
+
+            if asset['backup_data_bytes']:
+                assets_by_client[acc_num]['backup_bytes'] += asset['backup_data_bytes']
 
         clients_data = []
         rate_key_map = {
@@ -233,11 +239,16 @@ def client_breakdown(account_number):
         plan_details = query_db("SELECT * FROM billing_plans WHERE billing_plan = ? AND term_length = ?", [client_info['billing_plan'], client_info['contract_term_length']], one=True)
         overrides = query_db("SELECT * FROM client_billing_overrides WHERE company_account_number = ?", [account_number], one=True)
 
+        # Calculate device counts based on the new logic
+        detected_workstations = sum(1 for a in assets if a['device_type'] != 'Server')
+        detected_hosts = sum(1 for a in assets if a['device_type'] == 'Server' and a['server_type'] != 'VM')
+        detected_vms = sum(1 for a in assets if a['device_type'] == 'Server' and a['server_type'] == 'VM')
+
         quantities = {
             'users': overrides['override_user_count'] if overrides and 'override_user_count_enabled' in overrides.keys() and overrides['override_user_count_enabled'] else len(users),
-            'workstations': overrides['override_workstation_count'] if overrides and 'override_workstation_count_enabled' in overrides.keys() and overrides['override_workstation_count_enabled'] else sum(1 for a in assets if a['device_type'] == 'Computer' or a['server_type'] is None),
-            'hosts': overrides['override_host_count'] if overrides and 'override_host_count_enabled' in overrides.keys() and overrides['override_host_count_enabled'] else sum(1 for a in assets if a['server_type'] == 'Host'),
-            'vms': overrides['override_vm_count'] if overrides and 'override_vm_count_enabled' in overrides.keys() and overrides['override_vm_count_enabled'] else sum(1 for a in assets if a['server_type'] == 'VM'),
+            'workstations': overrides['override_workstation_count'] if overrides and 'override_workstation_count_enabled' in overrides.keys() and overrides['override_workstation_count_enabled'] else detected_workstations,
+            'hosts': overrides['override_host_count'] if overrides and 'override_host_count_enabled' in overrides.keys() and overrides['override_host_count_enabled'] else detected_hosts,
+            'vms': overrides['override_vm_count'] if overrides and 'override_vm_count_enabled' in overrides.keys() and overrides['override_vm_count_enabled'] else detected_vms,
             'switches': overrides['override_switch_count'] if overrides and 'override_switch_count_enabled' in overrides.keys() and overrides['override_switch_count_enabled'] else 0,
             'firewalls': overrides['override_firewall_count'] if overrides and 'override_firewall_count_enabled' in overrides.keys() and overrides['override_firewall_count_enabled'] else 0,
         }
