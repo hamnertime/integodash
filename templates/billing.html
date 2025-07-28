@@ -1,94 +1,75 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Integotec - Billing Dashboard</title>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f6f8; color: #212529; margin: 0; padding: 20px; }
-        .container { max-width: 90%; margin: 0 auto; }
-        h1 { text-align: center; color: #0056b3; margin-bottom: 20px; }
-        table { width: 100%; border-collapse: collapse; background-color: #ffffff; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 1em; margin-bottom: 20px; }
-        th, td { border: 1px solid #ced4da; padding: 12px 15px; text-align: left; vertical-align: middle; }
-        th { background-color: #e9ecef; font-weight: 600; }
-        th a { text-decoration: none; color: inherit; display: block; }
-        th a:hover { color: #0056b3; }
-        tr:nth-child(even) { background-color: #f8f9fa; }
-        tr:hover { background-color: #e2e6ea; }
-        .nav-link { display: block; text-align: center; margin-bottom: 30px; font-size: 1.1em; }
-        .flash-message { padding: 15px; margin-bottom: 20px; border-radius: 5px; border: 1px solid transparent; }
-        .flash-success { background-color: #d4edda; color: #155724; border-color: #c3e6cb; }
-        .flash-error { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; }
-        .sort-arrow { margin-left: 5px; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Client Billing Overview</h1>
-        <a href="{{ url_for('billing_settings') }}" class="nav-link">Go to Billing Settings & Sync →</a>
+{% extends "layout.html" %}
+{% block title %}Billing Dashboard{% endblock %}
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="flash-message flash-{{ category }}">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
+{% block head %}
+<style>
+    h1 { text-align: center; color: #0056b3; margin-bottom: 20px; }
+    .client-table { width: 100%; border-collapse: collapse; background-color: #ffffff; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 1em; margin-bottom: 20px; }
+    .client-table th, .client-table td { border: 1px solid #ced4da; padding: 12px 15px; text-align: left; vertical-align: middle; }
+    .client-table th { background-color: #e9ecef; font-weight: 600; }
+    .client-table th a { text-decoration: none; color: inherit; display: block; }
+    .client-table th a:hover { color: #0056b3; }
+    .client-table tr:nth-child(even) { background-color: #f8f9fa; }
+    .client-table tr:hover { background-color: #e2e6ea; }
+    .sort-arrow { margin-left: 5px; }
+</style>
+{% endblock %}
 
-        <table class="client-table">
-            <thead>
-                <tr>
-                    <th><a href="{{ url_for('billing_dashboard', sort_by='name', sort_order='desc' if sort_by == 'name' and sort_order == 'asc' else 'asc') }}">
-                        Company Name<span class="sort-arrow">{% if sort_by == 'name' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
-                    </a></th>
-                    <th><a href="{{ url_for('billing_dashboard', sort_by='billing_plan', sort_order='desc' if sort_by == 'billing_plan' and sort_order == 'asc' else 'asc') }}">
-                        Billing Plan<span class="sort-arrow">{% if sort_by == 'billing_plan' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
-                    </a></th>
-                    <th><a href="{{ url_for('billing_dashboard', sort_by='workstations', sort_order='desc' if sort_by == 'workstations' and sort_order == 'asc' else 'asc') }}">
-                        Workstations<span class="sort-arrow">{% if sort_by == 'workstations' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
-                    </a></th>
-                    <th><a href="{{ url_for('billing_dashboard', sort_by='hosts', sort_order='desc' if sort_by == 'hosts' and sort_order == 'asc' else 'asc') }}">
-                        Hosts<span class="sort-arrow">{% if sort_by == 'hosts' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
-                    </a></th>
-                    <th><a href="{{ url_for('billing_dashboard', sort_by='vms', sort_order='desc' if sort_by == 'vms' and sort_order == 'asc' else 'asc') }}">
-                        VMs<span class="sort-arrow">{% if sort_by == 'vms' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
-                    </a></th>
-                    <th><a href="{{ url_for('billing_dashboard', sort_by='users', sort_order='desc' if sort_by == 'users' and sort_order == 'asc' else 'asc') }}">
-                        Users<span class="sort-arrow">{% if sort_by == 'users' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
-                    </a></th>
-                    <th><a href="{{ url_for('billing_dashboard', sort_by='backup', sort_order='desc' if sort_by == 'backup' and sort_order == 'asc' else 'asc') }}">
-                        Backup Usage (TB)<span class="sort-arrow">{% if sort_by == 'backup' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
-                    </a></th>
-                    <th><a href="{{ url_for('billing_dashboard', sort_by='hours', sort_order='desc' if sort_by == 'hours' and sort_order == 'asc' else 'asc') }}">
-                        Hours (Last Month)<span class="sort-arrow">{% if sort_by == 'hours' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
-                    </a></th>
-                    <th><a href="{{ url_for('billing_dashboard', sort_by='bill', sort_order='desc' if sort_by == 'bill' and sort_order == 'asc' else 'asc') }}">
-                        Calculated Bill<span class="sort-arrow">{% if sort_by == 'bill' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
-                    </a></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% if clients %}
-                    {% for client in clients %}
-                    <tr>
-                        <td><strong><a href="{{ url_for('client_breakdown', account_number=client.account_number) }}">{{ client.name }}</a></strong></td>
-                        <td>{{ client['billing_plan'] }}</td>
-                        <td>{{ client['workstations'] }}</td>
-                        <td>{{ client['hosts'] }}</td>
-                        <td>{{ client['vms'] }}</td>
-                        <td>{{ client['users'] }}</td>
-                        <td>{{ "%.2f"|format(client['total_backup_bytes'] / 1099511627776.0) }}</td>
-                        <td>{{ "%.2f"|format(client['total_hours']) }}</td>
-                        <td>${{ "%.2f"|format(client['total_bill']) }}</td>
-                    </tr>
-                    {% endfor %}
-                {% else %}
-                    <tr>
-                        <td colspan="9" style="text-align: center;">No clients found in the database. Run sync scripts from the settings page.</td>
-                    </tr>
-                {% endif %}
-            </tbody>
-        </table>
-    </div>
-</body>
-</html>
+{% block content %}
+<h1>Client Billing Overview</h1>
+
+<table class="client-table">
+    <thead>
+        <tr>
+            <th><a href="{{ url_for('billing_dashboard', sort_by='name', sort_order='desc' if sort_by == 'name' and sort_order == 'asc' else 'asc') }}">
+                Company Name<span class="sort-arrow">{% if sort_by == 'name' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
+            </a></th>
+            <th><a href="{{ url_for('billing_dashboard', sort_by='billing_plan', sort_order='desc' if sort_by == 'billing_plan' and sort_order == 'asc' else 'asc') }}">
+                Billing Plan<span class="sort-arrow">{% if sort_by == 'billing_plan' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
+            </a></th>
+            <th><a href="{{ url_for('billing_dashboard', sort_by='workstations', sort_order='desc' if sort_by == 'workstations' and sort_order == 'asc' else 'asc') }}">
+                Workstations<span class="sort-arrow">{% if sort_by == 'workstations' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
+            </a></th>
+            <th><a href="{{ url_for('billing_dashboard', sort_by='hosts', sort_order='desc' if sort_by == 'hosts' and sort_order == 'asc' else 'asc') }}">
+                Hosts<span class="sort-arrow">{% if sort_by == 'hosts' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
+            </a></th>
+            <th><a href="{{ url_for('billing_dashboard', sort_by='vms', sort_order='desc' if sort_by == 'vms' and sort_order == 'asc' else 'asc') }}">
+                VMs<span class="sort-arrow">{% if sort_by == 'vms' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
+            </a></th>
+            <th><a href="{{ url_for('billing_dashboard', sort_by='users', sort_order='desc' if sort_by == 'users' and sort_order == 'asc' else 'asc') }}">
+                Users<span class="sort-arrow">{% if sort_by == 'users' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
+            </a></th>
+            <th><a href="{{ url_for('billing_dashboard', sort_by='backup', sort_order='desc' if sort_by == 'backup' and sort_order == 'asc' else 'asc') }}">
+                Backup Usage (TB)<span class="sort-arrow">{% if sort_by == 'backup' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
+            </a></th>
+            <th><a href="{{ url_for('billing_dashboard', sort_by='hours', sort_order='desc' if sort_by == 'hours' and sort_order == 'asc' else 'asc') }}">
+                Hours (Last Month)<span class="sort-arrow">{% if sort_by == 'hours' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
+            </a></th>
+            <th><a href="{{ url_for('billing_dashboard', sort_by='bill', sort_order='desc' if sort_by == 'bill' and sort_order == 'asc' else 'asc') }}">
+                Calculated Bill<span class="sort-arrow">{% if sort_by == 'bill' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
+            </a></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% if clients %}
+            {% for client in clients %}
+            <tr>
+                <td><strong><a href="{{ url_for('client_breakdown', account_number=client.account_number) }}">{{ client.name }}</a></strong></td>
+                <td>{{ client['billing_plan'] }}</td>
+                <td>{{ client['workstations'] }}</td>
+                <td>{{ client['hosts'] }}</td>
+                <td>{{ client['vms'] }}</td>
+                <td>{{ client['users'] }}</td>
+                <td>{{ "%.2f"|format(client['total_backup_bytes'] / 1099511627776.0) }}</td>
+                <td>{{ "%.2f"|format(client['total_hours']) }}</td>
+                <td>${{ "%.2f"|format(client['total_bill']) }}</td>
+            </tr>
+            {% endfor %}
+        {% else %}
+            <tr>
+                <td colspan="9" style="text-align: center;">No clients found in the database. Run sync scripts from the settings page.</td>
+            </tr>
+        {% endif %}
+    </tbody>
+</table>
+{% endblock %}

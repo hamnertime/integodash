@@ -1,92 +1,82 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Integotec - {{ client.name }} Overrides</title>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f6f8; color: #212529; margin: 0; padding: 20px; }
-        .container { max-width: 80%; margin: 0 auto; }
-        h1, h2 { color: #0056b3; }
-        h1 { text-align: center; }
-        .nav-links { display: flex; justify-content: center; gap: 20px; margin-bottom: 30px; font-size: 1.1em; }
-        .form-section { background-color: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 30px; }
-        .form-grid { display: grid; grid-template-columns: auto 1fr 1fr auto; gap: 15px 20px; align-items: center; }
-        .form-grid label { font-weight: bold; text-align: right; }
-        .form-grid input[type="number"], .form-grid input[type="text"] { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        .form-grid .header { font-weight: bold; color: #495057; text-align: center;}
-        .form-grid .header.default { grid-column: 2; }
-        .form-grid .header.override { grid-column: 3; }
-        .form-grid input[type="checkbox"] { justify-self: center; transform: scale(1.2); grid-column: 4; }
-        .button-container { text-align: right; margin-top: 20px; }
-        .button-container button { padding: 12px 25px; background-color: #0056b3; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1.1em; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Override Settings for {{ client.name }}</h1>
-        <div class="nav-links">
-             <a href="{{ url_for('client_breakdown', account_number=client.account_number) }}">← Back to Breakdown</a>
+{% extends "layout.html" %}
+{% block title %}{{ client.name }} Overrides{% endblock %}
+
+{% block head %}
+<style>
+    h1, h2 { color: #0056b3; }
+    h1 { text-align: center; }
+    .form-section { background-color: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 30px; }
+    .form-grid { display: grid; grid-template-columns: auto 1fr 1fr auto; gap: 15px 20px; align-items: center; }
+    .form-grid label { font-weight: bold; text-align: right; }
+    .form-grid input[type="number"], .form-grid input[type="text"] { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+    .form-grid .header { font-weight: bold; color: #495057; text-align: center;}
+    .form-grid .header.default { grid-column: 2; }
+    .form-grid .header.override { grid-column: 3; }
+    .form-grid input[type="checkbox"] { justify-self: center; transform: scale(1.2); grid-column: 4; }
+    .button-container { text-align: right; margin-top: 20px; }
+    .button-container button { padding: 12px 25px; background-color: #0056b3; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1.1em; }
+</style>
+{% endblock %}
+
+{% block content %}
+    <h1>Override Settings for {{ client.name }}</h1>
+
+    <form method="POST" action="{{ url_for('client_settings', account_number=client.account_number) }}">
+        <div class="form-section">
+            <h2>Billing Rate Overrides</h2>
+            <div class="form-grid">
+                <div></div> <div class="header default">Default Value</div>
+                <div class="header override">Override Value</div>
+                <div class="header">Enable</div>
+
+                {% macro rate_input(name, label, short_name) %}
+                    <label for="{{ name }}">{{ label }}</label>
+                    {% if name == 'backup_included_tb' %}
+                         <input type="text" value="{{ ('%.2f'|format(defaults[name]) if defaults and defaults[name] is not none else 'N/A') ~ ' TB' }}" disabled>
+                    {% else %}
+                         <input type="text" value="${{ '%.2f'|format(defaults[name]) if defaults and defaults[name] is not none else 'N/A' }}" disabled>
+                    {% endif %}
+                    <input type="number" step="0.01" name="{{ name }}" id="{{ name }}" value="{{ overrides[name] if overrides and overrides[name] is not none }}">
+                    <input type="checkbox" name="override_{{ short_name }}_enabled" {% if overrides and overrides['override_' + short_name + '_enabled'] %}checked{% endif %} title="Enable Override">
+                {% endmacro %}
+
+                {{ rate_input('network_management_fee', 'Network Mgmt Fee', 'nmf') }}
+                {{ rate_input('per_user_cost', 'Per User Cost', 'puc') }}
+                {{ rate_input('per_workstation_cost', 'Per Workstation Cost', 'pwc') }}
+                {{ rate_input('per_host_cost', 'Per Host Cost', 'phc') }}
+                {{ rate_input('per_vm_cost', 'Per VM Cost', 'pvc') }}
+                {{ rate_input('per_switch_cost', 'Per Switch Cost', 'psc') }}
+                {{ rate_input('per_firewall_cost', 'Per Firewall Cost', 'pfc') }}
+                {{ rate_input('backup_base_fee_workstation', 'Backup Base (Workstation)', 'bbfw') }}
+                {{ rate_input('backup_base_fee_server', 'Backup Base (Server)', 'bbfs') }}
+                {{ rate_input('backup_included_tb', 'Backup Included (TB)', 'bit') }}
+                {{ rate_input('backup_per_tb_fee', 'Backup per TB Fee', 'bpt') }}
+            </div>
         </div>
 
-        <form method="POST" action="{{ url_for('client_settings', account_number=client.account_number) }}">
-            <div class="form-section">
-                <h2>Billing Rate Overrides</h2>
-                <div class="form-grid">
-                    <div></div> <div class="header default">Default Value</div>
-                    <div class="header override">Override Value</div>
-                    <div class="header">Enable</div>
+        <div class="form-section">
+            <h2>Quantity Overrides</h2>
+            <div class="form-grid">
+                 <div></div><div class="header default">Detected Value</div><div class="header override">Override Value</div><div class="header">Enable</div>
 
-                    {% macro rate_input(name, label, short_name) %}
-                        <label for="{{ name }}">{{ label }}</label>
-                        {% if name == 'backup_included_tb' %}
-                             <input type="text" value="{{ ('%.2f'|format(defaults[name]) if defaults and defaults[name] is not none else 'N/A') ~ ' TB' }}" disabled>
-                        {% else %}
-                             <input type="text" value="${{ '%.2f'|format(defaults[name]) if defaults and defaults[name] is not none else 'N/A' }}" disabled>
-                        {% endif %}
-                        <input type="number" step="0.01" name="{{ name }}" id="{{ name }}" value="{{ overrides[name] if overrides and overrides[name] is not none }}">
-                        <input type="checkbox" name="override_{{ short_name }}_enabled" {% if overrides and overrides['override_' + short_name + '_enabled'] %}checked{% endif %} title="Enable Override">
-                    {% endmacro %}
+                {% macro quantity_input(name, label, detected_source) %}
+                    <label for="{{ name }}">{{ label }}</label>
+                    <input type="text" value="{{ detected_source }}" disabled>
+                    <input type="number" name="{{ name }}" id="{{ name }}" value="{{ overrides[name] if overrides and overrides[name] is not none }}">
+                    <input type="checkbox" name="{{ name }}_enabled" {% if overrides and overrides[name + '_enabled'] %}checked{% endif %} title="Enable Override">
+                {% endmacro %}
 
-                    {{ rate_input('network_management_fee', 'Network Mgmt Fee', 'nmf') }}
-                    {{ rate_input('per_user_cost', 'Per User Cost', 'puc') }}
-                    {{ rate_input('per_workstation_cost', 'Per Workstation Cost', 'pwc') }}
-                    {{ rate_input('per_host_cost', 'Per Host Cost', 'phc') }}
-                    {{ rate_input('per_vm_cost', 'Per VM Cost', 'pvc') }}
-                    {{ rate_input('per_switch_cost', 'Per Switch Cost', 'psc') }}
-                    {{ rate_input('per_firewall_cost', 'Per Firewall Cost', 'pfc') }}
-                    {{ rate_input('backup_base_fee_workstation', 'Backup Base (Workstation)', 'bbfw') }}
-                    {{ rate_input('backup_base_fee_server', 'Backup Base (Server)', 'bbfs') }}
-                    {{ rate_input('backup_included_tb', 'Backup Included (TB)', 'bit') }}
-                    {{ rate_input('backup_per_tb_fee', 'Backup per TB Fee', 'bpt') }}
-                </div>
+                {{ quantity_input('override_user_count', 'User Count', 'From Freshservice') }}
+                {{ quantity_input('override_workstation_count', 'Workstation Count', 'From Datto') }}
+                {{ quantity_input('override_host_count', 'Host Count', 'From Datto') }}
+                {{ quantity_input('override_vm_count', 'VM Count', 'From Datto') }}
+                {{ quantity_input('override_switch_count', 'Switch Count', 'Manual Entry') }}
+                {{ quantity_input('override_firewall_count', 'Firewall Count', 'Manual Entry') }}
             </div>
+        </div>
 
-            <div class="form-section">
-                <h2>Quantity Overrides</h2>
-                <div class="form-grid">
-                     <div></div><div class="header default">Detected Value</div><div class="header override">Override Value</div><div class="header">Enable</div>
-
-                    {% macro quantity_input(name, label, detected_source) %}
-                        <label for="{{ name }}">{{ label }}</label>
-                        <input type="text" value="{{ detected_source }}" disabled>
-                        <input type="number" name="{{ name }}" id="{{ name }}" value="{{ overrides[name] if overrides and overrides[name] is not none }}">
-                        <input type="checkbox" name="{{ name }}_enabled" {% if overrides and overrides[name + '_enabled'] %}checked{% endif %} title="Enable Override">
-                    {% endmacro %}
-
-                    {{ quantity_input('override_user_count', 'User Count', 'From Freshservice') }}
-                    {{ quantity_input('override_workstation_count', 'Workstation Count', 'From Datto') }}
-                    {{ quantity_input('override_host_count', 'Host Count', 'From Datto') }}
-                    {{ quantity_input('override_vm_count', 'VM Count', 'From Datto') }}
-                    {{ quantity_input('override_switch_count', 'Switch Count', 'Manual Entry') }}
-                    {{ quantity_input('override_firewall_count', 'Firewall Count', 'Manual Entry') }}
-                </div>
-            </div>
-
-            <div class="button-container">
-                <button type="submit">Save All Override Settings</button>
-            </div>
-        </form>
-    </div>
-</body>
-</html>
+        <div class="button-container">
+            <button type="submit">Save All Override Settings</button>
+        </div>
+    </form>
+{% endblock %}

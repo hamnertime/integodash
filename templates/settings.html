@@ -12,6 +12,7 @@
     .plan-table th { font-weight: 600; }
     .plan-table input[type="number"] { width: 120px; padding: 8px; border-radius: 4px; border: 1px solid #ccc; }
     .plan-table td:first-child { font-weight: 500; }
+    .action-cell { text-align: right !important; }
     .add-plan-form { margin-top: 30px; padding: 20px; background-color: #e9ecef; border-radius: 8px; }
     .add-plan-form input[type="text"] { padding: 8px; border-radius: 4px; border: 1px solid #ccc; margin-right: 10px; }
 
@@ -60,6 +61,15 @@
             {% endfor %}
         </tbody>
     </table>
+
+    <h2 style="margin-top: 50px;">Import/Export Settings</h2>
+    <div style="display: flex; gap: 20px; align-items: center;">
+        <a href="{{ url_for('export_settings') }}" class="button">Export All Settings</a>
+        <form action="{{ url_for('import_settings') }}" method="post" enctype="multipart/form-data">
+            <input type="file" name="settings_file" accept=".json" required>
+            <button type="submit">Import Settings</button>
+        </form>
+    </div>
 
     <h2 style="margin-top: 50px;">Default Billing Plan Settings</h2>
     <p>These are the default rates for each billing plan and contract term combination. Client-specific overrides can be set on each client's individual settings page.</p>

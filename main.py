@@ -2,8 +2,9 @@ import os
 import sys
 import subprocess
 import time
+import json
 from datetime import datetime, timedelta, timezone
-from flask import Flask, render_template, g, request, redirect, url_for, flash, session, jsonify
+from flask import Flask, render_template, g, request, redirect, url_for, flash, session, jsonify, Response
 from apscheduler.schedulers.background import BackgroundScheduler
 from collections import defaultdict, OrderedDict
 
@@ -462,6 +463,66 @@ def get_log(job_id):
     log = query_db("SELECT last_run_log FROM scheduler_jobs WHERE id = ?", [job_id], one=True)
     return jsonify({'log': log['last_run_log'] if log and log['last_run_log'] else 'No log found.'})
 
+@app.route('/export_settings')
+def export_settings():
+    db = get_db()
+    billing_plans = [dict(row) for row in db.execute("SELECT * FROM billing_plans").fetchall()]
+    client_overrides = [dict(row) for row in db.execute("SELECT * FROM client_billing_overrides").fetchall()]
+
+    settings_data = {
+        'billing_plans': billing_plans,
+        'client_billing_overrides': client_overrides
+    }
+
+    return Response(
+        json.dumps(settings_data, indent=4),
+        mimetype='application/json',
+        headers={'Content-Disposition': 'attachment;filename=integodash_settings.json'}
+    )
+
+@app.route('/import_settings', methods=['POST'])
+def import_settings():
+    if 'settings_file' not in request.files:
+        flash('No file part', 'error')
+        return redirect(url_for('billing_settings'))
+    file = request.files['settings_file']
+    if file.filename == '':
+        flash('No selected file', 'error')
+        return redirect(url_for('billing_settings'))
+
+    if file and file.filename.endswith('.json'):
+        try:
+            settings_data = json.load(file)
+            billing_plans = settings_data.get('billing_plans', [])
+            client_overrides = settings_data.get('client_billing_overrides', [])
+
+            db = get_db()
+            # Clear existing data
+            db.execute("DELETE FROM client_billing_overrides")
+            db.execute("DELETE FROM billing_plans")
+
+            # Insert new data
+            for plan in billing_plans:
+                db.execute("""
+                    INSERT INTO billing_plans (id, billing_plan, term_length, network_management_fee, per_user_cost, per_server_cost, per_workstation_cost, per_host_cost, per_vm_cost, per_switch_cost, per_firewall_cost, backup_base_fee_workstation, backup_base_fee_server, backup_included_tb, backup_per_tb_fee)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, tuple(plan.values()))
+
+            for override in client_overrides:
+                db.execute("""
+                    INSERT INTO client_billing_overrides (id, company_account_number, network_management_fee, per_user_cost, per_server_cost, per_workstation_cost, per_host_cost, per_vm_cost, per_switch_cost, per_firewall_cost, backup_base_fee_workstation, backup_base_fee_server, backup_included_tb, backup_per_tb_fee, override_user_count, override_workstation_count, override_host_count, override_vm_count, override_switch_count, override_firewall_count, override_nmf_enabled, override_puc_enabled, override_pwc_enabled, override_phc_enabled, override_pvc_enabled, override_psc_enabled, override_pfc_enabled, override_bbfw_enabled, override_bbfs_enabled, override_bit_enabled, override_bpt_enabled, override_user_count_enabled, override_workstation_count_enabled, override_host_count_enabled, override_vm_count_enabled, override_switch_count_enabled, override_firewall_count_enabled)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, tuple(override.values()))
+
+            db.commit()
+            flash('Settings imported successfully!', 'success')
+        except Exception as e:
+            flash(f'An error occurred during import: {e}', 'error')
+            db.rollback()
+    else:
+        flash('Invalid file type. Please upload a .json file.', 'error')
+
+    return redirect(url_for('billing_settings'))
 
 if __name__ == '__main__':
     if not os.path.exists(DATABASE):
