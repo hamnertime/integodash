@@ -361,31 +361,8 @@ def client_settings(account_number):
         flash(f"A database or key error occurred on settings page: {e}. Please log in again.", 'error')
         return redirect(url_for('login'))
 
-@app.route('/settings', methods=['GET', 'POST'])
+@app.route('/settings', methods=['GET'])
 def billing_settings():
-    db = get_db()
-    if request.method == 'POST':
-        plan_id = request.form.get('plan_id')
-        form = request.form
-        db.execute("""
-            UPDATE billing_plans SET
-                network_management_fee = ?, per_user_cost = ?, per_workstation_cost = ?,
-                per_host_cost = ?, per_vm_cost = ?, per_switch_cost = ?, per_firewall_cost = ?,
-                backup_base_fee_workstation = ?, backup_base_fee_server = ?,
-                backup_included_tb = ?, backup_per_tb_fee = ?
-            WHERE id = ?
-        """, (
-            float(form.get('network_management_fee',0)), float(form.get('per_user_cost',0)),
-            float(form.get('per_workstation_cost',0)), float(form.get('per_host_cost',0)),
-            float(form.get('per_vm_cost',0)), float(form.get('per_switch_cost',0)),
-            float(form.get('per_firewall_cost',0)), float(form.get('backup_base_fee_workstation',0)),
-            float(form.get('backup_base_fee_server',0)), float(form.get('backup_included_tb',0)),
-            float(form.get('backup_per_tb_fee',0)), plan_id
-        ))
-        db.commit()
-        flash("Default plan updated successfully!", 'success')
-        return redirect(url_for('billing_settings'))
-
     all_plans_raw = query_db("SELECT * FROM billing_plans ORDER BY billing_plan, term_length")
     grouped_plans = OrderedDict()
     for plan in all_plans_raw:
@@ -395,6 +372,50 @@ def billing_settings():
 
     scheduler_jobs = query_db("SELECT * FROM scheduler_jobs ORDER BY id")
     return render_template('settings.html', grouped_plans=grouped_plans, scheduler_jobs=scheduler_jobs)
+
+@app.route('/settings/plan/action', methods=['POST'])
+def billing_settings_action():
+    db = get_db()
+    form_action = request.form.get('form_action')
+    plan_name = request.form.get('plan_name')
+
+    if form_action == 'delete':
+        db.execute("DELETE FROM billing_plans WHERE billing_plan = ?", [plan_name])
+        db.commit()
+        flash(f"Billing plan '{plan_name}' and all its terms have been deleted.", 'success')
+        return redirect(url_for('billing_settings'))
+
+    elif form_action == 'save':
+        plan_ids = request.form.getlist('plan_ids')
+        for plan_id in plan_ids:
+            form = request.form
+            db.execute("""
+                UPDATE billing_plans SET
+                    network_management_fee = ?, per_user_cost = ?, per_workstation_cost = ?,
+                    per_host_cost = ?, per_vm_cost = ?, per_switch_cost = ?, per_firewall_cost = ?,
+                    backup_base_fee_workstation = ?, backup_base_fee_server = ?,
+                    backup_included_tb = ?, backup_per_tb_fee = ?
+                WHERE id = ?
+            """, (
+                float(form.get(f'network_management_fee_{plan_id}',0)),
+                float(form.get(f'per_user_cost_{plan_id}',0)),
+                float(form.get(f'per_workstation_cost_{plan_id}',0)),
+                float(form.get(f'per_host_cost_{plan_id}',0)),
+                float(form.get(f'per_vm_cost_{plan_id}',0)),
+                float(form.get(f'per_switch_cost_{plan_id}',0)),
+                float(form.get(f'per_firewall_cost_{plan_id}',0)),
+                float(form.get(f'backup_base_fee_workstation_{plan_id}',0)),
+                float(form.get(f'backup_base_fee_server_{plan_id}',0)),
+                float(form.get(f'backup_included_tb_{plan_id}',0)),
+                float(form.get(f'backup_per_tb_fee_{plan_id}',0)),
+                plan_id
+            ))
+        db.commit()
+        flash(f"Default plan '{plan_name}' updated successfully!", 'success')
+        return redirect(url_for('billing_settings'))
+
+    return redirect(url_for('billing_settings'))
+
 
 @app.route('/settings/plan/add', methods=['POST'])
 def add_billing_plan():
@@ -415,15 +436,6 @@ def add_billing_plan():
     """, new_plan_entries)
     db.commit()
     flash(f"New billing plan '{plan_name}' added with default terms.", 'success')
-    return redirect(url_for('billing_settings'))
-
-@app.route('/settings/plan/delete', methods=['POST'])
-def delete_billing_plan_group():
-    db = get_db()
-    plan_name = request.form.get('plan_name_to_delete')
-    db.execute("DELETE FROM billing_plans WHERE billing_plan = ?", [plan_name])
-    db.commit()
-    flash(f"Billing plan '{plan_name}' and all its terms have been deleted.", 'success')
     return redirect(url_for('billing_settings'))
 
 @app.route('/settings/scheduler/update/<int:job_id>', methods=['POST'])
