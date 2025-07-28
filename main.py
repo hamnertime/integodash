@@ -128,7 +128,7 @@ def billing_dashboard():
     try:
         sort_by = request.args.get('sort_by', 'name')
         sort_order = request.args.get('sort_order', 'asc')
-        allowed_sort = {'name', 'billing_plan', 'workstations', 'hosts', 'vms', 'backup', 'users', 'hours', 'bill'}
+        allowed_sort = {'name', 'billing_plan', 'workstations', 'servers', 'vms', 'backup', 'users', 'hours', 'bill'}
         sort_key = sort_by if sort_by in allowed_sort else 'name'
 
         clients_raw = query_db("SELECT * FROM companies")
@@ -143,14 +143,14 @@ def billing_dashboard():
         users_by_client = {u['company_account_number']: u['user_count'] for u in users_raw}
         hours_by_client = {t['company_account_number']: t['total_hours'] for t in tickets_raw}
 
-        assets_by_client = defaultdict(lambda: {'workstations': 0, 'hosts': 0, 'vms': 0, 'backup_bytes': 0})
+        assets_by_client = defaultdict(lambda: {'workstations': 0, 'servers': 0, 'vms': 0, 'backup_bytes': 0})
         for asset in assets_raw:
             acc_num = asset['company_account_number']
             if asset['device_type'] == 'Server':
                 if asset['server_type'] == 'VM':
                     assets_by_client[acc_num]['vms'] += 1
                 else: # This includes 'Host', 'Computer', None, etc.
-                    assets_by_client[acc_num]['hosts'] += 1
+                    assets_by_client[acc_num]['servers'] += 1
             else: # Not a server, must be a workstation
                 assets_by_client[acc_num]['workstations'] += 1
 
@@ -174,7 +174,7 @@ def billing_dashboard():
             quantities = {
                 'users': client_overrides['override_user_count'] if client_overrides and 'override_user_count_enabled' in client_overrides.keys() and client_overrides['override_user_count_enabled'] else users_by_client.get(acc_num, 0),
                 'workstations': client_overrides['override_workstation_count'] if client_overrides and 'override_workstation_count_enabled' in client_overrides.keys() and client_overrides['override_workstation_count_enabled'] else client_assets_counts.get('workstations', 0),
-                'hosts': client_overrides['override_host_count'] if client_overrides and 'override_host_count_enabled' in client_overrides.keys() and client_overrides['override_host_count_enabled'] else client_assets_counts.get('hosts', 0),
+                'servers': client_overrides['override_host_count'] if client_overrides and 'override_host_count_enabled' in client_overrides.keys() and client_overrides['override_host_count_enabled'] else client_assets_counts.get('servers', 0),
                 'vms': client_overrides['override_vm_count'] if client_overrides and 'override_vm_count_enabled' in client_overrides.keys() and client_overrides['override_vm_count_enabled'] else client_assets_counts.get('vms', 0),
                 'switches': client_overrides['override_switch_count'] if client_overrides and 'override_switch_count_enabled' in client_overrides.keys() and client_overrides['override_switch_count_enabled'] else 0,
                 'firewalls': client_overrides['override_firewall_count'] if client_overrides and 'override_firewall_count_enabled' in client_overrides.keys() and client_overrides['override_firewall_count_enabled'] else 0,
@@ -196,7 +196,7 @@ def billing_dashboard():
             total_bill = rates.get('network_management_fee', 0) or 0
             total_bill += quantities['users'] * (rates.get('per_user_cost', 0) or 0)
             total_bill += quantities['workstations'] * (rates.get('per_workstation_cost', 0) or 0)
-            total_bill += quantities['hosts'] * (rates.get('per_host_cost', 0) or 0)
+            total_bill += quantities['servers'] * (rates.get('per_host_cost', 0) or 0)
             total_bill += quantities['vms'] * (rates.get('per_vm_cost', 0) or 0)
             total_bill += quantities['switches'] * (rates.get('per_switch_cost', 0) or 0)
             total_bill += quantities['firewalls'] * (rates.get('per_firewall_cost', 0) or 0)
@@ -215,7 +215,7 @@ def billing_dashboard():
             client_dict['total_bill'] = total_bill
             clients_data.append(client_dict)
 
-        sort_map = {'workstations': 'workstations', 'hosts': 'hosts', 'vms': 'vms', 'users': 'users', 'backup': 'total_backup_bytes', 'hours': 'total_hours', 'bill': 'total_bill', 'name': 'name', 'billing_plan': 'billing_plan'}
+        sort_map = {'workstations': 'workstations', 'servers': 'servers', 'vms': 'vms', 'users': 'users', 'backup': 'total_backup_bytes', 'hours': 'total_hours', 'bill': 'total_bill', 'name': 'name', 'billing_plan': 'billing_plan'}
         sort_column = sort_map.get(sort_key, 'name')
         clients_data.sort(key=lambda x: (x.get(sort_column, 0) is None, x.get(sort_column, 0)), reverse=(sort_order == 'desc'))
 
@@ -242,13 +242,13 @@ def client_breakdown(account_number):
 
         # Calculate device counts based on the new logic
         detected_workstations = sum(1 for a in assets if a['device_type'] != 'Server')
-        detected_hosts = sum(1 for a in assets if a['device_type'] == 'Server' and a['server_type'] != 'VM')
+        detected_servers = sum(1 for a in assets if a['device_type'] == 'Server' and a['server_type'] != 'VM')
         detected_vms = sum(1 for a in assets if a['device_type'] == 'Server' and a['server_type'] == 'VM')
 
         quantities = {
             'users': overrides['override_user_count'] if overrides and 'override_user_count_enabled' in overrides.keys() and overrides['override_user_count_enabled'] else len(users),
             'workstations': overrides['override_workstation_count'] if overrides and 'override_workstation_count_enabled' in overrides.keys() and overrides['override_workstation_count_enabled'] else detected_workstations,
-            'hosts': overrides['override_host_count'] if overrides and 'override_host_count_enabled' in overrides.keys() and overrides['override_host_count_enabled'] else detected_hosts,
+            'servers': overrides['override_host_count'] if overrides and 'override_host_count_enabled' in overrides.keys() and overrides['override_host_count_enabled'] else detected_servers,
             'vms': overrides['override_vm_count'] if overrides and 'override_vm_count_enabled' in overrides.keys() and overrides['override_vm_count_enabled'] else detected_vms,
             'switches': overrides['override_switch_count'] if overrides and 'override_switch_count_enabled' in overrides.keys() and overrides['override_switch_count_enabled'] else 0,
             'firewalls': overrides['override_firewall_count'] if overrides and 'override_firewall_count_enabled' in overrides.keys() and overrides['override_firewall_count_enabled'] else 0,
@@ -274,7 +274,7 @@ def client_breakdown(account_number):
             'nmf': rates.get('network_management_fee', 0) or 0,
             'user_charge': quantities['users'] * (rates.get('per_user_cost', 0) or 0),
             'workstation_charge': quantities['workstations'] * (rates.get('per_workstation_cost', 0) or 0),
-            'host_charge': quantities['hosts'] * (rates.get('per_host_cost', 0) or 0),
+            'server_charge': quantities['servers'] * (rates.get('per_host_cost', 0) or 0),
             'vm_charge': quantities['vms'] * (rates.get('per_vm_cost', 0) or 0),
             'switch_charge': quantities['switches'] * (rates.get('per_switch_cost', 0) or 0),
             'firewall_charge': quantities['firewalls'] * (rates.get('per_firewall_cost', 0) or 0),
@@ -297,12 +297,16 @@ def client_breakdown(account_number):
             receipt.get('nmf', 0) +
             receipt.get('user_charge', 0) +
             receipt.get('workstation_charge', 0) +
-            receipt.get('host_charge', 0) +
+            receipt.get('server_charge', 0) +
             receipt.get('vm_charge', 0) +
             receipt.get('switch_charge', 0) +
             receipt.get('firewall_charge', 0) +
             receipt.get('backup_charge', 0)
         )
+
+        last_month = datetime.now(timezone.utc).replace(day=1) - timedelta(days=1)
+        last_month_str = last_month.strftime('%B %Y')
+
 
         return render_template('client_breakdown.html',
                                client=client_info, assets=assets, users=users,
@@ -310,7 +314,8 @@ def client_breakdown(account_number):
                                effective_rates=rates, quantities=quantities,
                                backed_up_workstations=backed_up_workstations,
                                backed_up_servers=backed_up_servers,
-                               total_backup_tb=total_backup_tb)
+                               total_backup_tb=total_backup_tb,
+                               last_month_str=last_month_str)
 
     except (ValueError, sqlite3.Error, KeyError) as e:
         session.pop('db_password', None)

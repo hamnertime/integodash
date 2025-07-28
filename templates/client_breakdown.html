@@ -37,7 +37,7 @@
                 <tr><td class="label">Network Management Fee</td><td class="value">${{ "%.2f"|format(receipt_data.nmf) }}</td></tr>
                 <tr><td class="label">User Cost ({{ quantities.users }} users × ${{ "%.2f"|format(effective_rates.per_user_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.user_charge) }}</td></tr>
                 <tr><td class="label">Workstation Cost ({{ quantities.workstations }} devices × ${{ "%.2f"|format(effective_rates.per_workstation_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.workstation_charge) }}</td></tr>
-                <tr><td class="label">Host Cost ({{ quantities.hosts }} hosts × ${{ "%.2f"|format(effective_rates.per_host_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.host_charge) }}</td></tr>
+                <tr><td class="label">Server Cost ({{ quantities.servers }} servers × ${{ "%.2f"|format(effective_rates.per_host_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.server_charge) }}</td></tr>
                 <tr><td class="label">VM Cost ({{ quantities.vms }} VMs × ${{ "%.2f"|format(effective_rates.per_vm_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.vm_charge) }}</td></tr>
                 <tr><td class="label">Switch Cost ({{ quantities.switches }} switches × ${{ "%.2f"|format(effective_rates.per_switch_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.switch_charge) }}</td></tr>
                 <tr><td class="label">Firewall Cost ({{ quantities.firewalls }} firewalls × ${{ "%.2f"|format(effective_rates.per_firewall_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.firewall_charge) }}</td></tr>
@@ -53,7 +53,7 @@
         </div>
     </div>
 
-    <h2>Recent Ticket Activity (Last 30 Days)</h2>
+    <h2>Last Full Month - Ticket Breakdown ({{ last_month_str }})</h2>
     <table>
         <thead><tr><th>Ticket ID</th><th>Subject</th><th>Date Closed</th><th>Total Hours</th></tr></thead>
         <tbody>

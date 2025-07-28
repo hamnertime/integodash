@@ -30,8 +30,8 @@
             <th><a href="{{ url_for('billing_dashboard', sort_by='workstations', sort_order='desc' if sort_by == 'workstations' and sort_order == 'asc' else 'asc') }}">
                 Workstations<span class="sort-arrow">{% if sort_by == 'workstations' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
             </a></th>
-            <th><a href="{{ url_for('billing_dashboard', sort_by='hosts', sort_order='desc' if sort_by == 'hosts' and sort_order == 'asc' else 'asc') }}">
-                Hosts<span class="sort-arrow">{% if sort_by == 'hosts' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
+            <th><a href="{{ url_for('billing_dashboard', sort_by='servers', sort_order='desc' if sort_by == 'servers' and sort_order == 'asc' else 'asc') }}">
+                Servers<span class="sort-arrow">{% if sort_by == 'servers' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
             </a></th>
             <th><a href="{{ url_for('billing_dashboard', sort_by='vms', sort_order='desc' if sort_by == 'vms' and sort_order == 'asc' else 'asc') }}">
                 VMs<span class="sort-arrow">{% if sort_by == 'vms' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
@@ -57,7 +57,7 @@
                 <td><strong><a href="{{ url_for('client_breakdown', account_number=client.account_number) }}">{{ client.name }}</a></strong></td>
                 <td>{{ client['billing_plan'] }}</td>
                 <td>{{ client['workstations'] }}</td>
-                <td>{{ client['hosts'] }}</td>
+                <td>{{ client['servers'] }}</td>
                 <td>{{ client['vms'] }}</td>
                 <td>{{ client['users'] }}</td>
                 <td>{{ "%.2f"|format(client['total_backup_bytes'] / 1099511627776.0) }}</td>
