@@ -65,7 +65,6 @@ def get_all_users(base_url, headers):
     while True:
         params = {'page': page, 'per_page': 100}
         try:
-            # print(f"-> Fetching user page {page}...") # Optional: uncomment for very verbose logging
             response = requests.get(endpoint, headers=headers, params=params, timeout=30)
             if response.status_code == 429:
                 retry_after = int(response.headers.get('Retry-After', 5))
@@ -148,6 +147,41 @@ def populate_users_database(db_connection, users_to_insert):
     """, users_to_insert)
     print(f"Successfully inserted/updated {cur.rowcount} users in the database.")
 
+def offboard_deactivated_users(db_connection, users_from_api):
+    """
+    Identifies users who are inactive in the API response and deletes them from the local database.
+    """
+    cur = db_connection.cursor()
+
+    # Create a set of all Freshservice IDs for users who are NOT active
+    deactivated_user_ids = {user['id'] for user in users_from_api if not user.get('active', False)}
+
+    if not deactivated_user_ids:
+        print("\nNo deactivated users found in Freshservice to offboard.")
+        return
+
+    # Convert set to a list of tuples for executemany
+    user_id_tuples = [(user_id,) for user_id in deactivated_user_ids]
+
+    print(f"\nFound {len(deactivated_user_ids)} deactivated users. Removing from local database...")
+
+    # Use a temporary table to hold the IDs to delete for performance and safety
+    cur.execute("CREATE TEMP TABLE ids_to_delete (id INTEGER PRIMARY KEY);")
+    cur.executemany("INSERT INTO ids_to_delete (id) VALUES (?)", user_id_tuples)
+
+    # Execute the delete operation by joining with the temporary table
+    cur.execute("""
+        DELETE FROM users
+        WHERE freshservice_id IN (SELECT id FROM ids_to_delete);
+    """)
+
+    deleted_count = cur.rowcount
+    if deleted_count > 0:
+        print(f"Successfully removed {deleted_count} deactivated users from the local database.")
+
+    # The temporary table is automatically dropped at the end of the session
+    db_connection.commit()
+
 
 # --- Main Execution ---
 if __name__ == "__main__":
@@ -178,21 +212,32 @@ if __name__ == "__main__":
         if not companies or users is None:
             sys.exit("Could not fetch company or user data from Freshservice. Aborting sync.")
 
-        all_users_to_insert = []
+        con = get_db_connection(DB_FILE, DB_MASTER_PASSWORD)
+
+        # Offboard any users that are no longer active
+        offboard_deactivated_users(con, users)
+
+        # Now, process only the active users for insertion/update
+        active_users_to_insert = []
         company_id_to_account_map = {c.get('id'): (c.get('custom_fields') or {}).get(ACCOUNT_NUMBER_FIELD) for c in companies}
+
         for user in users:
+            # Skip inactive users for the update/insert process
+            if not user.get('active', False):
+                continue
+
             for dept_id in (user.get('department_ids') or []):
                 if account_num := company_id_to_account_map.get(dept_id):
-                    all_users_to_insert.append((
+                    active_users_to_insert.append((
                         str(account_num), user.get('id'), f"{user.get('first_name', '')} {user.get('last_name', '')}".strip(),
-                        user.get('primary_email'), 'Active' if user.get('active', False) else 'Inactive',
+                        user.get('primary_email'), 'Active',
                         user.get('created_at', datetime.now(timezone.utc).isoformat())
                     ))
                     break
 
-        con = get_db_connection(DB_FILE, DB_MASTER_PASSWORD)
         populate_companies_database(con, companies)
-        populate_users_database(con, all_users_to_insert)
+        populate_users_database(con, active_users_to_insert)
+
         con.commit()
         con.close()
         print("\n--- Freshservice Data Sync Successful ---")
