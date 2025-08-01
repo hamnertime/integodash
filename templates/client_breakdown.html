@@ -1,3 +1,4 @@
+<!-- templates/client_breakdown.html -->
 {% extends "layout.html" %}
 {% block title %}{{ client.name }}{% endblock %}
 
@@ -35,7 +36,8 @@
             <h3>Billing Receipt</h3>
             <table class="receipt-table">
                 <tr><td class="label">Network Management Fee</td><td class="value">${{ "%.2f"|format(receipt_data.nmf) }}</td></tr>
-                <tr><td class="label">User Cost ({{ quantities.users }} users × ${{ "%.2f"|format(effective_rates.per_user_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.user_charge) }}</td></tr>
+                <tr><td class="label">Regular User Cost ({{ quantities.regular_users }} users × ${{ "%.2f"|format(effective_rates.per_user_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.regular_user_charge) }}</td></tr>
+                <tr><td class="label">Lite User Cost ({{ quantities.lite_users }} users × ${{ "%.2f"|format(effective_rates.per_lite_user_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.lite_user_charge) }}</td></tr>
                 <tr><td class="label">Workstation Cost ({{ quantities.workstations }} devices × ${{ "%.2f"|format(effective_rates.per_workstation_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.workstation_charge) }}</td></tr>
                 <tr><td class="label">Server Cost ({{ quantities.servers }} servers × ${{ "%.2f"|format(effective_rates.per_host_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.server_charge) }}</td></tr>
                 <tr><td class="label">VM Cost ({{ quantities.vms }} VMs × ${{ "%.2f"|format(effective_rates.per_vm_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.vm_charge) }}</td></tr>
@@ -80,8 +82,8 @@
         </div>
         <div>
             <h4>Freshservice Users ({{ users|length }})</h4>
-            <table><thead><tr><th>Full Name</th><th>Email</th><th>Status</th></tr></thead><tbody>
-                {% for user in users %}<tr><td>{{ user.full_name }}</td><td>{{ user.email }}</td><td>{{ user.status }}</td></tr>{% else %}<tr><td colspan="3">No users found.</td></tr>{% endfor %}
+            <table><thead><tr><th>Full Name</th><th>Email</th><th>User Type</th><th>Status</th></tr></thead><tbody>
+                {% for user in users %}<tr><td>{{ user.full_name }}</td><td>{{ user.email }}</td><td>{{ user.user_type }}</td><td>{{ user.status }}</td></tr>{% else %}<tr><td colspan="4">No users found.</td></tr>{% endfor %}
             </tbody></table>
         </div>
     </div>

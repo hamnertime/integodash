@@ -18,6 +18,7 @@ FRESHSERVICE_DOMAIN = "integotecllc.freshservice.com"
 ACCOUNT_NUMBER_FIELD = "account_number"
 CONTRACT_TERM_FIELD = "contract_term_length"
 CONTRACT_START_DATE_FIELD = "contract_start_date"
+LITE_USER_FIELD = "mark_as_lite_user" # CORRECTED: Removed the trailing underscore
 COMPANIES_PER_PAGE = 100
 MAX_RETRIES = 3
 
@@ -141,9 +142,9 @@ def populate_users_database(db_connection, users_to_insert):
     if not users_to_insert: return
     cur = db_connection.cursor()
     cur.executemany("""
-        INSERT INTO users (company_account_number, freshservice_id, full_name, email, status, date_added) VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO users (company_account_number, freshservice_id, full_name, email, status, date_added, user_type) VALUES (?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(freshservice_id) DO UPDATE SET
-            company_account_number=excluded.company_account_number, full_name=excluded.full_name, email=excluded.email, status=excluded.status
+            company_account_number=excluded.company_account_number, full_name=excluded.full_name, email=excluded.email, status=excluded.status, user_type=excluded.user_type
     """, users_to_insert)
     print(f"Successfully inserted/updated {cur.rowcount} users in the database.")
 
@@ -153,33 +154,25 @@ def offboard_deactivated_users(db_connection, users_from_api):
     """
     cur = db_connection.cursor()
 
-    # Create a set of all Freshservice IDs for users who are NOT active
     deactivated_user_ids = {user['id'] for user in users_from_api if not user.get('active', False)}
 
     if not deactivated_user_ids:
         print("\nNo deactivated users found in Freshservice to offboard.")
         return
 
-    # Convert set to a list of tuples for executemany
     user_id_tuples = [(user_id,) for user_id in deactivated_user_ids]
 
     print(f"\nFound {len(deactivated_user_ids)} deactivated users. Removing from local database...")
 
-    # Use a temporary table to hold the IDs to delete for performance and safety
     cur.execute("CREATE TEMP TABLE ids_to_delete (id INTEGER PRIMARY KEY);")
     cur.executemany("INSERT INTO ids_to_delete (id) VALUES (?)", user_id_tuples)
 
-    # Execute the delete operation by joining with the temporary table
-    cur.execute("""
-        DELETE FROM users
-        WHERE freshservice_id IN (SELECT id FROM ids_to_delete);
-    """)
+    cur.execute("DELETE FROM users WHERE freshservice_id IN (SELECT id FROM ids_to_delete);")
 
     deleted_count = cur.rowcount
     if deleted_count > 0:
         print(f"Successfully removed {deleted_count} deactivated users from the local database.")
 
-    # The temporary table is automatically dropped at the end of the session
     db_connection.commit()
 
 
@@ -214,24 +207,28 @@ if __name__ == "__main__":
 
         con = get_db_connection(DB_FILE, DB_MASTER_PASSWORD)
 
-        # Offboard any users that are no longer active
         offboard_deactivated_users(con, users)
 
-        # Now, process only the active users for insertion/update
         active_users_to_insert = []
         company_id_to_account_map = {c.get('id'): (c.get('custom_fields') or {}).get(ACCOUNT_NUMBER_FIELD) for c in companies}
 
         for user in users:
-            # Skip inactive users for the update/insert process
             if not user.get('active', False):
                 continue
 
             for dept_id in (user.get('department_ids') or []):
                 if account_num := company_id_to_account_map.get(dept_id):
+                    is_lite_user = (user.get('custom_fields') or {}).get(LITE_USER_FIELD, False)
+                    user_type = 'Lite' if is_lite_user else 'Regular'
+
                     active_users_to_insert.append((
-                        str(account_num), user.get('id'), f"{user.get('first_name', '')} {user.get('last_name', '')}".strip(),
-                        user.get('primary_email'), 'Active',
-                        user.get('created_at', datetime.now(timezone.utc).isoformat())
+                        str(account_num),
+                        user.get('id'),
+                        f"{user.get('first_name', '')} {user.get('last_name', '')}".strip(),
+                        user.get('primary_email'),
+                        'Active',
+                        user.get('created_at', datetime.now(timezone.utc).isoformat()),
+                        user_type
                     ))
                     break
 

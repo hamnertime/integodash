@@ -1,3 +1,4 @@
+<!-- templates/client_settings.html -->
 {% extends "layout.html" %}
 {% block title %}{{ client.name }} Overrides{% endblock %}
 
@@ -41,7 +42,8 @@
                 {% endmacro %}
 
                 {{ rate_input('network_management_fee', 'Network Mgmt Fee', 'nmf') }}
-                {{ rate_input('per_user_cost', 'Per User Cost', 'puc') }}
+                {{ rate_input('per_user_cost', 'Per Regular User Cost', 'puc') }}
+                {{ rate_input('per_lite_user_cost', 'Per Lite User Cost', 'pluc') }}
                 {{ rate_input('per_workstation_cost', 'Per Workstation Cost', 'pwc') }}
                 {{ rate_input('per_host_cost', 'Per Server Cost', 'phc') }}
                 {{ rate_input('per_vm_cost', 'Per VM Cost', 'pvc') }}
@@ -66,7 +68,8 @@
                     <input type="checkbox" name="{{ name }}_enabled" {% if overrides and overrides[name + '_enabled'] %}checked{% endif %} title="Enable Override">
                 {% endmacro %}
 
-                {{ quantity_input('override_user_count', 'User Count', 'From Freshservice') }}
+                {{ quantity_input('override_regular_user_count', 'Regular User Count', 'From Freshservice') }}
+                {{ quantity_input('override_lite_user_count', 'Lite User Count', 'From Freshservice') }}
                 {{ quantity_input('override_workstation_count', 'Workstation Count', 'From Datto') }}
                 {{ quantity_input('override_host_count', 'Server Count', 'From Datto') }}
                 {{ quantity_input('override_vm_count', 'VM Count', 'From Datto') }}
