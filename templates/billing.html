@@ -1,4 +1,3 @@
-<!-- templates/billing.html -->
 {% extends "layout.html" %}
 {% block title %}Billing Dashboard{% endblock %}
 
@@ -40,14 +39,11 @@
             <th><a href="{{ url_for('billing_dashboard', sort_by='regular_users', sort_order='desc' if sort_by == 'regular_users' and sort_order == 'asc' else 'asc') }}">
                 Regular Users<span class="sort-arrow">{% if sort_by == 'regular_users' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
             </a></th>
-            <th><a href="{{ url_for('billing_dashboard', sort_by='lite_users', sort_order='desc' if sort_by == 'lite_users' and sort_order == 'asc' else 'asc') }}">
-                Lite Users<span class="sort-arrow">{% if sort_by == 'lite_users' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
-            </a></th>
             <th><a href="{{ url_for('billing_dashboard', sort_by='backup', sort_order='desc' if sort_by == 'backup' and sort_order == 'asc' else 'asc') }}">
                 Backup (TB)<span class="sort-arrow">{% if sort_by == 'backup' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
             </a></th>
             <th><a href="{{ url_for('billing_dashboard', sort_by='hours', sort_order='desc' if sort_by == 'hours' and sort_order == 'asc' else 'asc') }}">
-                Hours (Last Month)<span class="sort-arrow">{% if sort_by == 'hours' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
+                Hours (This Year)<span class="sort-arrow">{% if sort_by == 'hours' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
             </a></th>
             <th><a href="{{ url_for('billing_dashboard', sort_by='bill', sort_order='desc' if sort_by == 'bill' and sort_order == 'asc' else 'asc') }}">
                 Calculated Bill<span class="sort-arrow">{% if sort_by == 'bill' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
@@ -64,7 +60,6 @@
                 <td>{{ client['servers'] }}</td>
                 <td>{{ client['vms'] }}</td>
                 <td>{{ client['regular_users'] }}</td>
-                <td>{{ client['lite_users'] }}</td>
                 <td>{{ "%.2f"|format(client['total_backup_bytes'] / 1099511627776.0) }}</td>
                 <td>{{ "%.2f"|format(client['total_hours']) }}</td>
                 <td>${{ "%.2f"|format(client['total_bill']) }}</td>
@@ -72,7 +67,7 @@
             {% endfor %}
         {% else %}
             <tr>
-                <td colspan="10" style="text-align: center;">No clients found in the database. Run sync scripts from the settings page.</td>
+                <td colspan="9" style="text-align: center;">No clients found in the database. Run sync scripts from the settings page.</td>
             </tr>
         {% endif %}
     </tbody>

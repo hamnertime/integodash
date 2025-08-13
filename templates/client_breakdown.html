@@ -1,4 +1,3 @@
-<!-- templates/client_breakdown.html -->
 {% extends "layout.html" %}
 {% block title %}{{ client.name }}{% endblock %}
 
@@ -31,18 +30,24 @@
             <p><strong>Assigned Plan:</strong> {{ client.billing_plan }}</p>
             <p><strong>Contract Term:</strong> {{ client.contract_term_length }}</p>
             <p><strong>Contract Start:</strong> {{ client.contract_start_date }}</p>
+            <p><strong>Support Level:</strong> {{ client.support_level }}</p>
         </div>
         <div class="info-card">
             <h3>Billing Receipt</h3>
             <table class="receipt-table">
                 <tr><td class="label">Network Management Fee</td><td class="value">${{ "%.2f"|format(receipt_data.nmf) }}</td></tr>
                 <tr><td class="label">Regular User Cost ({{ quantities.regular_users }} users × ${{ "%.2f"|format(effective_rates.per_user_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.regular_user_charge) }}</td></tr>
-                <tr><td class="label">Lite User Cost ({{ quantities.lite_users }} users × ${{ "%.2f"|format(effective_rates.per_lite_user_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.lite_user_charge) }}</td></tr>
                 <tr><td class="label">Workstation Cost ({{ quantities.workstations }} devices × ${{ "%.2f"|format(effective_rates.per_workstation_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.workstation_charge) }}</td></tr>
                 <tr><td class="label">Server Cost ({{ quantities.servers }} servers × ${{ "%.2f"|format(effective_rates.per_host_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.server_charge) }}</td></tr>
                 <tr><td class="label">VM Cost ({{ quantities.vms }} VMs × ${{ "%.2f"|format(effective_rates.per_vm_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.vm_charge) }}</td></tr>
                 <tr><td class="label">Switch Cost ({{ quantities.switches }} switches × ${{ "%.2f"|format(effective_rates.per_switch_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.switch_charge) }}</td></tr>
                 <tr><td class="label">Firewall Cost ({{ quantities.firewalls }} firewalls × ${{ "%.2f"|format(effective_rates.per_firewall_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.firewall_charge) }}</td></tr>
+
+                <tr><td class="label"><strong>Ticket Charges</strong></td><td class="value"><strong>${{ "%.2f"|format(receipt_data.ticket_charge) }}</strong></td></tr>
+                <tr class="backup-breakdown"><td class="label">Total Hours ({{ "%.2f"|format(total_hours_this_year) }} hours)</td><td class="value"></td></tr>
+                <tr class="backup-breakdown"><td class="label">Pre-paid Monthly Hours</td><td class="value">{{ "%.2f"|format(receipt_data.prepaid_hours_monthly) }} hours</td></tr>
+                <tr class="backup-breakdown"><td class="label">Pre-paid Yearly Hours</td><td class="value">{{ "%.2f"|format(receipt_data.prepaid_hours_yearly) }} hours</td></tr>
+                <tr class="backup-breakdown"><td class="label">Billable Hours ({{ "%.2f"|format(receipt_data.billable_hours) }} hours × ${{ "%.2f"|format(effective_rates.per_hour_ticket_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.ticket_charge) }}</td></tr>
 
                 <tr><td class="label"><strong>Backup Charge</strong></td><td class="value"><strong>${{ "%.2f"|format(receipt_data.backup_charge) }}</strong></td></tr>
                 <tr class="backup-breakdown"><td class="label">Workstation Backup Base Fee ({{ backed_up_workstations }} devices × ${{ "%.2f"|format(effective_rates.backup_base_fee_workstation) }})</td><td class="value">${{ "%.2f"|format(receipt_data.backup_base_workstation) }}</td></tr>
@@ -55,7 +60,7 @@
         </div>
     </div>
 
-    <h2>Last Full Month - Ticket Breakdown ({{ last_month_str }})</h2>
+    <h2>Ticket Breakdown ({{ current_year_str }})</h2>
     <table>
         <thead><tr><th>Ticket ID</th><th>Subject</th><th>Date Closed</th><th>Total Hours</th></tr></thead>
         <tbody>
@@ -67,7 +72,7 @@
                 <td>{{ "%.2f"|format(ticket.total_hours_spent) }}</td>
             </tr>
             {% else %}
-            <tr><td colspan="4">No recent tickets with time entries found.</td></tr>
+            <tr><td colspan="4">No tickets with time entries found for the current year.</td></tr>
             {% endfor %}
         </tbody>
     </table>
@@ -76,14 +81,14 @@
     <div class="grid-container">
         <div>
             <h4>Datto RMM Assets ({{ assets|length }})</h4>
-            <table><thead><tr><th>Hostname</th><th>Type</th><th>Server Type</th><th>OS</th><th>Backup Usage (TB)</th></tr></thead><tbody>
-                {% for asset in assets %}<tr><td>{{ asset.hostname }}</td><td>{{ asset.device_type }}</td><td>{{ asset.server_type or 'N/A' }}</td><td>{{ asset.operating_system }}</td><td>{{ "%.4f"|format(asset.backup_data_tb) }}</td></tr>{% else %}<tr><td colspan="5">No assets found.</td></tr>{% endfor %}
+            <table><thead><tr><th>Hostname</th><th>Billing Type</th><th>OS</th><th>Backup Usage (TB)</th></tr></thead><tbody>
+                {% for asset in assets %}<tr><td>{{ asset.hostname }}</td><td>{{ asset.billing_type }}</td><td>{{ asset.operating_system }}</td><td>{{ "%.4f"|format(asset.backup_data_tb) }}</td></tr>{% else %}<tr><td colspan="4">No assets found.</td></tr>{% endfor %}
             </tbody></table>
         </div>
         <div>
             <h4>Freshservice Users ({{ users|length }})</h4>
-            <table><thead><tr><th>Full Name</th><th>Email</th><th>User Type</th><th>Status</th></tr></thead><tbody>
-                {% for user in users %}<tr><td>{{ user.full_name }}</td><td>{{ user.email }}</td><td>{{ user.user_type }}</td><td>{{ user.status }}</td></tr>{% else %}<tr><td colspan="4">No users found.</td></tr>{% endfor %}
+            <table><thead><tr><th>Full Name</th><th>Email</th><th>Billing Type</th><th>Status</th></tr></thead><tbody>
+                {% for user in users %}<tr><td>{{ user.full_name }}</td><td>{{ user.email }}</td><td>{{ user.billing_type }}</td><td>{{ user.status }}</td></tr>{% else %}<tr><td colspan="4">No users found.</td></tr>{% endfor %}
             </tbody></table>
         </div>
     </div>

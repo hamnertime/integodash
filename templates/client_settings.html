@@ -1,4 +1,3 @@
-<!-- templates/client_settings.html -->
 {% extends "layout.html" %}
 {% block title %}{{ client.name }} Overrides{% endblock %}
 
@@ -34,6 +33,8 @@
                     <label for="{{ name }}">{{ label }}</label>
                     {% if name == 'backup_included_tb' %}
                          <input type="text" value="{{ ('%.2f'|format(defaults[name]) if defaults and defaults[name] is not none else 'N/A') ~ ' TB' }}" disabled>
+                    {% elif name == 'prepaid_hours_monthly' or name == 'prepaid_hours_yearly' %}
+                        <input type="text" value="{{ defaults[name] if defaults and defaults[name] is not none else '0' }} hours" disabled>
                     {% else %}
                          <input type="text" value="${{ '%.2f'|format(defaults[name]) if defaults and defaults[name] is not none else 'N/A' }}" disabled>
                     {% endif %}
@@ -43,16 +44,18 @@
 
                 {{ rate_input('network_management_fee', 'Network Mgmt Fee', 'nmf') }}
                 {{ rate_input('per_user_cost', 'Per Regular User Cost', 'puc') }}
-                {{ rate_input('per_lite_user_cost', 'Per Lite User Cost', 'pluc') }}
                 {{ rate_input('per_workstation_cost', 'Per Workstation Cost', 'pwc') }}
                 {{ rate_input('per_host_cost', 'Per Server Cost', 'phc') }}
                 {{ rate_input('per_vm_cost', 'Per VM Cost', 'pvc') }}
                 {{ rate_input('per_switch_cost', 'Per Switch Cost', 'psc') }}
                 {{ rate_input('per_firewall_cost', 'Per Firewall Cost', 'pfc') }}
+                {{ rate_input('per_hour_ticket_cost', 'Per Hour Ticket Cost', 'phtc')}}
                 {{ rate_input('backup_base_fee_workstation', 'Backup Base (Workstation)', 'bbfw') }}
                 {{ rate_input('backup_base_fee_server', 'Backup Base (Server)', 'bbfs') }}
                 {{ rate_input('backup_included_tb', 'Backup Included (TB)', 'bit') }}
                 {{ rate_input('backup_per_tb_fee', 'Backup per TB Fee', 'bpt') }}
+                {{ rate_input('prepaid_hours_monthly', 'Pre-paid Hours (Monthly)', 'prepaid_hours_monthly') }}
+                {{ rate_input('prepaid_hours_yearly', 'Pre-paid Hours (Yearly)', 'prepaid_hours_yearly') }}
             </div>
         </div>
 
@@ -69,7 +72,6 @@
                 {% endmacro %}
 
                 {{ quantity_input('override_regular_user_count', 'Regular User Count', 'From Freshservice') }}
-                {{ quantity_input('override_lite_user_count', 'Lite User Count', 'From Freshservice') }}
                 {{ quantity_input('override_workstation_count', 'Workstation Count', 'From Datto') }}
                 {{ quantity_input('override_host_count', 'Server Count', 'From Datto') }}
                 {{ quantity_input('override_vm_count', 'VM Count', 'From Datto') }}

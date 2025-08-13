@@ -94,14 +94,14 @@ def populate_assets_database(db_password, assets_to_insert):
         con, cur = get_db_connection(DB_FILE, db_password)
         print(f"\nAttempting to insert/update {len(assets_to_insert)} assets into the database...")
         cur.executemany("""
-            INSERT INTO assets (company_account_number, datto_uid, hostname, friendly_name, device_type, server_type, operating_system, status, date_added, backup_data_bytes)
+            INSERT INTO assets (company_account_number, datto_uid, hostname, friendly_name, device_type, billing_type, operating_system, status, date_added, backup_data_bytes)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(datto_uid) DO UPDATE SET
                 company_account_number=excluded.company_account_number,
                 hostname=excluded.hostname,
                 friendly_name=excluded.friendly_name,
                 device_type=excluded.device_type,
-                server_type=excluded.server_type,
+                billing_type=excluded.billing_type,
                 operating_system=excluded.operating_system,
                 status=excluded.status,
                 backup_data_bytes=excluded.backup_data_bytes;
@@ -152,7 +152,6 @@ if __name__ == "__main__":
             continue
 
         print(f"   -> Found Account Number: {account_number}. Fetching devices...")
-        # We only need the summary data now, which is much faster
         devices_in_site = get_paginated_api_request(endpoint, token, f"/v2/site/{site_uid}/devices")
 
         if devices_in_site:
@@ -163,12 +162,14 @@ if __name__ == "__main__":
 
                 udf_dict = device.get('udf', {}) or {}
 
-                # Read server type directly from our reliable UDF
-                server_type = None
+                billing_type = "Workstation"
                 if (device.get('deviceType') or {}).get('category') == 'Server':
-                    server_type = udf_dict.get(f'udf{SERVER_TYPE_UDF_ID}') # e.g., 'Host' or 'VM'
+                    server_type_from_udf = udf_dict.get(f'udf{SERVER_TYPE_UDF_ID}')
+                    if server_type_from_udf == 'VM':
+                        billing_type = 'VM'
+                    else:
+                        billing_type = 'Server'
 
-                # Read backup data from its UDF
                 backup_data_bytes = 0
                 value_str = udf_dict.get(f'udf{BACKUP_UDF_ID}')
                 if value_str:
@@ -183,7 +184,7 @@ if __name__ == "__main__":
                     device.get('hostname'),
                     device.get('description'),
                     (device.get('deviceType') or {}).get('category'),
-                    server_type,
+                    billing_type,
                     device.get('operatingSystem'),
                     'Active',
                     date_added_str,

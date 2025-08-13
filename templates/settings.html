@@ -1,4 +1,3 @@
-<!-- templates/settings.html -->
 {% extends "layout.html" %}
 {% block title %}Settings & Sync{% endblock %}
 
@@ -83,12 +82,12 @@
                         <th>Contract Term</th>
                         <th>Network Fee ($)</th>
                         <th>Per Regular User ($)</th>
-                        <th>Per Lite User ($)</th>
                         <th>Per Workstation ($)</th>
                         <th>Per Server ($)</th>
                         <th>Per VM ($)</th>
                         <th>Per Switch ($)</th>
                         <th>Per Firewall ($)</th>
+                        <th>Per Hour Ticket Cost ($)</th>
                         <th>Backup Base (Workstation) ($)</th>
                         <th>Backup Base (Server) ($)</th>
                         <th>Backup Included (TB)</th>
@@ -102,12 +101,12 @@
                         <input type="hidden" name="plan_ids" value="{{ plan.id }}">
                         <td><input type="number" step="0.01" name="network_management_fee_{{ plan.id }}" value="{{ '%.2f'|format(plan.network_management_fee) }}"></td>
                         <td><input type="number" step="0.01" name="per_user_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_user_cost) }}"></td>
-                        <td><input type="number" step="0.01" name="per_lite_user_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_lite_user_cost) }}"></td>
                         <td><input type="number" step="0.01" name="per_workstation_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_workstation_cost) }}"></td>
                         <td><input type="number" step="0.01" name="per_host_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_host_cost) }}"></td>
                         <td><input type="number" step="0.01" name="per_vm_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_vm_cost) }}"></td>
                         <td><input type="number" step="0.01" name="per_switch_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_switch_cost) }}"></td>
                         <td><input type="number" step="0.01" name="per_firewall_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_firewall_cost) }}"></td>
+                        <td><input type="number" step="0.01" name="per_hour_ticket_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_hour_ticket_cost) }}"></td>
                         <td><input type="number" step="0.01" name="backup_base_fee_workstation_{{ plan.id }}" value="{{ '%.2f'|format(plan.backup_base_fee_workstation) }}"></td>
                         <td><input type="number" step="0.01" name="backup_base_fee_server_{{ plan.id }}" value="{{ '%.2f'|format(plan.backup_base_fee_server) }}"></td>
                         <td><input type="number" step="0.01" name="backup_included_tb_{{ plan.id }}" value="{{ '%.2f'|format(plan.backup_included_tb) }}"></td>

@@ -15,37 +15,37 @@ DB_FILE = "brainhair.db"
 
 # --- Default Billing Plan Data ---
 # CORRECTED: The order of values in each tuple now correctly matches the INSERT statement columns.
-# Tuple structure: (plan, term, nmf, puc, pluc, psc, pwc, phc, pvc, pswitchc, pfirewallc, bbfw, bbfs, bit, bpt)
+# Tuple structure: (plan, term, nmf, puc, psc, pwc, phc, pvc, pswitchc, pfirewallc, phtc, bbfw, bbfs, bit, bpt)
 default_plans_data = [
-    # plan, term, nmf, puc, pluc, psc, pwc, phc, pvc, pswitchc, pfirewallc, bbfw, bbfs, bit, bpt
-    ('Break Fix', '1-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('Break Fix', '2-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('Break Fix', '3-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('Break Fix', 'Month to Month', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Advanced', '1-Year', 0.00, 0.00, 0.00, 25.00, 25.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Advanced', '2-Year', 0.00, 0.00, 0.00, 25.00, 25.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Advanced', '3-Year', 0.00, 0.00, 0.00, 25.00, 25.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Advanced', 'Month to Month', 0.00, 0.00, 0.00, 25.00, 25.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Basic', '1-Year', 0.00, 0.00, 0.00, 10.00, 10.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Basic', '2-Year', 0.00, 0.00, 0.00, 10.00, 10.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Basic', '3-Year', 0.00, 0.00, 0.00, 10.00, 10.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Basic', 'Month to Month', 0.00, 0.00, 0.00, 10.00, 10.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Legacy', '1-Year', 100.00, 10.00, 5.00, 50.00, 25.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Legacy', '2-Year', 100.00, 9.50, 4.75, 50.00, 23.75, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Legacy', '3-Year', 100.00, 9.00, 4.50, 50.00, 22.50, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Legacy', 'Month to Month', 100.00, 10.00, 5.00, 50.00, 25.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Platinum', '1-Year', 0.00, 120.00, 60.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Platinum', '2-Year', 0.00, 115.00, 57.50, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Platinum', '3-Year', 0.00, 110.00, 55.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Platinum', 'Month to Month', 0.00, 125.00, 62.50, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Premium', '1-Year', 0.00, 95.00, 47.50, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Premium', '2-Year', 0.00, 90.00, 45.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Premium', '3-Year', 0.00, 85.00, 42.50, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Premium', 'Month to Month', 0.00, 100.00, 50.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('Pro Services', '1-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('Pro Services', '2-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('Pro Services', '3-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('Pro Services', 'Month to Month', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    # plan, term, nmf, puc, psc, pwc, phc, pvc, pswitchc, pfirewallc, phtc, bbfw, bbfs, bit, bpt
+    ('Break Fix', '1-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 90.00, 25.00, 50.00, 1.0, 15.00),
+    ('Break Fix', '2-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 90.00, 25.00, 50.00, 1.0, 15.00),
+    ('Break Fix', '3-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 90.00, 25.00, 50.00, 1.0, 15.00),
+    ('Break Fix', 'Month to Month', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 100.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Advanced', '1-Year', 0.00, 0.00, 25.00, 25.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Advanced', '2-Year', 0.00, 0.00, 25.00, 25.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Advanced', '3-Year', 0.00, 0.00, 25.00, 25.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Advanced', 'Month to Month', 0.00, 0.00, 25.00, 25.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Basic', '1-Year', 0.00, 0.00, 10.00, 10.00, 0.00, 0.00, 0.00, 0.00, 90.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Basic', '2-Year', 0.00, 0.00, 10.00, 10.00, 0.00, 0.00, 0.00, 0.00, 90.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Basic', '3-Year', 0.00, 0.00, 10.00, 10.00, 0.00, 0.00, 0.00, 0.00, 90.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Basic', 'Month to Month', 0.00, 0.00, 10.00, 10.00, 0.00, 0.00, 0.00, 0.00, 100.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Legacy', '1-Year', 100.00, 10.00, 50.00, 25.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Legacy', '2-Year', 100.00, 9.50, 50.00, 23.75, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Legacy', '3-Year', 100.00, 9.00, 50.00, 22.50, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Legacy', 'Month to Month', 100.00, 10.00, 50.00, 25.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Platinum', '1-Year', 0.00, 120.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Platinum', '2-Year', 0.00, 115.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Platinum', '3-Year', 0.00, 110.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Platinum', 'Month to Month', 0.00, 125.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Premium', '1-Year', 0.00, 95.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Premium', '2-Year', 0.00, 90.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Premium', '3-Year', 0.00, 85.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Premium', 'Month to Month', 0.00, 100.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
+    ('Pro Services', '1-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 90.00, 25.00, 50.00, 1.0, 15.00),
+    ('Pro Services', '2-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 90.00, 25.00, 50.00, 1.0, 15.00),
+    ('Pro Services', '3-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 90.00, 25.00, 50.00, 1.0, 15.00),
+    ('Pro Services', 'Month to Month', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 100.00, 25.00, 50.00, 1.0, 15.00),
 ]
 
 
@@ -98,10 +98,11 @@ def create_database():
                 billing_plan TEXT,
                 status TEXT,
                 contract_term_length TEXT,
-                contract_start_date TEXT
+                contract_start_date TEXT,
+                support_level TEXT
             )
         """)
-        cur.execute("CREATE TABLE IF NOT EXISTS assets (id INTEGER PRIMARY KEY, company_account_number TEXT, datto_uid TEXT UNIQUE, hostname TEXT, friendly_name TEXT, device_type TEXT, server_type TEXT, status TEXT, date_added TEXT, operating_system TEXT, backup_data_bytes INTEGER, FOREIGN KEY (company_account_number) REFERENCES companies (account_number))")
+        cur.execute("CREATE TABLE IF NOT EXISTS assets (id INTEGER PRIMARY KEY, company_account_number TEXT, datto_uid TEXT UNIQUE, hostname TEXT, friendly_name TEXT, device_type TEXT, billing_type TEXT, status TEXT, date_added TEXT, operating_system TEXT, backup_data_bytes INTEGER, FOREIGN KEY (company_account_number) REFERENCES companies (account_number))")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY,
@@ -111,7 +112,7 @@ def create_database():
                 email TEXT UNIQUE,
                 status TEXT,
                 date_added TEXT,
-                user_type TEXT NOT NULL DEFAULT 'Regular',
+                billing_type TEXT NOT NULL DEFAULT 'Regular',
                 FOREIGN KEY (company_account_number) REFERENCES companies (account_number)
             )
         """)
@@ -123,13 +124,13 @@ def create_database():
                 term_length TEXT,
                 network_management_fee REAL DEFAULT 0,
                 per_user_cost REAL DEFAULT 0,
-                per_lite_user_cost REAL DEFAULT 0,
                 per_server_cost REAL DEFAULT 0,
                 per_workstation_cost REAL DEFAULT 0,
                 per_host_cost REAL DEFAULT 0,
                 per_vm_cost REAL DEFAULT 0,
                 per_switch_cost REAL DEFAULT 0,
                 per_firewall_cost REAL DEFAULT 0,
+                per_hour_ticket_cost REAL DEFAULT 0,
                 backup_base_fee_workstation REAL DEFAULT 25,
                 backup_base_fee_server REAL DEFAULT 50,
                 backup_included_tb REAL DEFAULT 1,
@@ -146,21 +147,22 @@ def create_database():
                 -- Rate Overrides
                 network_management_fee REAL,
                 per_user_cost REAL,
-                per_lite_user_cost REAL,
                 per_server_cost REAL,
                 per_workstation_cost REAL,
                 per_host_cost REAL,
                 per_vm_cost REAL,
                 per_switch_cost REAL,
                 per_firewall_cost REAL,
+                per_hour_ticket_cost REAL,
                 backup_base_fee_workstation REAL,
                 backup_base_fee_server REAL,
                 backup_included_tb REAL,
                 backup_per_tb_fee REAL,
+                prepaid_hours_monthly REAL,
+                prepaid_hours_yearly REAL,
 
                 -- Quantity Overrides
                 override_regular_user_count INTEGER,
-                override_lite_user_count INTEGER,
                 override_workstation_count INTEGER,
                 override_host_count INTEGER,
                 override_vm_count INTEGER,
@@ -170,18 +172,19 @@ def create_database():
                 -- Enable/Disable Flags for each override
                 override_nmf_enabled BOOLEAN DEFAULT 0,
                 override_puc_enabled BOOLEAN DEFAULT 0,
-                override_pluc_enabled BOOLEAN DEFAULT 0,
                 override_pwc_enabled BOOLEAN DEFAULT 0,
                 override_phc_enabled BOOLEAN DEFAULT 0,
                 override_pvc_enabled BOOLEAN DEFAULT 0,
                 override_psc_enabled BOOLEAN DEFAULT 0,
                 override_pfc_enabled BOOLEAN DEFAULT 0,
+                override_phtc_enabled BOOLEAN DEFAULT 0,
                 override_bbfw_enabled BOOLEAN DEFAULT 0,
                 override_bbfs_enabled BOOLEAN DEFAULT 0,
                 override_bit_enabled BOOLEAN DEFAULT 0,
                 override_bpt_enabled BOOLEAN DEFAULT 0,
+                override_prepaid_hours_monthly_enabled BOOLEAN DEFAULT 0,
+                override_prepaid_hours_yearly_enabled BOOLEAN DEFAULT 0,
                 override_regular_user_count_enabled BOOLEAN DEFAULT 0,
-                override_lite_user_count_enabled BOOLEAN DEFAULT 0,
                 override_workstation_count_enabled BOOLEAN DEFAULT 0,
                 override_host_count_enabled BOOLEAN DEFAULT 0,
                 override_vm_count_enabled BOOLEAN DEFAULT 0,
@@ -189,6 +192,26 @@ def create_database():
                 override_firewall_count_enabled BOOLEAN DEFAULT 0,
 
                 FOREIGN KEY (company_account_number) REFERENCES companies (account_number)
+            )
+        """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS asset_billing_overrides (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                asset_id INTEGER UNIQUE,
+                billing_type TEXT,
+                custom_cost REAL,
+                FOREIGN KEY (asset_id) REFERENCES assets (id)
+            )
+        """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS user_billing_overrides (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER UNIQUE,
+                billing_type TEXT,
+                custom_cost REAL,
+                FOREIGN KEY (user_id) REFERENCES users (id)
             )
         """)
 
@@ -238,7 +261,7 @@ def create_database():
 
         print("Populating default billing plans...")
         cur.executemany("""
-            INSERT INTO billing_plans (billing_plan, term_length, network_management_fee, per_user_cost, per_lite_user_cost, per_server_cost, per_workstation_cost, per_host_cost, per_vm_cost, per_switch_cost, per_firewall_cost, backup_base_fee_workstation, backup_base_fee_server, backup_included_tb, backup_per_tb_fee)
+            INSERT INTO billing_plans (billing_plan, term_length, network_management_fee, per_user_cost, per_server_cost, per_workstation_cost, per_host_cost, per_vm_cost, per_switch_cost, per_firewall_cost, per_hour_ticket_cost, backup_base_fee_workstation, backup_base_fee_server, backup_included_tb, backup_per_tb_fee)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, default_plans_data)
 

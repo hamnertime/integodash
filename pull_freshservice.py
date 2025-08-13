@@ -18,7 +18,6 @@ FRESHSERVICE_DOMAIN = "integotecllc.freshservice.com"
 ACCOUNT_NUMBER_FIELD = "account_number"
 CONTRACT_TERM_FIELD = "contract_term_length"
 CONTRACT_START_DATE_FIELD = "contract_start_date"
-LITE_USER_FIELD = "mark_as_lite_user" # CORRECTED: Removed the trailing underscore
 COMPANIES_PER_PAGE = 100
 MAX_RETRIES = 3
 
@@ -123,17 +122,19 @@ def populate_companies_database(db_connection, companies_data):
             custom_fields.get('type_of_client', 'Unknown'),
             custom_fields.get('plan_selected', 'Unknown'),
             term_length,
-            start_date
+            start_date,
+            custom_fields.get('support_level', 'Billed Hourly')
         ))
 
     if not companies_to_insert: return
 
     cur.executemany("""
-        INSERT INTO companies (account_number, name, freshservice_id, contract_type, billing_plan, contract_term_length, contract_start_date)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO companies (account_number, name, freshservice_id, contract_type, billing_plan, contract_term_length, contract_start_date, support_level)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(account_number) DO UPDATE SET
             name=excluded.name, freshservice_id=excluded.freshservice_id, contract_type=excluded.contract_type,
-            billing_plan=excluded.billing_plan, contract_term_length=excluded.contract_term_length, contract_start_date=excluded.contract_start_date
+            billing_plan=excluded.billing_plan, contract_term_length=excluded.contract_term_length, contract_start_date=excluded.contract_start_date,
+            support_level=excluded.support_level
     """, companies_to_insert)
     print(f"\nSuccessfully inserted/updated {cur.rowcount} companies in the database.")
 
@@ -142,9 +143,9 @@ def populate_users_database(db_connection, users_to_insert):
     if not users_to_insert: return
     cur = db_connection.cursor()
     cur.executemany("""
-        INSERT INTO users (company_account_number, freshservice_id, full_name, email, status, date_added, user_type) VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO users (company_account_number, freshservice_id, full_name, email, status, date_added, billing_type) VALUES (?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(freshservice_id) DO UPDATE SET
-            company_account_number=excluded.company_account_number, full_name=excluded.full_name, email=excluded.email, status=excluded.status, user_type=excluded.user_type
+            company_account_number=excluded.company_account_number, full_name=excluded.full_name, email=excluded.email, status=excluded.status, billing_type=excluded.billing_type
     """, users_to_insert)
     print(f"Successfully inserted/updated {cur.rowcount} users in the database.")
 
@@ -218,9 +219,6 @@ if __name__ == "__main__":
 
             for dept_id in (user.get('department_ids') or []):
                 if account_num := company_id_to_account_map.get(dept_id):
-                    is_lite_user = (user.get('custom_fields') or {}).get(LITE_USER_FIELD, False)
-                    user_type = 'Lite' if is_lite_user else 'Regular'
-
                     active_users_to_insert.append((
                         str(account_num),
                         user.get('id'),
@@ -228,7 +226,7 @@ if __name__ == "__main__":
                         user.get('primary_email'),
                         'Active',
                         user.get('created_at', datetime.now(timezone.utc).isoformat()),
-                        user_type
+                        'Regular'
                     ))
                     break
 
