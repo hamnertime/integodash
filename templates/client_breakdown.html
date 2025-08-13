@@ -17,11 +17,24 @@
         .receipt-table .value { text-align: right; }
         .receipt-table .total-row td { border-top: 2px solid #333; font-weight: bold; padding-top: 10px; }
         .backup-breakdown { padding-left: 20px; font-size: 0.9em; color: #555; }
+        .billing-period-selector { margin-bottom: 20px; text-align: center; }
     </style>
 {% endblock %}
 
 {% block content %}
     <h1>{{ client.name }}</h1>
+
+    <div class="billing-period-selector">
+        <form method="get" action="{{ url_for('client_breakdown', account_number=client.account_number) }}">
+            <label for="billing_month"><strong>Select Billing Period:</strong></label>
+            <select name="month" id="billing_month" onchange="this.form.submit()">
+                {% for option in month_options %}
+                    <option value="{{ option.month }}" {% if option.month == selected_month %}selected{% endif %}>{{ option.name }}</option>
+                {% endfor %}
+            </select>
+            <input type="hidden" name="year" value="{{ selected_year }}">
+        </form>
+    </div>
 
     <div class="grid-container">
         <div class="info-card">
@@ -33,7 +46,7 @@
             <p><strong>Support Level:</strong> {{ client.support_level }}</p>
         </div>
         <div class="info-card">
-            <h3>Billing Receipt</h3>
+            <h3>Billing Receipt for {{ selected_billing_period }}</h3>
             <table class="receipt-table">
                 <tr><td class="label">Network Management Fee</td><td class="value">${{ "%.2f"|format(receipt_data.nmf) }}</td></tr>
                 <tr><td class="label">Regular User Cost ({{ quantities.regular_users }} users × ${{ "%.2f"|format(effective_rates.per_user_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.regular_user_charge) }}</td></tr>
@@ -44,9 +57,9 @@
                 <tr><td class="label">Firewall Cost ({{ quantities.firewalls }} firewalls × ${{ "%.2f"|format(effective_rates.per_firewall_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.firewall_charge) }}</td></tr>
 
                 <tr><td class="label"><strong>Ticket Charges</strong></td><td class="value"><strong>${{ "%.2f"|format(receipt_data.ticket_charge) }}</strong></td></tr>
-                <tr class="backup-breakdown"><td class="label">Total Hours ({{ "%.2f"|format(total_hours_this_year) }} hours)</td><td class="value"></td></tr>
-                <tr class="backup-breakdown"><td class="label">Pre-paid Monthly Hours</td><td class="value">{{ "%.2f"|format(receipt_data.prepaid_hours_monthly) }} hours</td></tr>
-                <tr class="backup-breakdown"><td class="label">Pre-paid Yearly Hours</td><td class="value">{{ "%.2f"|format(receipt_data.prepaid_hours_yearly) }} hours</td></tr>
+                <tr class="backup-breakdown"><td class="label">Total Hours This Period ({{ "%.2f"|format(receipt_data.hours_for_billing_period) }} hours)</td><td class="value"></td></tr>
+                <tr class="backup-breakdown"><td class="label">Pre-paid Monthly Hours</td><td class="value">-{{ "%.2f"|format(receipt_data.prepaid_hours_monthly) }} hours</td></tr>
+                <tr class="backup-breakdown"><td class="label">Pre-paid Yearly Hours (Prorated)</td><td class="value">-{{ "%.2f"|format(receipt_data.prepaid_hours_yearly / 12 * selected_month) }} hours</td></tr>
                 <tr class="backup-breakdown"><td class="label">Billable Hours ({{ "%.2f"|format(receipt_data.billable_hours) }} hours × ${{ "%.2f"|format(effective_rates.per_hour_ticket_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.ticket_charge) }}</td></tr>
 
                 <tr><td class="label"><strong>Backup Charge</strong></td><td class="value"><strong>${{ "%.2f"|format(receipt_data.backup_charge) }}</strong></td></tr>
@@ -60,11 +73,11 @@
         </div>
     </div>
 
-    <h2>Ticket Breakdown ({{ current_year_str }})</h2>
+    <h2>Ticket Breakdown for Billing Period ({{ selected_billing_period }})</h2>
     <table>
         <thead><tr><th>Ticket ID</th><th>Subject</th><th>Date Closed</th><th>Total Hours</th></tr></thead>
         <tbody>
-            {% for ticket in recent_tickets %}
+            {% for ticket in tickets_for_billing_period %}
             <tr>
                 <td><a href="https://integotecllc.freshservice.com/a/tickets/{{ ticket.ticket_id }}" target="_blank">#{{ ticket.ticket_id }}</a></td>
                 <td>{{ ticket.subject }}</td>
@@ -72,7 +85,58 @@
                 <td>{{ "%.2f"|format(ticket.total_hours_spent) }}</td>
             </tr>
             {% else %}
-            <tr><td colspan="4">No tickets with time entries found for the current year.</td></tr>
+            <tr><td colspan="4">No tickets with time entries found for this period.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Tickets This Month ({{- tickets_this_month | sum(attribute='total_hours_spent') | round(2) }} hours)</h2>
+    <table>
+        <thead><tr><th>Ticket ID</th><th>Subject</th><th>Date Closed</th><th>Total Hours</th></tr></thead>
+        <tbody>
+            {% for ticket in tickets_this_month %}
+            <tr>
+                <td><a href="https://integotecllc.freshservice.com/a/tickets/{{ ticket.ticket_id }}" target="_blank">#{{ ticket.ticket_id }}</a></td>
+                <td>{{ ticket.subject }}</td>
+                <td>{{ ticket.closed_at | humanize if ticket.closed_at else 'Still Open' }}</td>
+                <td>{{ "%.2f"|format(ticket.total_hours_spent) }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4">No tickets with time entries found for this month.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Tickets Last Month ({{- tickets_last_month | sum(attribute='total_hours_spent') | round(2) }} hours)</h2>
+    <table>
+        <thead><tr><th>Ticket ID</th><th>Subject</th><th>Date Closed</th><th>Total Hours</th></tr></thead>
+        <tbody>
+            {% for ticket in tickets_last_month %}
+            <tr>
+                <td><a href="https://integotecllc.freshservice.com/a/tickets/{{ ticket.ticket_id }}" target="_blank">#{{ ticket.ticket_id }}</a></td>
+                <td>{{ ticket.subject }}</td>
+                <td>{{ ticket.closed_at | humanize if ticket.closed_at else 'Still Open' }}</td>
+                <td>{{ "%.2f"|format(ticket.total_hours_spent) }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4">No tickets with time entries found for last month.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>All Tickets This Year ({{- all_tickets_this_year | sum(attribute='total_hours_spent') | round(2) }} hours)</h2>
+    <table>
+        <thead><tr><th>Ticket ID</th><th>Subject</th><th>Date Closed</th><th>Total Hours</th></tr></thead>
+        <tbody>
+            {% for ticket in all_tickets_this_year %}
+            <tr>
+                <td><a href="https://integotecllc.freshservice.com/a/tickets/{{ ticket.ticket_id }}" target="_blank">#{{ ticket.ticket_id }}</a></td>
+                <td>{{ ticket.subject }}</td>
+                <td>{{ ticket.closed_at | humanize if ticket.closed_at else 'Still Open' }}</td>
+                <td>{{ "%.2f"|format(ticket.total_hours_spent) }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4">No tickets with time entries found for this year.</td></tr>
             {% endfor %}
         </tbody>
     </table>

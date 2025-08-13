@@ -4,6 +4,7 @@ import os
 import sys
 import time
 import getpass
+import argparse
 from datetime import datetime, timedelta, timezone
 
 try:
@@ -15,6 +16,7 @@ except ImportError:
 DB_FILE = "brainhair.db"
 FRESHSERVICE_DOMAIN = "integotecllc.freshservice.com"
 MAX_RETRIES = 3
+DEFAULT_TICKET_HOURS = 0.25 # 15 minutes
 
 def get_db_connection(db_path, password):
     if not password: raise ValueError("A database password is required.")
@@ -37,10 +39,8 @@ def get_latest_ticket_timestamp(cur):
     cur.execute("SELECT MAX(last_updated_at) as latest_timestamp FROM ticket_details")
     result = cur.fetchone()
     if result and result['latest_timestamp']:
-        # Add one second to avoid re-fetching the last ticket itself
         return datetime.fromisoformat(result['latest_timestamp'].replace('Z', '+00:00')) + timedelta(seconds=1)
     else:
-        # If table is empty, go back one year for the initial full sync
         print("No existing tickets found. Performing initial sync for the past year.")
         return datetime.now(timezone.utc) - timedelta(days=365)
 
@@ -48,9 +48,14 @@ def get_latest_ticket_timestamp(cur):
 def get_updated_tickets(base_url, headers, since_timestamp):
     all_tickets = []
     since_str = since_timestamp.strftime('%Y-%m-%dT%H:%M:%SZ')
-    query = f"updated_at:>'{since_str}'"
+
+    # --- THIS IS THE FIX ---
+    # Only query for tickets that have a status of "Closed" (status:5)
+    query = f"(updated_at:>'{since_str}' AND status:5)"
+    # -----------------------
+
     page = 1
-    print(f"Fetching all tickets updated since {since_str}...")
+    print(f"Fetching CLOSED tickets updated since {since_str}...")
 
     while True:
         params = {'query': f'"{query}"', 'page': page, 'per_page': 100}
@@ -98,7 +103,6 @@ def get_time_entries_for_ticket(base_url, headers, ticket_id):
                     h, m = map(int, time_str.split(':'))
                     total_hours += h + (m / 60.0)
                 except ValueError:
-                    # Handle cases like "0:30:00" if they occur
                     parts = list(map(int, time_str.split(':')))
                     if len(parts) == 3:
                         h, m, s = parts
@@ -113,7 +117,7 @@ def get_time_entries_for_ticket(base_url, headers, ticket_id):
 
 def upsert_ticket_details(db_connection, ticket_data_to_upsert):
     if not ticket_data_to_upsert:
-        print("\nNo new or updated ticket data with time entries to insert.")
+        print("\nNo new or updated ticket data to insert.")
         return
     cur = db_connection.cursor()
     cur.executemany("""
@@ -130,6 +134,10 @@ def upsert_ticket_details(db_connection, ticket_data_to_upsert):
 
 # --- Main Execution ---
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Sync ticket details from Freshservice.")
+    parser.add_argument('--full-sync', action='store_true', help="Force a full sync of all tickets from the past year.")
+    args = parser.parse_args()
+
     print("--- Running Ticket Details Sync Script (Last Ticket Timestamp Method) ---")
     DB_MASTER_PASSWORD = os.environ.get('DB_MASTER_PASSWORD')
     if not DB_MASTER_PASSWORD:
@@ -142,8 +150,15 @@ if __name__ == "__main__":
     try:
         con, cur = get_db_connection(DB_FILE, DB_MASTER_PASSWORD)
 
-        # Get the timestamp from the latest ticket in our DB
-        last_sync_time = get_latest_ticket_timestamp(cur)
+        if args.full_sync:
+            print("Full sync flag detected. Clearing all existing ticket data...")
+            # --- THIS IS THE FIX ---
+            cur.execute("DELETE FROM ticket_details;")
+            # -----------------------
+            print("Fetching all closed tickets from the past year.")
+            last_sync_time = datetime.now(timezone.utc) - timedelta(days=365)
+        else:
+            last_sync_time = get_latest_ticket_timestamp(cur)
 
         cur.execute("SELECT freshservice_id, account_number FROM companies WHERE freshservice_id IS NOT NULL")
         fs_id_to_account_map = {row['freshservice_id']: row['account_number'] for row in cur.fetchall()}
@@ -154,7 +169,6 @@ if __name__ == "__main__":
         encoded_auth = base64.b64encode(auth_str.encode()).decode()
         headers = {"Content-Type": "application/json", "Authorization": f"Basic {encoded_auth}"}
 
-        # Fetch only tickets updated since our last known ticket
         tickets = get_updated_tickets(base_url, headers, last_sync_time)
         if tickets is None: sys.exit("Aborting due to ticket fetch failure.")
 
@@ -170,11 +184,14 @@ if __name__ == "__main__":
                 ticket_id = ticket['id']
                 print(f"  -> Processing Ticket #{ticket_id}...")
 
-                # We must get all time entries to calculate the correct total,
-                # as the API doesn't provide a "total time" field directly.
                 total_hours = get_time_entries_for_ticket(base_url, headers, ticket_id)
 
-                closed_date = ticket.get('updated_at') if ticket.get('status') == 5 else None
+                if total_hours == 0:
+                    total_hours = DEFAULT_TICKET_HOURS
+                    print(f"    -> No time entries found. Assigning default {DEFAULT_TICKET_HOURS} hours.")
+
+                # Since we only fetch closed tickets, we can be confident this is the final closed date.
+                closed_date = ticket.get('updated_at')
 
                 ticket_details_to_upsert.append((
                     ticket_id,

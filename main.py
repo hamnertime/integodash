@@ -46,7 +46,6 @@ def login():
     if request.method == 'POST':
         password_attempt = request.form.get('password')
         try:
-            # Test the connection to validate the password
             from database import get_db_connection
             with get_db_connection(password_attempt) as con:
                 if not scheduler.running:
@@ -67,9 +66,7 @@ def billing_dashboard():
     try:
         sort_by = request.args.get('sort_by', 'name')
         sort_order = request.args.get('sort_order', 'asc')
-
         clients_data = get_billing_dashboard_data(sort_by, sort_order)
-
         return render_template('billing.html', clients=clients_data, sort_by=sort_by, sort_order=sort_order)
     except (ValueError, KeyError) as e:
         session.pop('db_password', None)
@@ -79,12 +76,36 @@ def billing_dashboard():
 @app.route('/client/<account_number>/breakdown')
 def client_breakdown(account_number):
     try:
-        breakdown_data = get_client_breakdown_data(account_number)
+        today = datetime.now(timezone.utc)
+
+        # Default to last full month
+        first_day_of_current_month = today.replace(day=1)
+        last_month_date = first_day_of_current_month - timedelta(days=1)
+
+        # Get year and month from URL, or use default
+        year = request.args.get('year', default=last_month_date.year, type=int)
+        month = request.args.get('month', default=last_month_date.month, type=int)
+
+        breakdown_data = get_client_breakdown_data(account_number, year, month)
         if not breakdown_data.get('client'):
             flash(f"Client {account_number} not found.", 'error')
             return redirect(url_for('billing_dashboard'))
 
-        return render_template('client_breakdown.html', **breakdown_data)
+        # Create list of months for the dropdown
+        month_options = []
+        for i in range(today.month, 0, -1):
+            month_options.append({'year': today.year, 'month': i, 'name': datetime(today.year, i, 1).strftime('%B %Y')})
+
+        selected_billing_period = datetime(year, month, 1).strftime('%B %Y')
+
+        return render_template(
+            'client_breakdown.html',
+            **breakdown_data,
+            selected_year=year,
+            selected_month=month,
+            month_options=month_options,
+            selected_billing_period=selected_billing_period
+        )
 
     except (ValueError, KeyError) as e:
         session.pop('db_password', None)
@@ -96,6 +117,7 @@ def client_settings(account_number):
     try:
         db = get_db()
         if request.method == 'POST':
+            # ... (code from previous version)
             form_data = request.form.to_dict()
             values = {'company_account_number': account_number}
 
@@ -153,6 +175,7 @@ def billing_settings():
 
 @app.route('/settings/plan/action', methods=['POST'])
 def billing_settings_action():
+    # ... (code from previous version)
     db = get_db()
     form_action = request.form.get('form_action')
     plan_name = request.form.get('plan_name')
@@ -197,6 +220,7 @@ def billing_settings_action():
 
 @app.route('/settings/plan/add', methods=['POST'])
 def add_billing_plan():
+    # ... (code from previous version)
     db = get_db()
     plan_name = request.form.get('new_plan_name')
     if not plan_name:
@@ -218,6 +242,7 @@ def add_billing_plan():
 
 @app.route('/settings/scheduler/update/<int:job_id>', methods=['POST'])
 def update_scheduler_job(job_id):
+    # ... (code from previous version)
     db = get_db()
     is_enabled = 1 if 'enabled' in request.form else 0
     interval = int(request.form.get('interval_minutes', 1))
@@ -228,6 +253,7 @@ def update_scheduler_job(job_id):
 
 @app.route('/scheduler/run_now/<int:job_id>', methods=['POST'])
 def run_now(job_id):
+    # ... (code from previous version)
     password = session.get('db_password')
     job = query_db("SELECT script_path FROM scheduler_jobs WHERE id = ?", [job_id], one=True)
     if job and scheduler.running:
@@ -237,6 +263,7 @@ def run_now(job_id):
 
 @app.route('/scheduler/log/<int:job_id>')
 def get_log(job_id):
+    # ... (code from previous version)
     log_data = query_db("SELECT last_run_log FROM scheduler_jobs WHERE id = ?", [job_id], one=True)
     return jsonify({'log': log_data['last_run_log'] if log_data and log_data['last_run_log'] else 'No log found.'})
 
