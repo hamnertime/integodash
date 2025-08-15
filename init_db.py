@@ -161,14 +161,6 @@ def create_database():
                 prepaid_hours_monthly REAL,
                 prepaid_hours_yearly REAL,
 
-                -- Quantity Overrides
-                override_regular_user_count INTEGER,
-                override_workstation_count INTEGER,
-                override_host_count INTEGER,
-                override_vm_count INTEGER,
-                override_switch_count INTEGER,
-                override_firewall_count INTEGER,
-
                 -- Enable/Disable Flags for each override
                 override_nmf_enabled BOOLEAN DEFAULT 0,
                 override_puc_enabled BOOLEAN DEFAULT 0,
@@ -184,12 +176,6 @@ def create_database():
                 override_bpt_enabled BOOLEAN DEFAULT 0,
                 override_prepaid_hours_monthly_enabled BOOLEAN DEFAULT 0,
                 override_prepaid_hours_yearly_enabled BOOLEAN DEFAULT 0,
-                override_regular_user_count_enabled BOOLEAN DEFAULT 0,
-                override_workstation_count_enabled BOOLEAN DEFAULT 0,
-                override_host_count_enabled BOOLEAN DEFAULT 0,
-                override_vm_count_enabled BOOLEAN DEFAULT 0,
-                override_switch_count_enabled BOOLEAN DEFAULT 0,
-                override_firewall_count_enabled BOOLEAN DEFAULT 0,
 
                 FOREIGN KEY (company_account_number) REFERENCES companies (account_number)
             )
@@ -201,7 +187,7 @@ def create_database():
                 asset_id INTEGER UNIQUE,
                 billing_type TEXT,
                 custom_cost REAL,
-                FOREIGN KEY (asset_id) REFERENCES assets (id)
+                FOREIGN KEY (asset_id) REFERENCES assets (id) ON DELETE CASCADE
             )
         """)
 
@@ -211,7 +197,31 @@ def create_database():
                 user_id INTEGER UNIQUE,
                 billing_type TEXT,
                 custom_cost REAL,
-                FOREIGN KEY (user_id) REFERENCES users (id)
+                FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+            )
+        """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS manual_assets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                company_account_number TEXT NOT NULL,
+                hostname TEXT NOT NULL,
+                device_type TEXT,
+                billing_type TEXT,
+                custom_cost REAL,
+                FOREIGN KEY (company_account_number) REFERENCES companies (account_number) ON DELETE CASCADE
+            )
+        """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS manual_users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                company_account_number TEXT NOT NULL,
+                full_name TEXT NOT NULL,
+                email TEXT,
+                billing_type TEXT,
+                custom_cost REAL,
+                FOREIGN KEY (company_account_number) REFERENCES companies (account_number) ON DELETE CASCADE
             )
         """)
 

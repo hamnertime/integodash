@@ -16,7 +16,7 @@
         .receipt-table .label { text-align: left; }
         .receipt-table .value { text-align: right; }
         .receipt-table .total-row td { border-top: 2px solid #333; font-weight: bold; padding-top: 10px; }
-        .backup-breakdown { padding-left: 20px; font-size: 0.9em; color: #555; }
+        .itemized-detail { padding-left: 20px; font-size: 0.9em; color: #555; }
         .billing-period-selector { margin-bottom: 20px; text-align: center; }
     </style>
 {% endblock %}
@@ -42,32 +42,35 @@
             <p><strong>Account Number:</strong> {{ client.account_number }}</p>
             <p><strong>Assigned Plan:</strong> {{ client.billing_plan }}</p>
             <p><strong>Contract Term:</strong> {{ client.contract_term_length }}</p>
-            <p><strong>Contract Start:</strong> {{ client.contract_start_date }}</p>
             <p><strong>Support Level:</strong> {{ client.support_level }}</p>
         </div>
         <div class="info-card">
             <h3>Billing Receipt for {{ selected_billing_period }}</h3>
             <table class="receipt-table">
                 <tr><td class="label">Network Management Fee</td><td class="value">${{ "%.2f"|format(receipt_data.nmf) }}</td></tr>
-                <tr><td class="label">Regular User Cost ({{ quantities.regular_users }} users × ${{ "%.2f"|format(effective_rates.per_user_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.regular_user_charge) }}</td></tr>
-                <tr><td class="label">Workstation Cost ({{ quantities.workstations }} devices × ${{ "%.2f"|format(effective_rates.per_workstation_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.workstation_charge) }}</td></tr>
-                <tr><td class="label">Server Cost ({{ quantities.servers }} servers × ${{ "%.2f"|format(effective_rates.per_host_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.server_charge) }}</td></tr>
-                <tr><td class="label">VM Cost ({{ quantities.vms }} VMs × ${{ "%.2f"|format(effective_rates.per_vm_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.vm_charge) }}</td></tr>
-                <tr><td class="label">Switch Cost ({{ quantities.switches }} switches × ${{ "%.2f"|format(effective_rates.per_switch_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.switch_charge) }}</td></tr>
-                <tr><td class="label">Firewall Cost ({{ quantities.firewalls }} firewalls × ${{ "%.2f"|format(effective_rates.per_firewall_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.firewall_charge) }}</td></tr>
+
+                <tr><td class="label"><strong>User Charges</strong></td><td class="value"></td></tr>
+                {% for user in receipt_data.billed_users %}
+                <tr class="itemized-detail"><td class="label">{{ user.name }} ({{ user.type }})</td><td class="value">${{ "%.2f"|format(user.cost) }}</td></tr>
+                {% endfor %}
+
+                <tr><td class="label"><strong>Asset Charges</strong></td><td class="value"></td></tr>
+                {% for asset in receipt_data.billed_assets %}
+                <tr class="itemized-detail"><td class="label">{{ asset.name }} ({{ asset.type }})</td><td class="value">${{ "%.2f"|format(asset.cost) }}</td></tr>
+                {% endfor %}
 
                 <tr><td class="label"><strong>Ticket Charges</strong></td><td class="value"><strong>${{ "%.2f"|format(receipt_data.ticket_charge) }}</strong></td></tr>
-                <tr class="backup-breakdown"><td class="label">Total Hours This Period ({{ "%.2f"|format(receipt_data.hours_for_billing_period) }} hours)</td><td class="value"></td></tr>
-                <tr class="backup-breakdown"><td class="label">Pre-paid Monthly Hours</td><td class="value">-{{ "%.2f"|format(receipt_data.prepaid_hours_monthly) }} hours</td></tr>
-                <tr class="backup-breakdown"><td class="label">Pre-paid Yearly Hours (Prorated)</td><td class="value">-{{ "%.2f"|format(receipt_data.prepaid_hours_yearly / 12 * selected_month) }} hours</td></tr>
-                <tr class="backup-breakdown"><td class="label">Billable Hours ({{ "%.2f"|format(receipt_data.billable_hours) }} hours × ${{ "%.2f"|format(effective_rates.per_hour_ticket_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.ticket_charge) }}</td></tr>
+                <tr class="itemized-detail"><td class="label">Total Hours This Period ({{ "%.2f"|format(receipt_data.hours_for_billing_period) }} hours)</td><td class="value"></td></tr>
+                <tr class="itemized-detail"><td class="label">Pre-paid Monthly Hours</td><td class="value">-{{ "%.2f"|format(receipt_data.prepaid_hours_monthly) }} hours</td></tr>
+                <tr class="itemized-detail"><td class="label">Pre-paid Yearly Hours (Remaining)</td><td class="value">-{{ "%.2f"|format(remaining_yearly_hours) }} hours</td></tr>
+                <tr class="itemized-detail"><td class="label">Billable Hours ({{ "%.2f"|format(receipt_data.billable_hours) }} hours × ${{ "%.2f"|format(effective_rates.per_hour_ticket_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.ticket_charge) }}</td></tr>
 
                 <tr><td class="label"><strong>Backup Charge</strong></td><td class="value"><strong>${{ "%.2f"|format(receipt_data.backup_charge) }}</strong></td></tr>
-                <tr class="backup-breakdown"><td class="label">Workstation Backup Base Fee ({{ backed_up_workstations }} devices × ${{ "%.2f"|format(effective_rates.backup_base_fee_workstation) }})</td><td class="value">${{ "%.2f"|format(receipt_data.backup_base_workstation) }}</td></tr>
-                <tr class="backup-breakdown"><td class="label">Server Backup Base Fee ({{ backed_up_servers }} devices × ${{ "%.2f"|format(effective_rates.backup_base_fee_server) }})</td><td class="value">${{ "%.2f"|format(receipt_data.backup_base_server) }}</td></tr>
-                <tr class="backup-breakdown"><td class="label">Total Included Storage</td><td class="value">{{ "%.2f"|format(receipt_data.total_included_tb) }} TB</td></tr>
-                <tr class="backup-breakdown"><td class="label">Total Used Storage</td><td class="value">{{ "%.2f"|format(total_backup_tb) }} TB</td></tr>
-                <tr class="backup-breakdown"><td class="label">Storage Overage ({{ "%.2f"|format(receipt_data.overage_tb) }} TB × ${{ "%.2f"|format(effective_rates.backup_per_tb_fee) }})</td><td class="value">${{ "%.2f"|format(receipt_data.overage_charge) }}</td></tr>
+                <tr class="itemized-detail"><td class="label">Workstation Backup Base Fee ({{ backup_info.backed_up_workstations }} devices × ${{ "%.2f"|format(effective_rates.backup_base_fee_workstation) }})</td><td class="value">${{ "%.2f"|format(receipt_data.backup_base_workstation) }}</td></tr>
+                <tr class="itemized-detail"><td class="label">Server Backup Base Fee ({{ backup_info.backed_up_servers }} devices × ${{ "%.2f"|format(effective_rates.backup_base_fee_server) }})</td><td class="value">${{ "%.2f"|format(receipt_data.backup_base_server) }}</td></tr>
+                <tr class="itemized-detail"><td class="label">Total Included Storage</td><td class="value">{{ "%.2f"|format(receipt_data.total_included_tb) }} TB</td></tr>
+                <tr class="itemized-detail"><td class="label">Total Used Storage</td><td class="value">{{ "%.2f"|format(total_backup_tb) }} TB</td></tr>
+                <tr class="itemized-detail"><td class="label">Storage Overage ({{ "%.2f"|format(receipt_data.overage_tb) }} TB × ${{ "%.2f"|format(effective_rates.backup_per_tb_fee) }})</td><td class="value">${{ "%.2f"|format(receipt_data.overage_charge) }}</td></tr>
                 <tr class="total-row"><td class="label">Estimated Total</td><td class="value">${{ "%.2f"|format(receipt_data.total) }}</td></tr>
             </table>
         </div>
@@ -90,69 +93,26 @@
         </tbody>
     </table>
 
-    <h2>Tickets This Month ({{- tickets_this_month | sum(attribute='total_hours_spent') | round(2) }} hours)</h2>
-    <table>
-        <thead><tr><th>Ticket ID</th><th>Subject</th><th>Date Closed</th><th>Total Hours</th></tr></thead>
-        <tbody>
-            {% for ticket in tickets_this_month %}
-            <tr>
-                <td><a href="https://integotecllc.freshservice.com/a/tickets/{{ ticket.ticket_id }}" target="_blank">#{{ ticket.ticket_id }}</a></td>
-                <td>{{ ticket.subject }}</td>
-                <td>{{ ticket.closed_at | humanize if ticket.closed_at else 'Still Open' }}</td>
-                <td>{{ "%.2f"|format(ticket.total_hours_spent) }}</td>
-            </tr>
-            {% else %}
-            <tr><td colspan="4">No tickets with time entries found for this month.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
-    <h2>Tickets Last Month ({{- tickets_last_month | sum(attribute='total_hours_spent') | round(2) }} hours)</h2>
-    <table>
-        <thead><tr><th>Ticket ID</th><th>Subject</th><th>Date Closed</th><th>Total Hours</th></tr></thead>
-        <tbody>
-            {% for ticket in tickets_last_month %}
-            <tr>
-                <td><a href="https://integotecllc.freshservice.com/a/tickets/{{ ticket.ticket_id }}" target="_blank">#{{ ticket.ticket_id }}</a></td>
-                <td>{{ ticket.subject }}</td>
-                <td>{{ ticket.closed_at | humanize if ticket.closed_at else 'Still Open' }}</td>
-                <td>{{ "%.2f"|format(ticket.total_hours_spent) }}</td>
-            </tr>
-            {% else %}
-            <tr><td colspan="4">No tickets with time entries found for last month.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
-    <h2>All Tickets This Year ({{- all_tickets_this_year | sum(attribute='total_hours_spent') | round(2) }} hours)</h2>
-    <table>
-        <thead><tr><th>Ticket ID</th><th>Subject</th><th>Date Closed</th><th>Total Hours</th></tr></thead>
-        <tbody>
-            {% for ticket in all_tickets_this_year %}
-            <tr>
-                <td><a href="https://integotecllc.freshservice.com/a/tickets/{{ ticket.ticket_id }}" target="_blank">#{{ ticket.ticket_id }}</a></td>
-                <td>{{ ticket.subject }}</td>
-                <td>{{ ticket.closed_at | humanize if ticket.closed_at else 'Still Open' }}</td>
-                <td>{{ "%.2f"|format(ticket.total_hours_spent) }}</td>
-            </tr>
-            {% else %}
-            <tr><td colspan="4">No tickets with time entries found for this year.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
     <h2>Tracked Assets & Users</h2>
     <div class="grid-container">
         <div>
             <h4>Datto RMM Assets ({{ assets|length }})</h4>
             <table><thead><tr><th>Hostname</th><th>Billing Type</th><th>OS</th><th>Backup Usage (TB)</th></tr></thead><tbody>
-                {% for asset in assets %}<tr><td>{{ asset.hostname }}</td><td>{{ asset.billing_type }}</td><td>{{ asset.operating_system }}</td><td>{{ "%.4f"|format(asset.backup_data_tb) }}</td></tr>{% else %}<tr><td colspan="4">No assets found.</td></tr>{% endfor %}
+                {% for asset in assets %}<tr><td>{{ asset.hostname }}</td><td>{{ asset.billing_type }}</td><td>{{ asset.operating_system }}</td><td>{{ "%.4f"|format(asset.backup_data_bytes / 1099511627776.0 if asset.backup_data_bytes else 0) }}</td></tr>{% else %}<tr><td colspan="4">No assets found.</td></tr>{% endfor %}
+            </tbody></table>
+            <h4>Manual Assets ({{ manual_assets|length }})</h4>
+            <table><thead><tr><th>Hostname</th><th>Billing Type</th><th>Cost</th></tr></thead><tbody>
+                {% for asset in manual_assets %}<tr><td>{{ asset.hostname }}</td><td>{{ asset.billing_type }}</td><td>${{ "%.2f"|format(asset.custom_cost) if asset.custom_cost else '0.00' }}</td></tr>{% else %}<tr><td colspan="4">No manual assets.</td></tr>{% endfor %}
             </tbody></table>
         </div>
         <div>
             <h4>Freshservice Users ({{ users|length }})</h4>
-            <table><thead><tr><th>Full Name</th><th>Email</th><th>Billing Type</th><th>Status</th></tr></thead><tbody>
-                {% for user in users %}<tr><td>{{ user.full_name }}</td><td>{{ user.email }}</td><td>{{ user.billing_type }}</td><td>{{ user.status }}</td></tr>{% else %}<tr><td colspan="4">No users found.</td></tr>{% endfor %}
+            <table><thead><tr><th>Full Name</th><th>Email</th><th>Billing Type</th></tr></thead><tbody>
+                {% for user in users %}<tr><td>{{ user.full_name }}</td><td>{{ user.email }}</td><td>{{ user_overrides[user.id].billing_type if user_overrides[user.id] else 'Paid' }}</td></tr>{% else %}<tr><td colspan="4">No users found.</td></tr>{% endfor %}
+            </tbody></table>
+            <h4>Manual Users ({{ manual_users|length }})</h4>
+            <table><thead><tr><th>Full Name</th><th>Billing Type</th><th>Cost</th></tr></thead><tbody>
+                {% for user in manual_users %}<tr><td>{{ user.full_name }}</td><td>{{ user.billing_type }}</td><td>${{ "%.2f"|format(user.custom_cost) if user.custom_cost else '0.00' }}</td></tr>{% else %}<tr><td colspan="4">No manual users.</td></tr>{% endfor %}
             </tbody></table>
         </div>
     </div>

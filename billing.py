@@ -3,246 +3,164 @@ from datetime import datetime, timezone, timedelta
 from database import query_db
 import calendar
 
-def _calculate_bill(rates, quantities, hours_for_period, backup_info, overrides, remaining_yearly_hours):
-    """A centralized function to calculate the total bill for a specific period."""
-    q = {k: v or 0 for k, v in quantities.items()}
+def get_billing_data_for_client(account_number, year, month):
+    """
+    A comprehensive function to fetch all data and calculate billing details for a specific client and period.
+    This is the core logic that powers both the dashboard and the breakdown view.
+    """
+    client_info = query_db("SELECT * FROM companies WHERE account_number = ?", [account_number], one=True)
+    if not client_info:
+        return None
 
-    total_bill = rates.get('network_management_fee', 0) or 0
-    total_bill += q['regular_users'] * (rates.get('per_user_cost', 0) or 0)
-    total_bill += q['workstations'] * (rates.get('per_workstation_cost', 0) or 0)
-    total_bill += q['servers'] * (rates.get('per_host_cost', 0) or 0)
-    total_bill += q['vms'] * (rates.get('per_vm_cost', 0) or 0)
-    total_bill += q['switches'] * (rates.get('per_switch_cost', 0) or 0)
-    total_bill += q['firewalls'] * (rates.get('per_firewall_cost', 0) or 0)
+    # --- 1. Fetch all raw data from the database ---
+    assets = [dict(r) for r in query_db("SELECT * FROM assets WHERE company_account_number = ? ORDER BY hostname", [account_number])]
+    manual_assets = [dict(r) for r in query_db("SELECT * FROM manual_assets WHERE company_account_number = ? ORDER BY hostname", [account_number])]
+    users = [dict(r) for r in query_db("SELECT * FROM users WHERE company_account_number = ? AND status = 'Active' ORDER BY full_name", [account_number])]
+    manual_users = [dict(r) for r in query_db("SELECT * FROM manual_users WHERE company_account_number = ? ORDER BY full_name", [account_number])]
 
-    # Backup Calculation
-    total_backup_tb = backup_info['total_backup_bytes'] / 1099511627776.0 if backup_info['total_backup_bytes'] else 0
-    total_included_tb = (backup_info['backed_up_workstations'] + backup_info['backed_up_servers']) * (rates.get('backup_included_tb', 1) or 1)
-    overage_tb = max(0, total_backup_tb - total_included_tb)
-    total_bill += backup_info['backed_up_workstations'] * (rates.get('backup_base_fee_workstation', 25) or 25)
-    total_bill += backup_info['backed_up_servers'] * (rates.get('backup_base_fee_server', 50) or 50)
-    total_bill += overage_tb * (rates.get('backup_per_tb_fee', 15) or 15)
+    asset_overrides = {r['asset_id']: dict(r) for r in query_db("SELECT * FROM asset_billing_overrides ao JOIN assets a ON a.id = ao.asset_id WHERE a.company_account_number = ?", [account_number])}
+    user_overrides = {r['user_id']: dict(r) for r in query_db("SELECT * FROM user_billing_overrides uo JOIN users u ON u.id = uo.user_id WHERE u.company_account_number = ?", [account_number])}
 
-    # Hours Calculation
-    prepaid_hours_monthly = overrides.get('prepaid_hours_monthly', 0) or 0
+    plan_details = query_db("SELECT * FROM billing_plans WHERE billing_plan = ? AND term_length = ?", [client_info['billing_plan'], client_info['contract_term_length']], one=True)
+    rate_overrides = query_db("SELECT * FROM client_billing_overrides WHERE company_account_number = ?", [account_number], one=True)
 
-    hours_after_monthly = max(0, (hours_for_period or 0) - prepaid_hours_monthly)
-    billable_hours = max(0, hours_after_monthly - remaining_yearly_hours)
+    all_tickets_this_year = [dict(r) for r in query_db("SELECT * FROM ticket_details WHERE company_account_number = ? AND strftime('%Y', last_updated_at) = ?", [account_number, str(year)])]
 
-    total_bill += billable_hours * (rates.get('per_hour_ticket_cost', 0) or 0)
+    # --- 2. Determine the Effective Billing Rates ---
+    effective_rates = dict(plan_details) if plan_details else {}
+    if rate_overrides:
+        rate_key_map = {'nmf': 'network_management_fee', 'puc': 'per_user_cost', 'pwc': 'per_workstation_cost', 'phc': 'per_host_cost', 'pvc': 'per_vm_cost', 'psc': 'per_switch_cost', 'pfc': 'per_firewall_cost', 'phtc': 'per_hour_ticket_cost', 'bbfw': 'backup_base_fee_workstation', 'bbfs': 'backup_base_fee_server', 'bit': 'backup_included_tb', 'bpt': 'backup_per_tb_fee'}
+        for short_key, rate_key in rate_key_map.items():
+            if rate_overrides[f'override_{short_key}_enabled']:
+                effective_rates[rate_key] = rate_overrides[rate_key]
 
-    return total_bill
+    # --- 3. Calculate Itemized Asset Charges ---
+    billed_assets = []
+    quantities = defaultdict(int)
+    all_assets = assets + manual_assets
+    for asset in all_assets:
+        is_manual = 'datto_uid' not in asset
+        override = asset_overrides.get(asset.get('id')) if not is_manual else asset
 
-def get_billing_dashboard_data(sort_by='name', sort_order='asc'):
-    """Calculates and returns the data for the main billing dashboard (annual view)."""
-    clients_raw = query_db("SELECT * FROM companies")
-    assets_raw = query_db("SELECT company_account_number, billing_type, backup_data_bytes FROM assets")
-    users_raw = query_db("SELECT company_account_number, billing_type, COUNT(*) as user_count FROM users WHERE status = 'Active' GROUP BY company_account_number, billing_type")
-    tickets_raw = query_db("SELECT company_account_number, SUM(total_hours_spent) as total_hours FROM ticket_details GROUP BY company_account_number")
-    plans_raw = query_db("SELECT * FROM billing_plans")
-    overrides_raw = query_db("SELECT * FROM client_billing_overrides")
+        billing_type = (override.get('billing_type') if override else None) or asset.get('billing_type', 'Workstation')
 
-    plans = {(p['billing_plan'], p['term_length']): dict(p) for p in plans_raw}
-    overrides = {o['company_account_number']: dict(o) for o in overrides_raw}
-    hours_by_client = {t['company_account_number']: t['total_hours'] for t in tickets_raw}
+        cost = 0.0
+        if billing_type == 'Custom':
+            cost = (override.get('custom_cost') or 0.0) if override else 0.0
+        elif billing_type != 'No Charge':
+            rate_key = f"per_{billing_type.lower()}_cost"
+            cost = effective_rates.get(rate_key, 0.0) or 0.0
 
-    clients_data = []
-    for client_row in clients_raw:
-        client = dict(client_row)
-        acc_num = client['account_number']
+        quantities[billing_type.lower()] += 1
+        billed_assets.append({'name': asset['hostname'], 'type': billing_type, 'cost': cost})
 
-        assets_for_client = [a for a in assets_raw if a['company_account_number'] == acc_num]
-        users_for_client = [u for u in users_raw if u['company_account_number'] == acc_num]
-        client_overrides = overrides.get(acc_num, {})
-        default_plan = plans.get((client['billing_plan'], client['contract_term_length']), {})
+    # --- 4. Calculate Itemized User Charges ---
+    billed_users = []
+    all_users = users + manual_users
+    for user in all_users:
+        is_manual = 'freshservice_id' not in user
+        override = user_overrides.get(user.get('id')) if not is_manual else user
 
-        quantities = {
-            'regular_users': client_overrides.get('override_regular_user_count') if client_overrides.get('override_regular_user_count_enabled') else sum(u['user_count'] for u in users_for_client if u['billing_type'] == 'Regular'),
-            'workstations': client_overrides.get('override_workstation_count') if client_overrides.get('override_workstation_count_enabled') else sum(1 for a in assets_for_client if a['billing_type'] == 'Workstation'),
-            'servers': client_overrides.get('override_host_count') if client_overrides.get('override_host_count_enabled') else sum(1 for a in assets_for_client if a['billing_type'] == 'Server'),
-            'vms': client_overrides.get('override_vm_count') if client_overrides.get('override_vm_count_enabled') else sum(1 for a in assets_for_client if a['billing_type'] == 'VM'),
-            'switches': client_overrides.get('override_switch_count') if client_overrides.get('override_switch_count_enabled') else 0,
-            'firewalls': client_overrides.get('override_firewall_count') if client_overrides.get('override_firewall_count_enabled') else 0,
-        }
+        billing_type = (override.get('billing_type') if override else None) or 'Paid'
 
-        rates = {}
-        rate_key_map = {
-            'network_management_fee': 'nmf', 'per_user_cost': 'puc',
-            'per_workstation_cost': 'pwc', 'per_host_cost': 'phc', 'per_vm_cost': 'pvc',
-            'per_switch_cost': 'psc', 'per_firewall_cost': 'pfc', 'per_hour_ticket_cost': 'phtc',
-            'backup_base_fee_workstation': 'bbfw', 'backup_base_fee_server': 'bbfs',
-            'backup_included_tb': 'bit', 'backup_per_tb_fee': 'bpt'
-        }
-        for rate_key, short_key in rate_key_map.items():
-            override_key_enabled = f'override_{short_key}_enabled'
-            if client_overrides.get(override_key_enabled):
-                rates[rate_key] = client_overrides.get(rate_key)
-            else:
-                rates[rate_key] = default_plan.get(rate_key)
+        cost = 0.0
+        if billing_type == 'Custom':
+            cost = (override.get('custom_cost') or 0.0) if override else 0.0
+        elif billing_type == 'Paid':
+            cost = effective_rates.get('per_user_cost', 0.0) or 0.0
 
-        backup_info = {
-            'total_backup_bytes': sum(a['backup_data_bytes'] for a in assets_for_client if a['backup_data_bytes']),
-            'backed_up_workstations': sum(1 for a in assets_for_client if a['billing_type'] == 'Workstation' and a['backup_data_bytes']),
-            'backed_up_servers': sum(1 for a in assets_for_client if a['billing_type'] in ('Server', 'VM') and a['backup_data_bytes']),
-        }
+        quantities['regular_users' if billing_type == 'Paid' else 'free_users'] += 1
+        billed_users.append({'name': user['full_name'], 'type': billing_type, 'cost': cost})
 
-        total_hours = hours_by_client.get(acc_num, 0)
-        total_yearly_prepaid = client_overrides.get('prepaid_hours_yearly', 0) if client_overrides.get('override_prepaid_hours_yearly_enabled') else 0
-        total_bill = _calculate_bill(rates, quantities, total_hours, backup_info, client_overrides, total_yearly_prepaid)
-
-        client.update(quantities)
-        client['total_hours'] = total_hours
-        client['total_backup_bytes'] = backup_info['total_backup_bytes']
-        client['total_bill'] = total_bill
-        clients_data.append(client)
-
-    sort_map = {
-        'name': 'name', 'billing_plan': 'billing_plan', 'workstations': 'workstations',
-        'servers': 'servers', 'vms': 'vms', 'regular_users': 'regular_users',
-        'backup': 'total_backup_bytes', 'hours': 'total_hours', 'bill': 'total_bill'
-    }
-    sort_column = sort_map.get(sort_by, 'name')
-    clients_data.sort(key=lambda x: (x.get(sort_column, 0) is None, x.get(sort_column, 0)), reverse=(sort_order == 'desc'))
-
-    return clients_data
-
-def get_client_breakdown_data(account_number, year, month):
-    client_info_row = query_db("SELECT * FROM companies WHERE account_number = ?", [account_number], one=True)
-    if not client_info_row:
-        return {'client': None}
-
-    client_info = dict(client_info_row)
-
-    assets_raw = query_db("SELECT * FROM assets WHERE company_account_number = ? ORDER BY hostname", [account_number])
-    assets = []
-    for row in assets_raw:
-        asset = dict(row)
-        backup_bytes = asset.get('backup_data_bytes') or 0
-        asset['backup_data_tb'] = backup_bytes / 1099511627776.0
-        assets.append(asset)
-
-    users = [dict(row) for row in query_db("SELECT * FROM users WHERE company_account_number = ? AND status = 'Active' ORDER BY full_name", [account_number])]
-    all_tickets_this_year = [dict(row) for row in query_db("SELECT * FROM ticket_details WHERE company_account_number = ? and strftime('%Y', last_updated_at) = ?", [account_number, str(year)])]
-
-    plan_details_row = query_db("SELECT * FROM billing_plans WHERE billing_plan = ? AND term_length = ?", [client_info['billing_plan'], client_info['contract_term_length']], one=True)
-    plan_details = dict(plan_details_row) if plan_details_row else {}
-    overrides_row = query_db("SELECT * FROM client_billing_overrides WHERE company_account_number = ?", [account_number], one=True)
-    overrides = dict(overrides_row) if overrides_row else {}
-
-    today = datetime.now(timezone.utc)
-
-    first_day_of_current_month = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    last_day_of_last_month = first_day_of_current_month - timedelta(days=1)
-    first_day_of_last_month = last_day_of_last_month.replace(day=1)
-
-    tickets_this_month = [
-        t for t in all_tickets_this_year
-        if t['last_updated_at'] and datetime.fromisoformat(t['last_updated_at'].replace('Z', '+00:00')).month == today.month
-    ]
-
-    tickets_last_month = [
-        t for t in all_tickets_this_year
-        if t['last_updated_at'] and datetime.fromisoformat(t['last_updated_at'].replace('Z', '+00:00')).month == last_day_of_last_month.month
-    ]
-
+    # --- 5. Calculate Ticket Charges ---
     _, num_days = calendar.monthrange(year, month)
     start_of_billing_month = datetime(year, month, 1, tzinfo=timezone.utc)
     end_of_billing_month = datetime(year, month, num_days, 23, 59, 59, tzinfo=timezone.utc)
 
-    tickets_for_billing_period = [
-        t for t in all_tickets_this_year
-        if t['last_updated_at'] and start_of_billing_month <= datetime.fromisoformat(t['last_updated_at'].replace('Z', '+00:00')) <= end_of_billing_month
-    ]
-    hours_for_billing_period = sum(t['total_hours_spent'] for t in tickets_for_billing_period if t['total_hours_spent'])
+    tickets_for_period = [t for t in all_tickets_this_year if start_of_billing_month <= datetime.fromisoformat(t['last_updated_at'].replace('Z', '+00:00')) <= end_of_billing_month]
+    hours_for_period = sum(t['total_hours_spent'] for t in tickets_for_period)
 
-    hours_used_prior_to_this_month = sum(
-        t['total_hours_spent'] for t in all_tickets_this_year
-        if t['last_updated_at'] and datetime.fromisoformat(t['last_updated_at'].replace('Z', '+00:00')) < start_of_billing_month
-    )
+    prepaid_monthly = (rate_overrides['prepaid_hours_monthly'] if rate_overrides and rate_overrides['override_prepaid_hours_monthly_enabled'] else 0) or 0
+    prepaid_yearly = (rate_overrides['prepaid_hours_yearly'] if rate_overrides and rate_overrides['override_prepaid_hours_yearly_enabled'] else 0) or 0
 
-    total_yearly_prepaid = overrides.get('prepaid_hours_yearly', 0) if overrides.get('override_prepaid_hours_yearly_enabled') else 0
-    remaining_yearly_hours = max(0, total_yearly_prepaid - hours_used_prior_to_this_month)
+    hours_used_prior = sum(t['total_hours_spent'] for t in all_tickets_this_year if datetime.fromisoformat(t['last_updated_at'].replace('Z', '+00:00')) < start_of_billing_month)
+    remaining_yearly_hours = max(0, prepaid_yearly - hours_used_prior)
 
-    quantities = {
-        'regular_users': overrides.get('override_regular_user_count') if overrides.get('override_regular_user_count_enabled') else sum(1 for u in users if u['billing_type'] == 'Regular'),
-        'workstations': overrides.get('override_workstation_count') if overrides.get('override_workstation_count_enabled') else sum(1 for a in assets if a['billing_type'] == 'Workstation'),
-        'servers': overrides.get('override_host_count') if overrides.get('override_host_count_enabled') else sum(1 for a in assets if a['billing_type'] == 'Server'),
-        'vms': overrides.get('override_vm_count') if overrides.get('override_vm_count_enabled') else sum(1 for a in assets if a['billing_type'] == 'VM'),
-        'switches': overrides.get('override_switch_count') if overrides.get('override_switch_count_enabled') else 0,
-        'firewalls': overrides.get('override_firewall_count') if overrides.get('override_firewall_count_enabled') else 0,
-    }
+    billable_hours = max(0, max(0, hours_for_period - prepaid_monthly) - remaining_yearly_hours)
+    ticket_charge = billable_hours * (effective_rates.get('per_hour_ticket_cost', 0) or 0)
 
-    rates = {}
-    rate_key_map = {
-        'network_management_fee': 'nmf', 'per_user_cost': 'puc',
-        'per_workstation_cost': 'pwc', 'per_host_cost': 'phc', 'per_vm_cost': 'pvc',
-        'per_switch_cost': 'psc', 'per_firewall_cost': 'pfc', 'per_hour_ticket_cost': 'phtc',
-        'backup_base_fee_workstation': 'bbfw', 'backup_base_fee_server': 'bbfs',
-        'backup_included_tb': 'bit', 'backup_per_tb_fee': 'bpt'
-    }
-    if plan_details:
-        for rate_key, short_key in rate_key_map.items():
-            override_key_enabled = f'override_{short_key}_enabled'
-            if overrides.get(override_key_enabled):
-                rates[rate_key] = overrides.get(rate_key)
-            else:
-                rates[rate_key] = plan_details.get(rate_key)
-
+    # --- 6. Calculate Backup Charges ---
     backup_info = {
-        'total_backup_bytes': sum(a['backup_data_bytes'] for a in assets if a['backup_data_bytes']),
-        'backed_up_workstations': sum(1 for a in assets if a['billing_type'] == 'Workstation' and a['backup_data_bytes']),
-        'backed_up_servers': sum(1 for a in assets if a['billing_type'] in ('Server', 'VM') and a['backup_data_bytes']),
+        'total_backup_bytes': sum(a.get('backup_data_bytes', 0) for a in assets if a.get('backup_data_bytes')),
+        'backed_up_workstations': sum(1 for a in assets if a.get('billing_type') == 'Workstation' and a.get('backup_data_bytes')),
+        'backed_up_servers': sum(1 for a in assets if a.get('billing_type') in ('Server', 'VM') and a.get('backup_data_bytes')),
     }
+    total_backup_tb = backup_info['total_backup_bytes'] / 1099511627776.0
+    included_tb = (backup_info['backed_up_workstations'] + backup_info['backed_up_servers']) * (effective_rates.get('backup_included_tb', 1) or 1)
+    overage_tb = max(0, total_backup_tb - included_tb)
 
-    total_bill = _calculate_bill(rates, quantities, hours_for_billing_period, backup_info, overrides, remaining_yearly_hours)
+    backup_base_workstation_charge = backup_info['backed_up_workstations'] * (effective_rates.get('backup_base_fee_workstation', 0) or 0)
+    backup_base_server_charge = backup_info['backed_up_servers'] * (effective_rates.get('backup_base_fee_server', 0) or 0)
+    overage_charge = overage_tb * (effective_rates.get('backup_per_tb_fee', 0) or 0)
+    backup_charge = backup_base_workstation_charge + backup_base_server_charge + overage_charge
 
-    prepaid_hours_monthly = overrides.get('prepaid_hours_monthly', 0) if overrides.get('override_prepaid_hours_monthly_enabled') else 0
-    hours_after_monthly = max(0, hours_for_billing_period - prepaid_hours_monthly)
-    billable_hours = max(0, hours_after_monthly - remaining_yearly_hours)
+    # --- 7. Assemble Final Bill and Data Package ---
+    nmf_charge = effective_rates.get('network_management_fee', 0) or 0
+    total_bill = nmf_charge + sum(a['cost'] for a in billed_assets) + sum(u['cost'] for u in billed_users) + ticket_charge + backup_charge
 
-    # --- THIS IS THE FIX ---
     receipt = {
-        'nmf': rates.get('network_management_fee', 0) or 0,
-        'regular_user_charge': (quantities.get('regular_users') or 0) * (rates.get('per_user_cost', 0) or 0),
-        'workstation_charge': (quantities.get('workstations') or 0) * (rates.get('per_workstation_cost', 0) or 0),
-        'server_charge': (quantities.get('servers') or 0) * (rates.get('per_host_cost', 0) or 0),
-        'vm_charge': (quantities.get('vms') or 0) * (rates.get('per_vm_cost', 0) or 0),
-        'switch_charge': (quantities.get('switches') or 0) * (rates.get('per_switch_cost', 0) or 0),
-        'firewall_charge': (quantities.get('firewalls') or 0) * (rates.get('per_firewall_cost', 0) or 0),
-        'ticket_charge': billable_hours * (rates.get('per_hour_ticket_cost', 0) or 0),
-        'hours_for_billing_period': hours_for_billing_period,
-        'prepaid_hours_monthly': prepaid_hours_monthly,
-        'prepaid_hours_yearly': total_yearly_prepaid,
+        'nmf': nmf_charge,
+        'billed_assets': billed_assets,
+        'billed_users': billed_users,
+        'ticket_charge': ticket_charge,
+        'backup_charge': backup_charge,
+        'total': total_bill,
+        'hours_for_billing_period': hours_for_period,
+        'prepaid_hours_monthly': prepaid_monthly,
         'billable_hours': billable_hours,
-        'total': total_bill
+        'backup_base_workstation': backup_base_workstation_charge,
+        'backup_base_server': backup_base_server_charge,
+        'total_included_tb': included_tb,
+        'overage_tb': overage_tb,
+        'overage_charge': overage_charge,
     }
-    # -----------------------
-
-    total_backup_tb = backup_info['total_backup_bytes'] / 1099511627776.0 if backup_info['total_backup_bytes'] else 0
-    receipt['backup_base_workstation'] = backup_info['backed_up_workstations'] * (rates.get('backup_base_fee_workstation', 25) or 25)
-    receipt['backup_base_server'] = backup_info['backed_up_servers'] * (rates.get('backup_base_fee_server', 50) or 50)
-    receipt['total_included_tb'] = (backup_info['backed_up_workstations'] + backup_info['backed_up_servers']) * (rates.get('backup_included_tb', 1) or 1)
-    receipt['overage_tb'] = max(0, total_backup_tb - receipt['total_included_tb'])
-    receipt['overage_charge'] = receipt['overage_tb'] * (rates.get('backup_per_tb_fee', 15) or 15)
-    receipt['backup_charge'] = receipt['backup_base_workstation'] + receipt['backup_base_server'] + receipt['overage_charge']
 
     return {
-        'client': client_info,
-        'assets': assets,
-        'users': users,
+        'client': dict(client_info),
+        'assets': assets, 'manual_assets': manual_assets,
+        'users': users, 'manual_users': manual_users,
+        'asset_overrides': asset_overrides, 'user_overrides': user_overrides,
         'all_tickets_this_year': all_tickets_this_year,
-        'tickets_this_month': tickets_this_month,
-        'tickets_last_month': tickets_last_month,
-        'tickets_for_billing_period': tickets_for_billing_period,
+        'tickets_for_billing_period': tickets_for_period,
         'receipt_data': receipt,
-        'effective_rates': rates,
+        'effective_rates': effective_rates,
         'quantities': quantities,
         'backup_info': backup_info,
         'total_backup_tb': total_backup_tb,
-        'backed_up_workstations': backup_info['backed_up_workstations'],
-        'backed_up_servers': backup_info['backed_up_servers'],
-        'prepaid_hours_monthly': prepaid_hours_monthly,
-        'total_yearly_prepaid': total_yearly_prepaid,
-        'remaining_yearly_hours': remaining_yearly_hours,
-        'billable_hours': billable_hours
+        'remaining_yearly_hours': remaining_yearly_hours
     }
+
+def get_billing_dashboard_data(sort_by='name', sort_order='asc'):
+    """Calculates and returns the data for the main billing dashboard."""
+    clients_raw = query_db(f"SELECT * FROM companies ORDER BY {sort_by} {sort_order}")
+    clients_data = []
+    now = datetime.now()
+    for client_row in clients_raw:
+        data = get_billing_data_for_client(client_row['account_number'], now.year, now.month)
+        if not data: continue
+
+        client = data['client']
+        client['workstations'] = data['quantities'].get('workstation', 0)
+        client['servers'] = data['quantities'].get('server', 0)
+        client['vms'] = data['quantities'].get('vm', 0)
+        client['regular_users'] = data['quantities'].get('regular_users', 0)
+        client['total_hours'] = sum(t['total_hours_spent'] for t in data['all_tickets_this_year'])
+        client['total_backup_bytes'] = data['backup_info']['total_backup_bytes']
+        client['total_bill'] = data['receipt_data']['total']
+        clients_data.append(client)
+
+    return clients_data
+
+def get_client_breakdown_data(account_number, year, month):
+    """Wrapper function to get the billing data for the breakdown template."""
+    return get_billing_data_for_client(account_number, year, month)
