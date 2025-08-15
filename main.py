@@ -124,8 +124,43 @@ def client_settings(account_number):
                            [account_number, request.form['manual_user_name'], request.form['manual_user_billing_type'], request.form.get('manual_user_custom_cost')])
                 flash('Manual user added.', 'success')
             elif action == 'save_overrides':
-                # Process rate overrides
-                # ... (code from previous version)
+                # --- THIS IS THE FIX ---
+                # A dictionary to map the short names from the template to the full database column names
+                rate_map = {
+                    'nmf': 'network_management_fee', 'puc': 'per_user_cost', 'pwc': 'per_workstation_cost',
+                    'phc': 'per_host_cost', 'pvc': 'per_vm_cost', 'psc': 'per_switch_cost',
+                    'pfc': 'per_firewall_cost', 'phtc': 'per_hour_ticket_cost', 'bbfw': 'backup_base_fee_workstation',
+                    'bbfs': 'backup_base_fee_server', 'bit': 'backup_included_tb', 'bpt': 'backup_per_tb_fee',
+                    'prepaid_hours_monthly': 'prepaid_hours_monthly', 'prepaid_hours_yearly': 'prepaid_hours_yearly'
+                }
+
+                # Prepare lists for the SQL query
+                columns_to_update = ['company_account_number']
+                values_to_update = [account_number]
+
+                # Loop through the map to get form data
+                for short_name, full_name in rate_map.items():
+                    # Column for the override value (e.g., network_management_fee)
+                    columns_to_update.append(full_name)
+                    value = request.form.get(full_name)
+                    values_to_update.append(float(value) if value else None)
+
+                    # Column for the checkbox/enabled flag (e.g., override_nmf_enabled)
+                    columns_to_update.append(f'override_{short_name}_enabled')
+                    is_enabled = 1 if f'override_{short_name}_enabled' in request.form else 0
+                    values_to_update.append(is_enabled)
+
+                # Build the dynamic SQL for an UPSERT operation
+                placeholders = ', '.join(['?'] * len(columns_to_update))
+                update_setters = ', '.join([f"{col}=excluded.{col}" for col in columns_to_update[1:]]) # Exclude account_number from update
+
+                sql = f"""
+                    INSERT INTO client_billing_overrides ({', '.join(columns_to_update)})
+                    VALUES ({placeholders})
+                    ON CONFLICT(company_account_number) DO UPDATE SET {update_setters}
+                """
+                db.execute(sql, values_to_update)
+                # --- END OF FIX ---
 
                 # Process asset overrides
                 assets = query_db("SELECT id FROM assets WHERE company_account_number = ?", [account_number])
@@ -187,8 +222,6 @@ def client_settings(account_number):
         flash(f"A database or key error occurred on settings page: {e}. Please log in again.", 'error')
         return redirect(url_for('login'))
 
-# ... (The rest of the routes remain the same) ...
-
 @app.route('/settings', methods=['GET'])
 def billing_settings():
     all_plans_raw = query_db("SELECT * FROM billing_plans ORDER BY billing_plan, term_length")
@@ -203,7 +236,6 @@ def billing_settings():
 
 @app.route('/settings/plan/action', methods=['POST'])
 def billing_settings_action():
-    # ... (code from previous version)
     db = get_db()
     form_action = request.form.get('form_action')
     plan_name = request.form.get('plan_name')
@@ -248,7 +280,6 @@ def billing_settings_action():
 
 @app.route('/settings/plan/add', methods=['POST'])
 def add_billing_plan():
-    # ... (code from previous version)
     db = get_db()
     plan_name = request.form.get('new_plan_name')
     if not plan_name:
@@ -270,7 +301,6 @@ def add_billing_plan():
 
 @app.route('/settings/scheduler/update/<int:job_id>', methods=['POST'])
 def update_scheduler_job(job_id):
-    # ... (code from previous version)
     db = get_db()
     is_enabled = 1 if 'enabled' in request.form else 0
     interval = int(request.form.get('interval_minutes', 1))
@@ -281,7 +311,6 @@ def update_scheduler_job(job_id):
 
 @app.route('/scheduler/run_now/<int:job_id>', methods=['POST'])
 def run_now(job_id):
-    # ... (code from previous version)
     password = session.get('db_password')
     job = query_db("SELECT script_path FROM scheduler_jobs WHERE id = ?", [job_id], one=True)
     if job and scheduler.running:
@@ -291,7 +320,6 @@ def run_now(job_id):
 
 @app.route('/scheduler/log/<int:job_id>')
 def get_log(job_id):
-    # ... (code from previous version)
     log_data = query_db("SELECT last_run_log FROM scheduler_jobs WHERE id = ?", [job_id], one=True)
     return jsonify({'log': log_data['last_run_log'] if log_data and log_data['last_run_log'] else 'No log found.'})
 
