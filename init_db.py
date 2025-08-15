@@ -280,6 +280,22 @@ def create_database():
                 FOREIGN KEY (company_account_number) REFERENCES companies (account_number) ON DELETE CASCADE
             )
         """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS custom_line_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                company_account_number TEXT NOT NULL,
+                name TEXT NOT NULL,
+                monthly_fee REAL,
+                one_off_fee REAL,
+                one_off_month INTEGER,
+                one_off_year INTEGER,
+                yearly_fee REAL,
+                yearly_bill_month INTEGER,
+                yearly_bill_day INTEGER,
+                FOREIGN KEY (company_account_number) REFERENCES companies (account_number) ON DELETE CASCADE
+            )
+        """)
         # --- END NEW TABLES ---
 
         print("Schema creation complete.")

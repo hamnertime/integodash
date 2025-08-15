@@ -84,6 +84,21 @@
                     </details>
                 </td></tr>
 
+                <tr>
+                    <td class="label"><strong>Custom Line Items ({{ receipt_data.billed_line_items|length }})</strong></td>
+                    <td class="value"><strong>${{ "%.2f"|format(receipt_data.total_line_item_charges) }}</strong></td>
+                </tr>
+                <tr><td colspan="2" style="padding-left: 40px;">
+                    <details>
+                         <summary style="font-size:0.9em; color:#555;">View Details</summary>
+                         <table style="width:100%; border:none; box-shadow:none; margin-top: -10px;">
+                         {% for item in receipt_data.billed_line_items %}
+                         <tr class="itemized-detail"><td class="label" style="border:none;">{{ item.name }} ({{ item.type }})</td><td class="value" style="border:none;">${{ "%.2f"|format(item.cost) }}</td></tr>
+                         {% endfor %}
+                         </table>
+                    </details>
+                </td></tr>
+
                 <tr><td class="label" style="padding-top:10px;"><strong>Ticket Charges</strong></td><td class="value" style="padding-top:10px;"><strong>${{ "%.2f"|format(receipt_data.ticket_charge) }}</strong></td></tr>
                 <tr class="itemized-detail"><td class="label">Total Hours This Period ({{ "%.2f"|format(receipt_data.hours_for_billing_period) }} hours)</td><td class="value"></td></tr>
                 <tr class="itemized-detail"><td class="label">Pre-paid Monthly Hours</td><td class="value">-{{ "%.2f"|format(receipt_data.prepaid_hours_monthly) }} hours</td></tr>

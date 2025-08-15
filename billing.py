@@ -17,6 +17,7 @@ def get_billing_data_for_client(account_number, year, month):
     manual_assets = [dict(r) for r in query_db("SELECT * FROM manual_assets WHERE company_account_number = ? ORDER BY hostname", [account_number])]
     users = [dict(r) for r in query_db("SELECT * FROM users WHERE company_account_number = ? AND status = 'Active' ORDER BY full_name", [account_number])]
     manual_users = [dict(r) for r in query_db("SELECT * FROM manual_users WHERE company_account_number = ? ORDER BY full_name", [account_number])]
+    custom_line_items = [dict(r) for r in query_db("SELECT * FROM custom_line_items WHERE company_account_number = ? ORDER BY name", [account_number])]
 
     asset_overrides = {r['asset_id']: dict(r) for r in query_db("SELECT * FROM asset_billing_overrides ao JOIN assets a ON a.id = ao.asset_id WHERE a.company_account_number = ?", [account_number])}
     user_overrides = {r['user_id']: dict(r) for r in query_db("SELECT * FROM user_billing_overrides uo JOIN users u ON u.id = uo.user_id WHERE u.company_account_number = ?", [account_number])}
@@ -128,16 +129,41 @@ def get_billing_data_for_client(account_number, year, month):
     overage_charge = overage_tb * (effective_rates.get('backup_per_tb_fee', 0) or 0)
     backup_charge = backup_base_workstation_charge + backup_base_server_charge + overage_charge
 
-    # --- 7. Assemble Final Bill and Data Package ---
+    # --- 7. Calculate Custom Line Item Charges ---
+    billed_line_items = []
+    total_line_item_charges = 0.0
+    for item in custom_line_items:
+        cost = 0.0
+        item_type = None
+        if item['monthly_fee'] is not None:
+            cost = item['monthly_fee']
+            item_type = 'Recurring'
+            total_line_item_charges += cost
+        elif item['one_off_year'] == year and item['one_off_month'] == month:
+            cost = item['one_off_fee']
+            item_type = 'One-Off'
+            total_line_item_charges += cost
+        elif item['yearly_bill_month'] == month:
+            # Simple check for now. We might need to check the day as well if it matters.
+            cost = item['yearly_fee']
+            item_type = 'Yearly'
+            total_line_item_charges += cost
+
+        if item_type:
+            billed_line_items.append({'name': item['name'], 'type': item_type, 'cost': cost})
+
+    # --- 8. Assemble Final Bill and Data Package ---
     nmf_charge = effective_rates.get('network_management_fee', 0) or 0
-    total_bill = nmf_charge + total_asset_charges + total_user_charges + ticket_charge + backup_charge
+    total_bill = nmf_charge + total_asset_charges + total_user_charges + ticket_charge + backup_charge + total_line_item_charges
 
     receipt = {
         'nmf': nmf_charge,
         'billed_assets': billed_assets,
         'billed_users': billed_users,
+        'billed_line_items': billed_line_items,
         'total_user_charges': total_user_charges,
         'total_asset_charges': total_asset_charges,
+        'total_line_item_charges': total_line_item_charges,
         'ticket_charge': ticket_charge,
         'backup_charge': backup_charge,
         'total': total_bill,
@@ -155,6 +181,7 @@ def get_billing_data_for_client(account_number, year, month):
         'client': dict(client_info),
         'assets': assets, 'manual_assets': manual_assets,
         'users': users, 'manual_users': manual_users,
+        'custom_line_items': custom_line_items,
         'asset_overrides': asset_overrides, 'user_overrides': user_overrides,
         'all_tickets_this_year': all_tickets_this_year,
         'tickets_for_billing_period': tickets_for_period,

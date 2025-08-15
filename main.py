@@ -208,6 +208,26 @@ def client_settings(account_number):
                 db.execute("INSERT INTO manual_users (company_account_number, full_name, billing_type, custom_cost) VALUES (?, ?, ?, ?)",
                            [account_number, request.form['manual_user_name'], request.form['manual_user_billing_type'], request.form.get('manual_user_custom_cost')])
                 flash('Manual user added.', 'success')
+            elif action == 'add_line_item':
+                item_type = request.form.get('line_item_type')
+                name = request.form.get('line_item_name')
+                if item_type == 'recurring':
+                    fee = request.form.get('line_item_recurring_fee')
+                    db.execute("INSERT INTO custom_line_items (company_account_number, name, monthly_fee) VALUES (?, ?, ?)",
+                               [account_number, name, fee])
+                elif item_type == 'one_off':
+                    fee = request.form.get('line_item_one_off_fee')
+                    billing_period = request.form.get('line_item_one_off_month')
+                    year, month = billing_period.split('-')
+                    db.execute("INSERT INTO custom_line_items (company_account_number, name, one_off_fee, one_off_year, one_off_month) VALUES (?, ?, ?, ?, ?)",
+                               [account_number, name, fee, int(year), int(month)])
+                elif item_type == 'yearly':
+                    fee = request.form.get('line_item_yearly_fee')
+                    month = request.form.get('line_item_yearly_month')
+                    day = request.form.get('line_item_yearly_day')
+                    db.execute("INSERT INTO custom_line_items (company_account_number, name, yearly_fee, yearly_bill_month, yearly_bill_day) VALUES (?, ?, ?, ?, ?)",
+                               [account_number, name, fee, int(month), int(day)])
+                flash('Custom line item added.', 'success')
             elif action == 'save_overrides':
                 rate_map = {
                     'nmf': 'network_management_fee', 'puc': 'per_user_cost', 'pwc': 'per_workstation_cost',
@@ -265,6 +285,11 @@ def client_settings(account_number):
             db.commit()
             flash('Manual user deleted.', 'success')
             return redirect(url_for('client_settings', account_number=account_number))
+        if request.args.get('delete_line_item'):
+            db.execute("DELETE FROM custom_line_items WHERE id = ?", [request.args.get('delete_line_item')])
+            db.commit()
+            flash('Custom line item deleted.', 'success')
+            return redirect(url_for('client_settings', account_number=account_number))
 
         # --- Data for GET request ---
         client_info = query_db("SELECT * FROM companies WHERE account_number = ?", [account_number], one=True)
@@ -275,14 +300,24 @@ def client_settings(account_number):
         users = query_db("SELECT * FROM users WHERE company_account_number = ? AND status = 'Active'", [account_number])
         manual_assets = query_db("SELECT * FROM manual_assets WHERE company_account_number = ?", [account_number])
         manual_users = query_db("SELECT * FROM manual_users WHERE company_account_number = ?", [account_number])
+        custom_line_items = query_db("SELECT * FROM custom_line_items WHERE company_account_number = ?", [account_number])
 
         asset_overrides = {r['asset_id']: dict(r) for r in query_db("SELECT * FROM asset_billing_overrides ao JOIN assets a ON a.id = ao.asset_id WHERE a.company_account_number = ?", [account_number])}
         user_overrides = {r['user_id']: dict(r) for r in query_db("SELECT * FROM user_billing_overrides uo JOIN users u ON u.id = uo.user_id WHERE u.company_account_number = ?", [account_number])}
 
+        today = datetime.now(timezone.utc)
+        month_options = []
+        for i in range(12):
+            # Show current month and next 11 months
+            target_date = today + timedelta(days=31*i)
+            month_options.append({'value': target_date.strftime('%Y-%m'), 'name': target_date.strftime('%B %Y')})
+
         return render_template('client_settings.html', client=client_info, defaults=default_plan,
                                overrides=dict(overrides_row) if overrides_row else {},
                                assets=assets, users=users, manual_assets=manual_assets, manual_users=manual_users,
-                               asset_overrides=asset_overrides, user_overrides=user_overrides)
+                               custom_line_items=custom_line_items,
+                               asset_overrides=asset_overrides, user_overrides=user_overrides,
+                               month_options=month_options)
 
     except (ValueError, KeyError) as e:
         session.pop('db_password', None)
@@ -366,6 +401,7 @@ def export_settings():
         'manual_assets': [dict(row) for row in query_db("SELECT * FROM manual_assets")],
         'manual_users': [dict(row) for row in query_db("SELECT * FROM manual_users")],
         'billing_notes': [dict(row) for row in query_db("SELECT * FROM billing_notes")],
+        'custom_line_items': [dict(row) for row in query_db("SELECT * FROM custom_line_items")],
     }
 
     response = jsonify(export_data)
@@ -396,7 +432,8 @@ def import_settings():
             'user_billing_overrides',
             'manual_assets',
             'manual_users',
-            'billing_notes'
+            'billing_notes',
+            'custom_line_items'
         ]
 
         for table_name in tables_to_process:
@@ -413,7 +450,7 @@ def import_settings():
                 sql = f"INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders})"
 
                 # Create a list of tuples for executemany
-                values = [tuple(rec[col] for col in columns) for rec in records]
+                values = [tuple(rec.get(col) for col in columns) for rec in records]
 
                 db.executemany(sql, values)
 
@@ -537,6 +574,8 @@ def generate_quickbooks_csv(client_data):
         writer.writerow([invoice_number, client_name, invoice_date, due_date, 'Managed Services', f"User: {user['name']} ({user['type']})", 1, f"{user['cost']:.2f}", f"{user['cost']:.2f}"])
     for asset in receipt['billed_assets']:
         writer.writerow([invoice_number, client_name, invoice_date, due_date, 'Managed Services', f"Asset: {asset['name']} ({asset['type']})", 1, f"{asset['cost']:.2f}", f"{asset['cost']:.2f}"])
+    for item in receipt['billed_line_items']:
+        writer.writerow([invoice_number, client_name, invoice_date, due_date, 'Custom Services', f"Custom Item: {item['name']} ({item['type']})", 1, f"{item['cost']:.2f}", f"{item['cost']:.2f}"])
     if receipt['ticket_charge'] > 0:
          writer.writerow([invoice_number, client_name, invoice_date, due_date, 'Hourly Labor', f"Billable Hours ({receipt['billable_hours']:.2f} hrs)", f"{receipt['billable_hours']:.2f}", f"{client_data['effective_rates']['per_hour_ticket_cost']:.2f}", f"{receipt['ticket_charge']:.2f}"])
     if receipt['backup_charge'] > 0:
