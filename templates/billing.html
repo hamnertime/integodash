@@ -12,11 +12,27 @@
     .client-table tr:nth-child(even) { background-color: #f8f9fa; }
     .client-table tr:hover { background-color: #e2e6ea; }
     .sort-arrow { margin-left: 5px; }
+    .export-section { background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
+    .export-section select, .export-section input, .export-section button { padding: 8px; margin: 0 5px; border-radius: 4px; border: 1px solid #ccc; }
+    .button { padding: 10px 20px; background-color: #0056b3; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1em; text-decoration: none; display: inline-block; }
 </style>
 {% endblock %}
 
 {% block content %}
 <h1>Client Billing Overview</h1>
+
+<div class="export-section">
+    <form action="{{ url_for('export_all_bills_zip') }}" method="POST">
+        <strong>Export All Invoices for:</strong>
+        <select name="month">
+            {% for month in month_options %}
+                <option value="{{ month.value }}">{{ month.name }}</option>
+            {% endfor %}
+        </select>
+        <input type="number" name="year" value="{{ current_year }}" style="width: 80px;">
+        <button type="submit" class="button">Download ZIP</button>
+    </form>
+</div>
 
 <table class="client-table">
     <thead>

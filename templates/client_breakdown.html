@@ -17,7 +17,7 @@
         .receipt-table .value { text-align: right; }
         .receipt-table .total-row td { border-top: 2px solid #333; font-weight: bold; padding-top: 10px; }
         .itemized-detail { font-size: 0.9em; color: #555; }
-        .billing-period-selector { margin-bottom: 20px; text-align: center; }
+        .billing-period-selector { margin-bottom: 20px; text-align: center; display: flex; justify-content: center; align-items: center; gap: 20px; }
         details summary { cursor: pointer; font-weight: bold; margin-bottom: 10px; list-style: revert; }
         .note { border-left: 4px solid #0056b3; padding-left: 15px; margin-bottom: 15px; }
         .note-meta { font-size: 0.8em; color: #6c757d; }
@@ -38,6 +38,7 @@
             </select>
             <input type="hidden" name="year" value="{{ selected_year }}">
         </form>
+        <a href="{{ url_for('export_quickbooks_csv', account_number=client.account_number, year=selected_year, month=selected_month) }}" class="button">Export to QuickBooks (CSV)</a>
     </div>
 
     <div class="grid-container">

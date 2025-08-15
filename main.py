@@ -3,6 +3,9 @@ import sys
 import time
 import uuid
 import json
+import io
+import csv
+import zipfile
 from datetime import datetime, timedelta, timezone
 from flask import Flask, render_template, g, request, redirect, url_for, flash, session, jsonify, Response, send_from_directory
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -86,7 +89,12 @@ def billing_dashboard():
         sort_by = request.args.get('sort_by', 'name')
         sort_order = request.args.get('sort_order', 'asc')
         clients_data = get_billing_dashboard_data(sort_by, sort_order)
-        return render_template('billing.html', clients=clients_data, sort_by=sort_by, sort_order=sort_order)
+        today = datetime.now(timezone.utc)
+        month_options = []
+        for i in range(1, 13):
+            month_options.append({'value': i, 'name': datetime(today.year, i, 1).strftime('%B')})
+
+        return render_template('billing.html', clients=clients_data, sort_by=sort_by, sort_order=sort_order, month_options=month_options, current_year=today.year)
     except (ValueError, KeyError) as e:
         session.pop('db_password', None)
         flash(f"An error occurred on the dashboard: {e}. Please log in again.", 'error')
@@ -499,6 +507,84 @@ def get_log(job_id):
     log_data = query_db("SELECT last_run_log FROM scheduler_jobs WHERE id = ?", [job_id], one=True)
     return jsonify({'log': log_data['last_run_log'] if log_data and log_data['last_run_log'] else 'No log found.'})
 
+def generate_quickbooks_csv(client_data):
+    """Generates the content for a QuickBooks-compatible CSV file."""
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Write header
+    writer.writerow(['InvoiceNo', 'Customer', 'InvoiceDate', 'DueDate', 'Item(Product/Service)', 'Description', 'Qty', 'Rate', 'Amount'])
+
+    receipt = client_data['receipt_data']
+    client_name = client_data['client']['name']
+    invoice_date = datetime.now().strftime('%Y-%m-%d')
+    due_date = (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
+    invoice_number = f"{client_data['client']['account_number']}-{datetime.now().strftime('%Y%m')}"
+
+    # Add each billing item as a new row in the CSV
+    if receipt['nmf'] > 0:
+        writer.writerow([invoice_number, client_name, invoice_date, due_date, 'Managed Services', 'Network Management Fee', 1, f"{receipt['nmf']:.2f}", f"{receipt['nmf']:.2f}"])
+    for user in receipt['billed_users']:
+        writer.writerow([invoice_number, client_name, invoice_date, due_date, 'Managed Services', f"User: {user['name']} ({user['type']})", 1, f"{user['cost']:.2f}", f"{user['cost']:.2f}"])
+    for asset in receipt['billed_assets']:
+        writer.writerow([invoice_number, client_name, invoice_date, due_date, 'Managed Services', f"Asset: {asset['name']} ({asset['type']})", 1, f"{asset['cost']:.2f}", f"{asset['cost']:.2f}"])
+    if receipt['ticket_charge'] > 0:
+         writer.writerow([invoice_number, client_name, invoice_date, due_date, 'Hourly Labor', f"Billable Hours ({receipt['billable_hours']:.2f} hrs)", f"{receipt['billable_hours']:.2f}", f"{client_data['effective_rates']['per_hour_ticket_cost']:.2f}", f"{receipt['ticket_charge']:.2f}"])
+    if receipt['backup_charge'] > 0:
+        if receipt['backup_base_workstation'] > 0:
+            writer.writerow([invoice_number, client_name, invoice_date, due_date, 'Backup Services', 'Workstation Backup Base Fee', len([a for a in client_data['assets'] if a['billing_type']=='Workstation' and a.get('backup_data_bytes',0)>0]), f"{client_data['effective_rates']['backup_base_fee_workstation']:.2f}", f"{receipt['backup_base_workstation']:.2f}"])
+        if receipt['backup_base_server'] > 0:
+            writer.writerow([invoice_number, client_name, invoice_date, due_date, 'Backup Services', 'Server Backup Base Fee', len([a for a in client_data['assets'] if a['billing_type'] in ['Server','VM'] and a.get('backup_data_bytes',0)>0]), f"{client_data['effective_rates']['backup_base_fee_server']:.2f}", f"{receipt['backup_base_server']:.2f}"])
+        if receipt['overage_charge'] > 0:
+            writer.writerow([invoice_number, client_name, invoice_date, due_date, 'Backup Services', f"Storage Overage ({receipt['overage_tb']:.2f} TB)", f"{receipt['overage_tb']:.2f}", f"{client_data['effective_rates']['backup_per_tb_fee']:.2f}", f"{receipt['overage_charge']:.2f}"])
+
+
+    return output.getvalue()
+
+@app.route('/client/<account_number>/export/quickbooks')
+def export_quickbooks_csv(account_number):
+    year = request.args.get('year', datetime.now().year, type=int)
+    month = request.args.get('month', datetime.now().month, type=int)
+
+    breakdown_data = get_client_breakdown_data(account_number, year, month)
+    if not breakdown_data:
+        flash(f"Could not generate export for client {account_number}.", 'error')
+        return redirect(url_for('billing_dashboard'))
+
+    csv_content = generate_quickbooks_csv(breakdown_data)
+
+    return Response(
+        csv_content,
+        mimetype="text/csv",
+        headers={"Content-disposition": f"attachment; filename=quickbooks_export_{account_number}_{year}-{month:02d}.csv"}
+    )
+
+@app.route('/export/all_bills', methods=['POST'])
+def export_all_bills_zip():
+    year = int(request.form.get('year'))
+    month = int(request.form.get('month'))
+
+    all_clients = get_billing_dashboard_data()
+    if not all_clients:
+        flash("No clients found to export.", "error")
+        return redirect(url_for('billing_dashboard'))
+
+    memory_file = io.BytesIO()
+    with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for client in all_clients:
+            client_data = get_client_breakdown_data(client['account_number'], year, month)
+            if client_data:
+                csv_content = generate_quickbooks_csv(client_data)
+                sanitized_name = client['name'].replace('/', '_').replace(' ', '_')
+                file_name = f"{sanitized_name}_{year}-{month:02d}.csv"
+                zf.writestr(file_name, csv_content)
+
+    memory_file.seek(0)
+    return Response(
+        memory_file,
+        mimetype='application/zip',
+        headers={'Content-Disposition': f'attachment;filename=all_invoices_{year}-{month:02d}.zip'}
+    )
 
 if __name__ == '__main__':
     if not os.path.exists(DATABASE):
