@@ -192,6 +192,47 @@ def edit_note(account_number, note_id):
     client_name = query_db("SELECT name FROM companies WHERE account_number = ?", [account_number], one=True)['name']
     return render_template('edit_note.html', note=note, account_number=account_number, client_name=client_name)
 
+@app.route('/client/<account_number>/edit_line_item/<int:item_id>', methods=['GET', 'POST'])
+def edit_line_item(account_number, item_id):
+    db = get_db()
+    item = query_db("SELECT * FROM custom_line_items WHERE id = ? AND company_account_number = ?", [item_id, account_number], one=True)
+    if not item:
+        flash("Line item not found.", "error")
+        return redirect(url_for('client_settings', account_number=account_number))
+
+    if request.method == 'POST':
+        name = request.form.get('line_item_name')
+        item_type = request.form.get('line_item_type')
+
+        # Reset all fields to NULL before setting the new ones
+        db.execute("UPDATE custom_line_items SET monthly_fee=NULL, one_off_fee=NULL, one_off_year=NULL, one_off_month=NULL, yearly_fee=NULL, yearly_bill_month=NULL, yearly_bill_day=NULL WHERE id = ?", [item_id])
+
+        if item_type == 'recurring':
+            fee = request.form.get('line_item_recurring_fee')
+            db.execute("UPDATE custom_line_items SET name = ?, monthly_fee = ? WHERE id = ?", [name, fee, item_id])
+        elif item_type == 'one_off':
+            fee = request.form.get('line_item_one_off_fee')
+            billing_period = request.form.get('line_item_one_off_month')
+            year, month = billing_period.split('-')
+            db.execute("UPDATE custom_line_items SET name = ?, one_off_fee = ?, one_off_year = ?, one_off_month = ? WHERE id = ?", [name, fee, int(year), int(month), item_id])
+        elif item_type == 'yearly':
+            fee = request.form.get('line_item_yearly_fee')
+            month = request.form.get('line_item_yearly_month')
+            day = request.form.get('line_item_yearly_day')
+            db.execute("UPDATE custom_line_items SET name = ?, yearly_fee = ?, yearly_bill_month = ?, yearly_bill_day = ? WHERE id = ?", [name, fee, int(month), int(day), item_id])
+
+        db.commit()
+        flash("Line item updated successfully.", "success")
+        return redirect(url_for('client_settings', account_number=account_number))
+
+    client_name = query_db("SELECT name FROM companies WHERE account_number = ?", [account_number], one=True)['name']
+    today = datetime.now(timezone.utc)
+    month_options = []
+    for i in range(12):
+        target_date = today + timedelta(days=31*i)
+        month_options.append({'value': target_date.strftime('%Y-%m'), 'name': target_date.strftime('%B %Y')})
+
+    return render_template('edit_line_item.html', item=item, account_number=account_number, client_name=client_name, month_options=month_options)
 
 @app.route('/client/<account_number>/settings', methods=['GET', 'POST'])
 def client_settings(account_number):
@@ -231,8 +272,8 @@ def client_settings(account_number):
             elif action == 'save_overrides':
                 rate_map = {
                     'nmf': 'network_management_fee', 'puc': 'per_user_cost', 'pwc': 'per_workstation_cost',
-                    'phc': 'per_host_cost', 'pvc': 'per_vm_cost', 'psc': 'per_switch_cost',
-                    'pfc': 'per_firewall_cost', 'phtc': 'per_hour_ticket_cost', 'bbfw': 'backup_base_fee_workstation',
+                    'psc': 'per_server_cost', 'pvc': 'per_vm_cost', 'pswitchc': 'per_switch_cost',
+                    'pfirewallc': 'per_firewall_cost', 'phtc': 'per_hour_ticket_cost', 'bbfw': 'backup_base_fee_workstation',
                     'bbfs': 'backup_base_fee_server', 'bit': 'backup_included_tb', 'bpt': 'backup_per_tb_fee',
                     'prepaid_hours_monthly': 'prepaid_hours_monthly', 'prepaid_hours_yearly': 'prepaid_hours_yearly'
                 }
@@ -482,7 +523,7 @@ def billing_settings_action():
             db.execute("""
                 UPDATE billing_plans SET
                     network_management_fee = ?, per_user_cost = ?,
-                    per_workstation_cost = ?, per_host_cost = ?, per_vm_cost = ?,
+                    per_workstation_cost = ?, per_server_cost = ?, per_vm_cost = ?,
                     per_switch_cost = ?, per_firewall_cost = ?, per_hour_ticket_cost = ?,
                     backup_base_fee_workstation = ?, backup_base_fee_server = ?,
                     backup_included_tb = ?, backup_per_tb_fee = ?
@@ -491,7 +532,7 @@ def billing_settings_action():
                 float(form.get(f'network_management_fee_{plan_id}',0)),
                 float(form.get(f'per_user_cost_{plan_id}',0)),
                 float(form.get(f'per_workstation_cost_{plan_id}',0)),
-                float(form.get(f'per_host_cost_{plan_id}',0)),
+                float(form.get(f'per_server_cost_{plan_id}',0)),
                 float(form.get(f'per_vm_cost_{plan_id}',0)),
                 float(form.get(f'per_switch_cost_{plan_id}',0)),
                 float(form.get(f'per_firewall_cost_{plan_id}',0)),

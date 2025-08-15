@@ -48,10 +48,10 @@
                 {{ rate_input('network_management_fee', 'Network Mgmt Fee', 'nmf') }}
                 {{ rate_input('per_user_cost', 'Per Regular User Cost', 'puc') }}
                 {{ rate_input('per_workstation_cost', 'Per Workstation Cost', 'pwc') }}
-                {{ rate_input('per_host_cost', 'Per Server Cost', 'phc') }}
+                {{ rate_input('per_server_cost', 'Per Server Cost', 'psc') }}
                 {{ rate_input('per_vm_cost', 'Per VM Cost', 'pvc') }}
-                {{ rate_input('per_switch_cost', 'Per Switch Cost', 'psc') }}
-                {{ rate_input('per_firewall_cost', 'Per Firewall Cost', 'pfc') }}
+                {{ rate_input('per_switch_cost', 'Per Switch Cost', 'pswitchc') }}
+                {{ rate_input('per_firewall_cost', 'Per Firewall Cost', 'pfirewallc') }}
                 {{ rate_input('per_hour_ticket_cost', 'Per Hour Ticket Cost', 'phtc')}}
                 {{ rate_input('backup_base_fee_workstation', 'Backup Base (Workstation)', 'bbfw') }}
                 {{ rate_input('backup_base_fee_server', 'Backup Base (Server)', 'bbfs') }}
@@ -199,7 +199,10 @@
                         {% elif item.yearly_bill_month %}Every {{ "%02d"|format(item.yearly_bill_month) }}/{{ "%02d"|format(item.yearly_bill_day) }}
                         {% else %}N/A{% endif %}
                     </td>
-                    <td><a href="{{ url_for('client_settings', account_number=client.account_number, delete_line_item=item.id) }}" onclick="return confirm('Are you sure?')">Delete</a></td>
+                    <td>
+                        <a href="{{ url_for('edit_line_item', account_number=client.account_number, item_id=item.id) }}">Edit</a> |
+                        <a href="{{ url_for('client_settings', account_number=client.account_number, delete_line_item=item.id) }}" onclick="return confirm('Are you sure?')">Delete</a>
+                    </td>
                 </tr>
             {% endfor %}
             </tbody>

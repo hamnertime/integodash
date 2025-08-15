@@ -39,7 +39,7 @@ def get_billing_data_for_client(account_number, year, month):
     # --- 2. Determine the Effective Billing Rates ---
     effective_rates = dict(plan_details) if plan_details else {}
     if rate_overrides:
-        rate_key_map = {'nmf': 'network_management_fee', 'puc': 'per_user_cost', 'pwc': 'per_workstation_cost', 'phc': 'per_host_cost', 'pvc': 'per_vm_cost', 'psc': 'per_switch_cost', 'pfc': 'per_firewall_cost', 'phtc': 'per_hour_ticket_cost', 'bbfw': 'backup_base_fee_workstation', 'bbfs': 'backup_base_fee_server', 'bit': 'backup_included_tb', 'bpt': 'backup_per_tb_fee'}
+        rate_key_map = {'nmf': 'network_management_fee', 'puc': 'per_user_cost', 'psc': 'per_server_cost', 'pwc': 'per_workstation_cost', 'pvc': 'per_vm_cost', 'pswitchc': 'per_switch_cost', 'pfirewallc': 'per_firewall_cost', 'phtc': 'per_hour_ticket_cost', 'bbfw': 'backup_base_fee_workstation', 'bbfs': 'backup_base_fee_server', 'bit': 'backup_included_tb', 'bpt': 'backup_per_tb_fee'}
         for short_key, rate_key in rate_key_map.items():
             if rate_overrides[f'override_{short_key}_enabled']:
                 effective_rates[rate_key] = rate_overrides[rate_key]

@@ -1,0 +1,83 @@
+{% extends "layout.html" %}
+{% block title %}Edit Line Item{% endblock %}
+
+{% block head %}
+<style>
+    h1 { color: #0056b3; }
+    .form-section { background-color: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); max-width: 800px; margin: auto; }
+    input, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-bottom: 15px; }
+    .button-container { text-align: right; margin-top: 20px; }
+    button { padding: 12px 25px; background-color: #0056b3; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1.1em; }
+    .button.secondary { background-color: #6c757d; color: white; text-decoration: none; padding: 12px 25px; font-size: 1.1em; border-radius: 5px;}
+</style>
+{% endblock %}
+
+{% block content %}
+    <h1>Edit Line Item for {{ client_name }}</h1>
+    <div class="form-section">
+        <form method="POST" action="{{ url_for('edit_line_item', account_number=account_number, item_id=item.id) }}">
+            <label>Item Name:</label>
+            <input type="text" name="line_item_name" value="{{ item.name }}" required>
+
+            <label>Item Type:</label>
+            <select name="line_item_type" onchange="toggleLineItemFields(this.value)">
+                <option value="recurring" {% if item.monthly_fee is not none %}selected{% endif %}>Recurring Monthly</option>
+                <option value="one_off" {% if item.one_off_fee is not none %}selected{% endif %}>One-Off Charge</option>
+                <option value="yearly" {% if item.yearly_fee is not none %}selected{% endif %}>Recurring Yearly</option>
+            </select>
+
+            <div id="recurring_fields">
+                <label>Monthly Fee:</label>
+                <input type="number" name="line_item_recurring_fee" step="0.01" value="{{ item.monthly_fee }}">
+            </div>
+
+            <div id="one_off_fields">
+                <label>One-Off Fee:</label>
+                <input type="number" name="line_item_one_off_fee" step="0.01" value="{{ item.one_off_fee }}">
+                <label>Billing Month:</label>
+                <select name="line_item_one_off_month">
+                    {% for month in month_options %}
+                        <option value="{{ month.value }}" {% if item.one_off_year and item.one_off_month and month.value == '%d-%02d'|format(item.one_off_year, item.one_off_month) %}selected{% endif %}>{{ month.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div id="yearly_fields">
+                <label>Yearly Fee:</label>
+                <input type="number" name="line_item_yearly_fee" step="0.01" value="{{ item.yearly_fee }}">
+                <label>Billing Month:</label>
+                <select name="line_item_yearly_month">
+                    {% for i in range(1, 13) %}<option value="{{ i }}" {% if item.yearly_bill_month == i %}selected{% endif %}>{{ i }}</option>{% endfor %}
+                </select>
+                <label>Billing Day:</label>
+                <select name="line_item_yearly_day">
+                    {% for i in range(1, 32) %}<option value="{{ i }}" {% if item.yearly_bill_day == i %}selected{% endif %}>{{ i }}</option>{% endfor %}
+                </select>
+            </div>
+
+            <div class="button-container">
+                <a href="{{ url_for('client_settings', account_number=account_number) }}" class="button secondary">Cancel</a>
+                <button type="submit">Save Changes</button>
+            </div>
+        </form>
+    </div>
+
+<script>
+function toggleLineItemFields(itemType) {
+    document.getElementById('recurring_fields').style.display = 'none';
+    document.getElementById('one_off_fields').style.display = 'none';
+    document.getElementById('yearly_fields').style.display = 'none';
+
+    if (itemType === 'recurring') {
+        document.getElementById('recurring_fields').style.display = 'block';
+    } else if (itemType === 'one_off') {
+        document.getElementById('one_off_fields').style.display = 'block';
+    } else if (itemType === 'yearly') {
+        document.getElementById('yearly_fields').style.display = 'block';
+    }
+}
+// Initialize the view based on the item's current type
+const initialType = document.querySelector('select[name="line_item_type"]').value;
+toggleLineItemFields(initialType);
+</script>
+{% endblock %}
