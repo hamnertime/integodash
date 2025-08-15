@@ -15,6 +15,7 @@ except ImportError:
 # --- Configuration & Utility Functions ---
 DB_FILE = "brainhair.db"
 FRESHSERVICE_DOMAIN = "integotecllc.freshservice.com"
+ACCOUNT_NUMBER_FIELD = "account_number"
 MAX_RETRIES = 3
 DEFAULT_TICKET_HOURS = 0.25 # 15 minutes
 
@@ -44,16 +45,52 @@ def get_latest_ticket_timestamp(cur):
         print("No existing tickets found. Performing initial sync for the past year.")
         return datetime.now(timezone.utc) - timedelta(days=365)
 
+# --- THIS IS THE FIX ---
+def get_fs_company_map_from_api(base_url, headers):
+    """Fetches all companies from Freshservice and returns a map of fs_id to account_number."""
+    all_companies = []
+    page = 1
+    print("Fetching company map directly from Freshservice API to ensure data integrity...")
+    while True:
+        params = {'page': page, 'per_page': 100}
+        try:
+            response = requests.get(f"{base_url}/api/v2/departments", headers=headers, params=params, timeout=90)
+            if response.status_code == 429:
+                retry_after = int(response.headers.get('Retry-After', 10))
+                print(f"  -> Rate limit hit, waiting {retry_after}s...")
+                time.sleep(retry_after)
+                continue
+            response.raise_for_status()
+            data = response.json()
+            companies_on_page = data.get('departments', [])
+            if not companies_on_page: break
+            all_companies.extend(companies_on_page)
+            page += 1
+            time.sleep(0.5)
+        except requests.exceptions.RequestException as e:
+            print(f"FATAL error fetching companies for mapping: {e}", file=sys.stderr)
+            return None
+
+    if all_companies is None:
+        return {}
+
+    fs_id_to_account_map = {}
+    for company in all_companies:
+        fs_id = company.get('id')
+        custom_fields = company.get('custom_fields', {}) or {}
+        account_number = custom_fields.get(ACCOUNT_NUMBER_FIELD)
+        if fs_id and account_number:
+            fs_id_to_account_map[fs_id] = str(account_number)
+
+    print(f"Successfully built a map of {len(fs_id_to_account_map)} companies with account numbers.")
+    return fs_id_to_account_map
+# --- END OF FIX ---
+
 # --- API Functions ---
 def get_updated_tickets(base_url, headers, since_timestamp):
     all_tickets = []
     since_str = since_timestamp.strftime('%Y-%m-%dT%H:%M:%SZ')
-
-    # --- THIS IS THE FIX ---
-    # Only query for tickets that have a status of "Closed" (status:5)
     query = f"(updated_at:>'{since_str}' AND status:5)"
-    # -----------------------
-
     page = 1
     print(f"Fetching CLOSED tickets updated since {since_str}...")
 
@@ -148,26 +185,25 @@ if __name__ == "__main__":
     if not DB_MASTER_PASSWORD: sys.exit("FATAL: No database password provided. Aborting.")
 
     try:
-        con, cur = get_db_connection(DB_FILE, DB_MASTER_PASSWORD)
-
-        if args.full_sync:
-            print("Full sync flag detected. Clearing all existing ticket data...")
-            # --- THIS IS THE FIX ---
-            cur.execute("DELETE FROM ticket_details;")
-            # -----------------------
-            print("Fetching all closed tickets from the past year.")
-            last_sync_time = datetime.now(timezone.utc) - timedelta(days=365)
-        else:
-            last_sync_time = get_latest_ticket_timestamp(cur)
-
-        cur.execute("SELECT freshservice_id, account_number FROM companies WHERE freshservice_id IS NOT NULL")
-        fs_id_to_account_map = {row['freshservice_id']: row['account_number'] for row in cur.fetchall()}
-
         API_KEY = get_freshservice_api_key(DB_MASTER_PASSWORD)
         base_url = f"https://{FRESHSERVICE_DOMAIN}"
         auth_str = f"{API_KEY}:X"
         encoded_auth = base64.b64encode(auth_str.encode()).decode()
         headers = {"Content-Type": "application/json", "Authorization": f"Basic {encoded_auth}"}
+
+        fs_id_to_account_map = get_fs_company_map_from_api(base_url, headers)
+        if not fs_id_to_account_map:
+            sys.exit("Could not build company map from Freshservice API. Aborting ticket sync.")
+
+        con, cur = get_db_connection(DB_FILE, DB_MASTER_PASSWORD)
+
+        if args.full_sync:
+            print("Full sync flag detected. Clearing all existing ticket data...")
+            cur.execute("DELETE FROM ticket_details;")
+            print("Fetching all closed tickets from the past year.")
+            last_sync_time = datetime.now(timezone.utc) - timedelta(days=365)
+        else:
+            last_sync_time = get_latest_ticket_timestamp(cur)
 
         tickets = get_updated_tickets(base_url, headers, last_sync_time)
         if tickets is None: sys.exit("Aborting due to ticket fetch failure.")
@@ -190,7 +226,6 @@ if __name__ == "__main__":
                     total_hours = DEFAULT_TICKET_HOURS
                     print(f"    -> No time entries found. Assigning default {DEFAULT_TICKET_HOURS} hours.")
 
-                # Since we only fetch closed tickets, we can be confident this is the final closed date.
                 closed_date = ticket.get('updated_at')
 
                 ticket_details_to_upsert.append((
