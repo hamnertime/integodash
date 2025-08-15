@@ -1,0 +1,49 @@
+{% extends "layout.html" %}
+{% block title %}Plan Not Configured{% endblock %}
+
+{% block head %}
+<style>
+    .error-container {
+        max-width: 600px;
+        margin: 50px auto;
+        padding: 30px;
+        background-color: #ffffff;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+    .error-container h1 {
+        color: #dc3545;
+        margin-bottom: 20px;
+    }
+    .error-container p {
+        font-size: 1.1em;
+        margin-bottom: 25px;
+    }
+    .button {
+        padding: 12px 25px;
+        background-color: #0056b3;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1.1em;
+        text-decoration: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="error-container">
+    <h1>Configuration Required</h1>
+    <p>
+        The client <strong>{{ client.name }}</strong> is assigned the billing plan
+        "<strong>{{ client.billing_plan }}</strong>", which has not been configured in the system.
+    </p>
+    <p>
+        Please go to the settings page to add this plan and define its rates.
+    </p>
+    <a href="{{ url_for('billing_settings') }}" class="button">Go to Settings</a>
+</div>
+{% endblock %}

@@ -131,7 +131,16 @@ def client_breakdown(account_number):
         year = request.args.get('year', default=last_month_date.year, type=int)
         month = request.args.get('month', default=last_month_date.month, type=int)
 
+        # --- THIS IS THE FIX ---
         breakdown_data = get_client_breakdown_data(account_number, year, month)
+
+        # If the function returns None, it means the billing plan is not configured.
+        if breakdown_data is None:
+            client_info = query_db("SELECT name, billing_plan FROM companies WHERE account_number = ?", [account_number], one=True)
+            flash(f"The billing plan '{client_info['billing_plan']}' assigned to {client_info['name']} is not configured.", 'error')
+            return render_template('unconfigured_plan.html', client=client_info)
+        # --- END OF FIX ---
+
         if not breakdown_data.get('client'):
             flash(f"Client {account_number} not found.", 'error')
             return redirect(url_for('billing_dashboard'))

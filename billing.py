@@ -28,6 +28,12 @@ def get_billing_data_for_client(account_number, year, month):
     current_year = datetime.now().year
     all_tickets_this_year = [dict(r) for r in query_db("SELECT * FROM ticket_details WHERE company_account_number = ? AND strftime('%Y', last_updated_at) = ?", [account_number, str(current_year)] )]
 
+    # --- THIS IS THE FIX ---
+    # If the plan doesn't exist in the database, we can't calculate a bill.
+    # Return None to signal the calling route to handle this gracefully.
+    if not plan_details:
+        return None
+    # --- END OF FIX ---
 
     # --- 2. Determine the Effective Billing Rates ---
     effective_rates = dict(plan_details) if plan_details else {}
@@ -37,9 +43,7 @@ def get_billing_data_for_client(account_number, year, month):
             if rate_overrides[f'override_{short_key}_enabled']:
                 effective_rates[rate_key] = rate_overrides[rate_key]
 
-    # --- THIS IS THE FIX ---
     support_level_display = "Unlimited" if effective_rates.get('per_hour_ticket_cost', 0) == 0 else "Billed Hourly"
-    # --- END OF FIX ---
 
     # --- 3. Calculate Itemized Asset Charges ---
     billed_assets = []
@@ -175,7 +179,23 @@ def get_billing_dashboard_data(sort_by='name', sort_order='asc'):
     for client_row in clients_raw:
         # Get the full data package for each client for the current month
         data = get_billing_data_for_client(client_row['account_number'], now.year, now.month)
-        if not data: continue
+        if not data:
+            # --- THIS IS THE FIX ---
+            # If the billing plan isn't configured, we can't calculate a bill.
+            # We'll still show the client on the dashboard, but with 0 values for calculated fields.
+            client = dict(client_row)
+            client['workstations'] = 0
+            client['servers'] = 0
+            client['vms'] = 0
+            client['regular_users'] = 0
+            client['total_hours'] = 0
+            client['hours_this_month'] = 0
+            client['hours_last_month'] = 0
+            client['total_backup_bytes'] = 0
+            client['total_bill'] = 0.00
+            clients_data.append(client)
+            # --- END OF FIX ---
+            continue
 
         client = data['client']
         # Populate the dictionary with calculated values
@@ -190,7 +210,6 @@ def get_billing_dashboard_data(sort_by='name', sort_order='asc'):
         client['total_bill'] = data['receipt_data']['total']
         clients_data.append(client)
 
-    # --- THIS IS THE FIX ---
     # Perform sorting in Python after all data is calculated
     # Define a mapping from the URL sort_by parameter to the actual key in our client dictionary
     sort_map = {
