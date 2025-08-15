@@ -24,7 +24,10 @@ def get_billing_data_for_client(account_number, year, month):
     plan_details = query_db("SELECT * FROM billing_plans WHERE billing_plan = ? AND term_length = ?", [client_info['billing_plan'], client_info['contract_term_length']], one=True)
     rate_overrides = query_db("SELECT * FROM client_billing_overrides WHERE company_account_number = ?", [account_number], one=True)
 
-    all_tickets_this_year = [dict(r) for r in query_db("SELECT * FROM ticket_details WHERE company_account_number = ? AND strftime('%Y', last_updated_at) = ?", [account_number, str(year)])]
+    # Fetch tickets for the entire year to calculate yearly totals and monthly breakdowns accurately
+    current_year = datetime.now().year
+    all_tickets_this_year = [dict(r) for r in query_db("SELECT * FROM ticket_details WHERE company_account_number = ? AND strftime('%Y', last_updated_at) = ?", [account_number, str(current_year)] )]
+
 
     # --- 2. Determine the Effective Billing Rates ---
     effective_rates = dict(plan_details) if plan_details else {}
@@ -72,7 +75,7 @@ def get_billing_data_for_client(account_number, year, month):
         quantities['regular_users' if billing_type == 'Paid' else 'free_users'] += 1
         billed_users.append({'name': user['full_name'], 'type': billing_type, 'cost': cost})
 
-    # --- 5. Calculate Ticket Charges ---
+    # --- 5. Calculate Ticket Charges for the specified billing period (year, month) ---
     _, num_days = calendar.monthrange(year, month)
     start_of_billing_month = datetime(year, month, 1, tzinfo=timezone.utc)
     end_of_billing_month = datetime(year, month, num_days, 23, 59, 59, tzinfo=timezone.utc)
@@ -88,6 +91,15 @@ def get_billing_data_for_client(account_number, year, month):
 
     billable_hours = max(0, max(0, hours_for_period - prepaid_monthly) - remaining_yearly_hours)
     ticket_charge = billable_hours * (effective_rates.get('per_hour_ticket_cost', 0) or 0)
+
+    # --- 5a. Calculate hours for dashboard view ---
+    now = datetime.now(timezone.utc)
+    first_day_of_current_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    last_day_of_last_month = first_day_of_current_month - timedelta(days=1)
+
+    hours_this_month = sum(t['total_hours_spent'] for t in all_tickets_this_year if datetime.fromisoformat(t['last_updated_at'].replace('Z', '+00:00')).month == now.month)
+    hours_last_month = sum(t['total_hours_spent'] for t in all_tickets_this_year if datetime.fromisoformat(t['last_updated_at'].replace('Z', '+00:00')).month == last_day_of_last_month.month)
+
 
     # --- 6. Calculate Backup Charges ---
     backup_info = {
@@ -137,27 +149,56 @@ def get_billing_data_for_client(account_number, year, month):
         'quantities': quantities,
         'backup_info': backup_info,
         'total_backup_tb': total_backup_tb,
-        'remaining_yearly_hours': remaining_yearly_hours
+        'remaining_yearly_hours': remaining_yearly_hours,
+        'hours_this_month': hours_this_month,
+        'hours_last_month': hours_last_month
     }
 
 def get_billing_dashboard_data(sort_by='name', sort_order='asc'):
     """Calculates and returns the data for the main billing dashboard."""
-    clients_raw = query_db(f"SELECT * FROM companies ORDER BY {sort_by} {sort_order}")
+    # Fetch all clients without sorting in the DB
+    clients_raw = query_db("SELECT * FROM companies")
     clients_data = []
     now = datetime.now()
+
     for client_row in clients_raw:
+        # Get the full data package for each client for the current month
         data = get_billing_data_for_client(client_row['account_number'], now.year, now.month)
         if not data: continue
 
         client = data['client']
+        # Populate the dictionary with calculated values
         client['workstations'] = data['quantities'].get('workstation', 0)
         client['servers'] = data['quantities'].get('server', 0)
         client['vms'] = data['quantities'].get('vm', 0)
         client['regular_users'] = data['quantities'].get('regular_users', 0)
         client['total_hours'] = sum(t['total_hours_spent'] for t in data['all_tickets_this_year'])
+        client['hours_this_month'] = data['hours_this_month']
+        client['hours_last_month'] = data['hours_last_month']
         client['total_backup_bytes'] = data['backup_info']['total_backup_bytes']
         client['total_bill'] = data['receipt_data']['total']
         clients_data.append(client)
+
+    # --- THIS IS THE FIX ---
+    # Perform sorting in Python after all data is calculated
+    # Define a mapping from the URL sort_by parameter to the actual key in our client dictionary
+    sort_map = {
+        'name': 'name',
+        'billing_plan': 'billing_plan',
+        'workstations': 'workstations',
+        'servers': 'servers',
+        'vms': 'vms',
+        'regular_users': 'regular_users',
+        'backup': 'total_backup_bytes',
+        'hours': 'total_hours',
+        'hours_this_month': 'hours_this_month',
+        'hours_last_month': 'hours_last_month',
+        'bill': 'total_bill'
+    }
+    sort_key = sort_map.get(sort_by, 'name')
+
+    # Sort the list of dictionaries
+    clients_data.sort(key=lambda x: (x.get(sort_key) is None, x.get(sort_key, 0)), reverse=(sort_order == 'desc'))
 
     return clients_data
 
