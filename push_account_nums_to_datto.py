@@ -12,31 +12,6 @@ except ImportError:
     sys.exit(1)
 
 # --- Static & Rule-Based Mapping Configuration ---
-DATTO_TO_FRESHSERVICE_MAP = {
-    "BrightPath Business Solutions": "Brightpath Business Solutions",
-    "Cathedral Consulting": "Cathedral Consulting/3PO Networks",
-    "Danny Lang, Law Offices of": "Danny Lang, Law Offices of",
-    "Electrical Pro Services": "Electrical Professional Services",
-    "Engineering Services LLC": "Engineering Services, LLC",
-    "Eyecare For You (Dr Bex)": "Eyecare For You",
-    "Family Development Center (FDC)": "Family Development Center",
-    "Family Faith and Relationship Advocates (FARA)": "Family Faith and Relationship Advocates",
-    "Hometown Liquor": "Hometown Liquor & Company Store",
-    "Inprint Roseburg": "InPrint Roseburg",
-    "JRT Construction": "JRT Construction LLC",
-    "Peace at Home": "Peace at Home Advocacy Center",
-    "Pacific Northwest Veterinary Clinic (For the Love of Paws)": "Pacific Northwest Veterinary Clinic",
-    "Redeemer's Fellowship": "Redeemer's Bible Fellowship",
-    "Saving Grace": "Saving Grace Humane Society",
-    "Silver Butte (C&D Lumber)": "Silver Butte",
-    "South Coast Development Council (SCDC)": "South Coast Development Council",
-    "Timber Country Coca-Cola": "Timber Country Coca Cola",
-    "Umpqua Public Transportation District (UPTD)": "Umpqua Public Transportation District",
-    "Umpqua Valley Christian School (UVCS)": "Umpqua Valley Christian School",
-    "Umpqua Valley Disabilities Network (UVDN)": "Umpqua Valley Disabilities Network",
-    "Winston-Green Waste Water": "Winston-Green Wastewater",
-    "Yoncalla Library": "Yoncalla Public Library"
-}
 REDBARN_KEYWORD = "Redbarn"
 REDBARN_FRESHSERVICE_TARGET = "Redbarn Cannabis"
 
@@ -189,21 +164,30 @@ if __name__ == "__main__":
     if not datto_sites:
         sys.exit("Could not fetch sites from Datto RMM. Aborting.")
 
-    fs_company_map = {c.get('name'): c for c in fs_companies}
+    fs_company_map = {c.get('name').strip(): c for c in fs_companies if c.get('name')}
 
     actions_to_take = []
     unmapped_datto_sites = []
 
     for site in datto_sites:
-        datto_name, datto_uid = site.get('name'), site.get('uid')
-        fs_name_match, match_type = None, "Unmatched"
+        datto_name = (site.get('name') or '').strip()
+        datto_uid = site.get('uid')
+        fs_name_match = None
 
+        # --- THIS IS THE FIX ---
+        # Prioritize the Redbarn special case
         if REDBARN_KEYWORD in datto_name:
-            fs_name_match, match_type = REDBARN_FRESHSERVICE_TARGET, "Redbarn Rule"
-        elif datto_name in DATTO_TO_FRESHSERVICE_MAP:
-            fs_name_match, match_type = DATTO_TO_FRESHSERVICE_MAP[datto_name], "Static Map"
-        elif datto_name in fs_company_map:
-            fs_name_match, match_type = datto_name, "Exact Match"
+            fs_name_match = REDBARN_FRESHSERVICE_TARGET
+        else:
+            # Find the longest matching Freshservice name within the Datto site name
+            # This prevents "A" from matching "A-1 Movers" if "A-1 Movers" also exists
+            best_match = ''
+            for fs_name in fs_company_map.keys():
+                if fs_name in datto_name and len(fs_name) > len(best_match):
+                    best_match = fs_name
+            if best_match:
+                fs_name_match = best_match
+        # --- END OF FIX ---
 
         if fs_name_match:
             company_data = fs_company_map.get(fs_name_match)
@@ -211,6 +195,7 @@ if __name__ == "__main__":
                 account_number = company_data.get('custom_fields', {}).get(ACCOUNT_NUMBER_FIELD)
                 actions_to_take.append({"datto_site_name": datto_name, "datto_site_uid": datto_uid, "account_number": account_number})
             else:
+                # This case might happen if the Redbarn target name is wrong
                 unmapped_datto_sites.append(datto_name)
         else:
             unmapped_datto_sites.append(datto_name)
