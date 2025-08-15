@@ -11,6 +11,8 @@ from flask import Flask, render_template, g, request, redirect, url_for, flash, 
 from apscheduler.schedulers.background import BackgroundScheduler
 from collections import OrderedDict
 from werkzeug.utils import secure_filename
+import markdown
+import bleach
 
 # Local module imports
 from database import init_app_db, get_db, query_db
@@ -34,7 +36,7 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# --- Helper Function for Template ---
+# --- Helper Functions for Template ---
 @app.template_filter('humanize')
 def humanize_time(dt_str):
     if not dt_str: return "N/A"
@@ -55,6 +57,19 @@ def filesizeformat(value, binary=False):
     if value is None:
         return '0 Bytes'
     return '{:.1f} {}'.format(value / 1024, 'KiB') if value < 1024*1024 else '{:.1f} {}'.format(value / (1024*1024), 'MiB')
+
+@app.template_filter('markdown')
+def to_markdown(text):
+    """Converts a string of text to markdown and sanitizes it."""
+    if not text:
+        return ""
+    # Allow basic markdown tags
+    allowed_tags = ['p', 'b', 'i', 'strong', 'em', 'br', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'pre', 'code', 'a', 'blockquote']
+    allowed_attrs = {'a': ['href', 'title']}
+    # Convert markdown to html and then sanitize it
+    html = markdown.markdown(text, extensions=['fenced_code', 'tables'])
+    clean_html = bleach.clean(html, tags=allowed_tags, attributes=allowed_attrs)
+    return clean_html
 
 
 # --- Web Application Routes ---
