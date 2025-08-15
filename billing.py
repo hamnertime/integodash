@@ -37,10 +37,15 @@ def get_billing_data_for_client(account_number, year, month):
             if rate_overrides[f'override_{short_key}_enabled']:
                 effective_rates[rate_key] = rate_overrides[rate_key]
 
+    # --- THIS IS THE FIX ---
+    support_level_display = "Unlimited" if effective_rates.get('per_hour_ticket_cost', 0) == 0 else "Billed Hourly"
+    # --- END OF FIX ---
+
     # --- 3. Calculate Itemized Asset Charges ---
     billed_assets = []
     quantities = defaultdict(int)
     all_assets = assets + manual_assets
+    total_asset_charges = 0.0
     for asset in all_assets:
         is_manual = 'datto_uid' not in asset
         override = asset_overrides.get(asset.get('id')) if not is_manual else asset
@@ -54,12 +59,14 @@ def get_billing_data_for_client(account_number, year, month):
             rate_key = f"per_{billing_type.lower()}_cost"
             cost = effective_rates.get(rate_key, 0.0) or 0.0
 
+        total_asset_charges += cost
         quantities[billing_type.lower()] += 1
         billed_assets.append({'name': asset['hostname'], 'type': billing_type, 'cost': cost})
 
     # --- 4. Calculate Itemized User Charges ---
     billed_users = []
     all_users = users + manual_users
+    total_user_charges = 0.0
     for user in all_users:
         is_manual = 'freshservice_id' not in user
         override = user_overrides.get(user.get('id')) if not is_manual else user
@@ -72,6 +79,7 @@ def get_billing_data_for_client(account_number, year, month):
         elif billing_type == 'Paid':
             cost = effective_rates.get('per_user_cost', 0.0) or 0.0
 
+        total_user_charges += cost
         quantities['regular_users' if billing_type == 'Paid' else 'free_users'] += 1
         billed_users.append({'name': user['full_name'], 'type': billing_type, 'cost': cost})
 
@@ -118,12 +126,14 @@ def get_billing_data_for_client(account_number, year, month):
 
     # --- 7. Assemble Final Bill and Data Package ---
     nmf_charge = effective_rates.get('network_management_fee', 0) or 0
-    total_bill = nmf_charge + sum(a['cost'] for a in billed_assets) + sum(u['cost'] for u in billed_users) + ticket_charge + backup_charge
+    total_bill = nmf_charge + total_asset_charges + total_user_charges + ticket_charge + backup_charge
 
     receipt = {
         'nmf': nmf_charge,
         'billed_assets': billed_assets,
         'billed_users': billed_users,
+        'total_user_charges': total_user_charges,
+        'total_asset_charges': total_asset_charges,
         'ticket_charge': ticket_charge,
         'backup_charge': backup_charge,
         'total': total_bill,
@@ -151,7 +161,8 @@ def get_billing_data_for_client(account_number, year, month):
         'total_backup_tb': total_backup_tb,
         'remaining_yearly_hours': remaining_yearly_hours,
         'hours_this_month': hours_this_month,
-        'hours_last_month': hours_last_month
+        'hours_last_month': hours_last_month,
+        'support_level_display': support_level_display
     }
 
 def get_billing_dashboard_data(sort_by='name', sort_order='asc'):

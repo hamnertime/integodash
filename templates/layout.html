@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Integotec Ops Dash - {% block title %}{% endblock %}</title>
+    <title>Integodash - {% block title %}{% endblock %}</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f6f8; color: #212529; margin: 0; padding: 0; }
         .navbar { background-color: #0056b3; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; color: white; }
@@ -20,11 +20,13 @@
 </head>
 <body>
     <nav class="navbar">
-        <div class="logo">Integotec Ops Dash</div>
+        <div class="logo">Integodash</div>
         <div>
             <a href="{{ url_for('billing_dashboard') }}" class="{{ 'active' if request.endpoint == 'billing_dashboard' else '' }}">Billing</a>
             {% if request.endpoint == 'client_breakdown' %}
-            <a href="{{ url_for('client_settings', account_number=client.account_number) }}">Override Settings</a>
+                <a href="{{ url_for('client_settings', account_number=client.account_number) }}">Override Settings</a>
+            {% elif request.endpoint == 'client_settings' %}
+                <a href="{{ url_for('client_breakdown', account_number=client.account_number) }}">Back to Breakdown</a>
             {% endif %}
             <a href="{{ url_for('billing_settings') }}" class="{{ 'active' if request.endpoint == 'billing_settings' else '' }}">Settings & Sync</a>
         </div>

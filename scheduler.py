@@ -14,7 +14,7 @@ def run_job(job_id, script_path, password):
         env['DB_MASTER_PASSWORD'] = password
         result = subprocess.run(
             [python_executable, script_path],
-            capture_output=True, text=True, check=False, timeout=600,
+            capture_output=True, text=True, check=False, timeout=7200,
             encoding='utf-8', errors='replace', env=env
         )
         log_output = f"--- STDOUT ---\n{result.stdout}\n\n--- STDERR ---\n{result.stderr}"

@@ -1,10 +1,13 @@
 import os
 import sys
 import time
+import uuid
+import json
 from datetime import datetime, timedelta, timezone
-from flask import Flask, render_template, g, request, redirect, url_for, flash, session, jsonify, Response
+from flask import Flask, render_template, g, request, redirect, url_for, flash, session, jsonify, Response, send_from_directory
 from apscheduler.schedulers.background import BackgroundScheduler
 from collections import OrderedDict
+from werkzeug.utils import secure_filename
 
 # Local module imports
 from database import init_app_db, get_db, query_db
@@ -15,10 +18,18 @@ from billing import get_billing_dashboard_data, get_client_breakdown_data
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 DATABASE = 'brainhair.db'
+UPLOAD_FOLDER = 'uploads'
+ALLOWED_EXTENSIONS = {'pdf', 'txt', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'xls', 'xlsx', 'json'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
 scheduler = BackgroundScheduler()
 
 # Initialize database hooks
 init_app_db(app)
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # --- Helper Function for Template ---
 @app.template_filter('humanize')
@@ -34,6 +45,14 @@ def humanize_time(dt_str):
     if delta.seconds >= 3600: return f"{delta.seconds // 3600}h ago"
     if delta.seconds >= 60: return f"{delta.seconds // 60}m ago"
     return "Just now"
+
+@app.template_filter('filesizeformat')
+def filesizeformat(value, binary=False):
+    """Formats a file size."""
+    if value is None:
+        return '0 Bytes'
+    return '{:.1f} {}'.format(value / 1024, 'KiB') if value < 1024*1024 else '{:.1f} {}'.format(value / (1024*1024), 'MiB')
+
 
 # --- Web Application Routes ---
 @app.before_request
@@ -73,9 +92,30 @@ def billing_dashboard():
         flash(f"An error occurred on the dashboard: {e}. Please log in again.", 'error')
         return redirect(url_for('login'))
 
-@app.route('/client/<account_number>/breakdown')
+@app.route('/client/<account_number>/breakdown', methods=['GET', 'POST'])
 def client_breakdown(account_number):
     try:
+        db = get_db()
+        if request.method == 'POST':
+            action = request.form.get('action')
+            if action == 'add_note':
+                note_content = request.form.get('note_content')
+                if note_content:
+                    db.execute("INSERT INTO billing_notes (company_account_number, note_content, created_at) VALUES (?, ?, ?)",
+                               [account_number, note_content, datetime.now(timezone.utc).isoformat()])
+                    db.commit()
+                    flash('Note added successfully.', 'success')
+                else:
+                    flash('Note content cannot be empty.', 'error')
+            return redirect(url_for('client_breakdown', account_number=account_number))
+
+        if request.args.get('delete_note'):
+            db.execute("DELETE FROM billing_notes WHERE id = ?", [request.args.get('delete_note')])
+            db.commit()
+            flash('Note deleted.', 'success')
+            return redirect(url_for('client_breakdown', account_number=account_number))
+
+
         today = datetime.now(timezone.utc)
         first_day_of_current_month = today.replace(day=1)
         last_month_date = first_day_of_current_month - timedelta(days=1)
@@ -87,6 +127,10 @@ def client_breakdown(account_number):
         if not breakdown_data.get('client'):
             flash(f"Client {account_number} not found.", 'error')
             return redirect(url_for('billing_dashboard'))
+
+        # Fetch notes and attachments for this page
+        notes = query_db("SELECT * FROM billing_notes WHERE company_account_number = ? ORDER BY created_at DESC", [account_number])
+        attachments = query_db("SELECT * FROM client_attachments WHERE company_account_number = ? ORDER BY uploaded_at DESC", [account_number])
 
         month_options = []
         for i in range(12, 0, -1):
@@ -100,13 +144,37 @@ def client_breakdown(account_number):
             selected_year=year,
             selected_month=month,
             month_options=month_options,
-            selected_billing_period=selected_billing_period
+            selected_billing_period=selected_billing_period,
+            notes=notes,
+            attachments=attachments
         )
 
     except (ValueError, KeyError) as e:
         session.pop('db_password', None)
         flash(f"An error occurred on breakdown page: {e}. Please log in again.", 'error')
         return redirect(url_for('login'))
+
+@app.route('/client/<account_number>/note/<int:note_id>/edit', methods=['GET', 'POST'])
+def edit_note(account_number, note_id):
+    db = get_db()
+    note = query_db("SELECT * FROM billing_notes WHERE id = ? AND company_account_number = ?", [note_id, account_number], one=True)
+    if not note:
+        flash("Note not found.", "error")
+        return redirect(url_for('client_breakdown', account_number=account_number))
+
+    if request.method == 'POST':
+        new_content = request.form.get('note_content')
+        if new_content:
+            db.execute("UPDATE billing_notes SET note_content = ? WHERE id = ?", [new_content, note_id])
+            db.commit()
+            flash("Note updated successfully.", "success")
+        else:
+            flash("Note content cannot be empty.", "error")
+        return redirect(url_for('client_breakdown', account_number=account_number))
+
+    client_name = query_db("SELECT name FROM companies WHERE account_number = ?", [account_number], one=True)['name']
+    return render_template('edit_note.html', note=note, account_number=account_number, client_name=client_name)
+
 
 @app.route('/client/<account_number>/settings', methods=['GET', 'POST'])
 def client_settings(account_number):
@@ -124,8 +192,6 @@ def client_settings(account_number):
                            [account_number, request.form['manual_user_name'], request.form['manual_user_billing_type'], request.form.get('manual_user_custom_cost')])
                 flash('Manual user added.', 'success')
             elif action == 'save_overrides':
-                # --- THIS IS THE FIX ---
-                # A dictionary to map the short names from the template to the full database column names
                 rate_map = {
                     'nmf': 'network_management_fee', 'puc': 'per_user_cost', 'pwc': 'per_workstation_cost',
                     'phc': 'per_host_cost', 'pvc': 'per_vm_cost', 'psc': 'per_switch_cost',
@@ -133,34 +199,17 @@ def client_settings(account_number):
                     'bbfs': 'backup_base_fee_server', 'bit': 'backup_included_tb', 'bpt': 'backup_per_tb_fee',
                     'prepaid_hours_monthly': 'prepaid_hours_monthly', 'prepaid_hours_yearly': 'prepaid_hours_yearly'
                 }
-
-                # Prepare lists for the SQL query
-                columns_to_update = ['company_account_number']
-                values_to_update = [account_number]
-
-                # Loop through the map to get form data
+                columns_to_update, values_to_update = ['company_account_number'], [account_number]
                 for short_name, full_name in rate_map.items():
-                    # Column for the override value (e.g., network_management_fee)
                     columns_to_update.append(full_name)
                     value = request.form.get(full_name)
                     values_to_update.append(float(value) if value else None)
-
-                    # Column for the checkbox/enabled flag (e.g., override_nmf_enabled)
                     columns_to_update.append(f'override_{short_name}_enabled')
-                    is_enabled = 1 if f'override_{short_name}_enabled' in request.form else 0
-                    values_to_update.append(is_enabled)
-
-                # Build the dynamic SQL for an UPSERT operation
+                    values_to_update.append(1 if f'override_{short_name}_enabled' in request.form else 0)
                 placeholders = ', '.join(['?'] * len(columns_to_update))
-                update_setters = ', '.join([f"{col}=excluded.{col}" for col in columns_to_update[1:]]) # Exclude account_number from update
-
-                sql = f"""
-                    INSERT INTO client_billing_overrides ({', '.join(columns_to_update)})
-                    VALUES ({placeholders})
-                    ON CONFLICT(company_account_number) DO UPDATE SET {update_setters}
-                """
+                update_setters = ', '.join([f"{col}=excluded.{col}" for col in columns_to_update[1:]])
+                sql = f"INSERT INTO client_billing_overrides ({', '.join(columns_to_update)}) VALUES ({placeholders}) ON CONFLICT(company_account_number) DO UPDATE SET {update_setters}"
                 db.execute(sql, values_to_update)
-                # --- END OF FIX ---
 
                 # Process asset overrides
                 assets = query_db("SELECT id FROM assets WHERE company_account_number = ?", [account_number])
@@ -188,6 +237,7 @@ def client_settings(account_number):
             db.commit()
             return redirect(url_for('client_settings', account_number=account_number))
 
+        # Handle GET requests for deletion
         if request.args.get('delete_manual_asset'):
             db.execute("DELETE FROM manual_assets WHERE id = ?", [request.args.get('delete_manual_asset')])
             db.commit()
@@ -222,6 +272,60 @@ def client_settings(account_number):
         flash(f"A database or key error occurred on settings page: {e}. Please log in again.", 'error')
         return redirect(url_for('login'))
 
+@app.route('/client/<account_number>/upload', methods=['POST'])
+def upload_file(account_number):
+    if 'file' not in request.files:
+        flash('No file part', 'error')
+        return redirect(url_for('client_breakdown', account_number=account_number))
+    file = request.files['file']
+    if file.filename == '':
+        flash('No selected file', 'error')
+        return redirect(url_for('client_breakdown', account_number=account_number))
+    if file and allowed_file(file.filename):
+        original_filename = secure_filename(file.filename)
+        stored_filename = f"{uuid.uuid4().hex}_{original_filename}"
+
+        client_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], account_number)
+        if not os.path.exists(client_upload_dir):
+            os.makedirs(client_upload_dir)
+
+        file_path = os.path.join(client_upload_dir, stored_filename)
+        file.save(file_path)
+        file_size = os.path.getsize(file_path)
+
+        db = get_db()
+        db.execute("INSERT INTO client_attachments (company_account_number, original_filename, stored_filename, uploaded_at, file_size) VALUES (?, ?, ?, ?, ?)",
+                   (account_number, original_filename, stored_filename, datetime.now(timezone.utc).isoformat(), file_size))
+        db.commit()
+        flash('File uploaded successfully!', 'success')
+    else:
+        flash('File type not allowed.', 'error')
+    return redirect(url_for('client_breakdown', account_number=account_number))
+
+@app.route('/uploads/<account_number>/<filename>')
+def download_file(account_number, filename):
+    attachment = query_db("SELECT original_filename FROM client_attachments WHERE stored_filename = ? AND company_account_number = ?", [filename, account_number], one=True)
+    if not attachment:
+        return "File not found.", 404
+    client_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], account_number)
+    return send_from_directory(client_upload_dir, filename, as_attachment=True, download_name=attachment['original_filename'])
+
+@app.route('/client/<account_number>/delete_attachment/<int:attachment_id>')
+def delete_attachment(account_number, attachment_id):
+    db = get_db()
+    attachment = query_db("SELECT stored_filename FROM client_attachments WHERE id = ? AND company_account_number = ?", [attachment_id, account_number], one=True)
+    if attachment:
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], account_number, attachment['stored_filename'])
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        db.execute("DELETE FROM client_attachments WHERE id = ?", [attachment_id])
+        db.commit()
+        flash("Attachment deleted successfully.", 'success')
+    else:
+        flash("Attachment not found.", 'error')
+    return redirect(url_for('client_breakdown', account_number=account_number))
+
+
 @app.route('/settings', methods=['GET'])
 def billing_settings():
     all_plans_raw = query_db("SELECT * FROM billing_plans ORDER BY billing_plan, term_length")
@@ -233,6 +337,78 @@ def billing_settings():
 
     scheduler_jobs = query_db("SELECT * FROM scheduler_jobs ORDER BY id")
     return render_template('settings.html', grouped_plans=grouped_plans, scheduler_jobs=scheduler_jobs)
+
+@app.route('/settings/export')
+def export_settings():
+    """Exports billing plans and all overrides to a JSON file."""
+    export_data = {
+        'billing_plans': [dict(row) for row in query_db("SELECT * FROM billing_plans")],
+        'client_billing_overrides': [dict(row) for row in query_db("SELECT * FROM client_billing_overrides")],
+        'asset_billing_overrides': [dict(row) for row in query_db("SELECT * FROM asset_billing_overrides")],
+        'user_billing_overrides': [dict(row) for row in query_db("SELECT * FROM user_billing_overrides")],
+        'manual_assets': [dict(row) for row in query_db("SELECT * FROM manual_assets")],
+        'manual_users': [dict(row) for row in query_db("SELECT * FROM manual_users")],
+        'billing_notes': [dict(row) for row in query_db("SELECT * FROM billing_notes")],
+    }
+
+    response = jsonify(export_data)
+    timestamp = datetime.now().strftime('%Y-%m-%d_%H%M%S')
+    response.headers['Content-Disposition'] = f'attachment; filename=integodash_settings_export_{timestamp}.json'
+    return response
+
+@app.route('/settings/import', methods=['POST'])
+def import_settings():
+    """Imports settings from a JSON file, overwriting existing settings."""
+    if 'file' not in request.files:
+        flash('No file part', 'error')
+        return redirect(url_for('billing_settings'))
+    file = request.files['file']
+    if file.filename == '' or not allowed_file(file.filename):
+        flash('No selected file or file type not allowed. Must be .json', 'error')
+        return redirect(url_for('billing_settings'))
+
+    try:
+        import_data = json.load(file)
+        db = get_db()
+
+        # List of tables to clear and import
+        tables_to_process = [
+            'billing_plans',
+            'client_billing_overrides',
+            'asset_billing_overrides',
+            'user_billing_overrides',
+            'manual_assets',
+            'manual_users',
+            'billing_notes'
+        ]
+
+        for table_name in tables_to_process:
+            if table_name in import_data and import_data[table_name]:
+                # Clear existing data
+                db.execute(f"DELETE FROM {table_name};")
+
+                # Prepare for bulk insert
+                records = import_data[table_name]
+                columns = records[0].keys()
+                placeholders = ', '.join(['?'] * len(columns))
+
+                # Create the insert statement
+                sql = f"INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders})"
+
+                # Create a list of tuples for executemany
+                values = [tuple(rec[col] for col in columns) for rec in records]
+
+                db.executemany(sql, values)
+
+        db.commit()
+        flash('Settings imported successfully! Existing settings have been replaced.', 'success')
+
+    except Exception as e:
+        flash(f'An error occurred during import: {e}', 'error')
+        db.rollback()
+
+    return redirect(url_for('billing_settings'))
+
 
 @app.route('/settings/plan/action', methods=['POST'])
 def billing_settings_action():
@@ -328,6 +504,8 @@ if __name__ == '__main__':
     if not os.path.exists(DATABASE):
         print(f"Database not found. Run 'python init_db.py' first.", file=sys.stderr)
         sys.exit(1)
+    if not os.path.exists(UPLOAD_FOLDER):
+        os.makedirs(UPLOAD_FOLDER)
 
     print("--- Starting Flask Web Server ---")
     try:

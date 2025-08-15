@@ -12,6 +12,7 @@ except ImportError:
 
 
 DB_FILE = "brainhair.db"
+UPLOAD_FOLDER = 'uploads'
 
 # --- Default Billing Plan Data ---
 # CORRECTED: The order of values in each tuple now correctly matches the INSERT statement columns.
@@ -58,6 +59,11 @@ def create_database():
         print(f"Error: Database file '{DB_FILE}' already exists.", file=sys.stderr)
         print("Please remove it manually to re-create the database from scratch.", file=sys.stderr)
         sys.exit(1)
+
+    # Create the upload directory
+    if not os.path.exists(UPLOAD_FOLDER):
+        os.makedirs(UPLOAD_FOLDER)
+        print(f"Created directory for file uploads: '{UPLOAD_FOLDER}'")
 
     print("--- Database and API Key Setup ---")
     master_password = getpass.getpass("Enter a master password for the new encrypted database: ")
@@ -250,6 +256,32 @@ def create_database():
                 last_run_log TEXT
             )
         """)
+
+        # --- NEW TABLES ---
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS billing_notes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                company_account_number TEXT NOT NULL,
+                note_content TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                author TEXT,
+                FOREIGN KEY (company_account_number) REFERENCES companies (account_number) ON DELETE CASCADE
+            )
+        """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS client_attachments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                company_account_number TEXT NOT NULL,
+                original_filename TEXT NOT NULL,
+                stored_filename TEXT NOT NULL UNIQUE,
+                uploaded_at TEXT NOT NULL,
+                file_size INTEGER,
+                FOREIGN KEY (company_account_number) REFERENCES companies (account_number) ON DELETE CASCADE
+            )
+        """)
+        # --- END NEW TABLES ---
+
         print("Schema creation complete.")
 
         print("\nStoring API keys in the encrypted database...")

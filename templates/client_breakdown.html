@@ -10,14 +10,18 @@
         th, td { border: 1px solid #ced4da; padding: 12px 15px; text-align: left; vertical-align: middle; }
         th { background-color: #e9ecef; font-weight: 600; }
         .grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
-        .info-card { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .info-card { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
         .receipt-table { width: 100%; }
         .receipt-table td { border: none; padding: 8px 0; }
         .receipt-table .label { text-align: left; }
         .receipt-table .value { text-align: right; }
         .receipt-table .total-row td { border-top: 2px solid #333; font-weight: bold; padding-top: 10px; }
-        .itemized-detail { padding-left: 20px; font-size: 0.9em; color: #555; }
+        .itemized-detail { font-size: 0.9em; color: #555; }
         .billing-period-selector { margin-bottom: 20px; text-align: center; }
+        details summary { cursor: pointer; font-weight: bold; margin-bottom: 10px; list-style: revert; }
+        .note { border-left: 4px solid #0056b3; padding-left: 15px; margin-bottom: 15px; }
+        .note-meta { font-size: 0.8em; color: #6c757d; }
+        .button, button { padding: 10px 20px; background-color: #0056b3; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1em; text-decoration: none; display: inline-block; }
     </style>
 {% endblock %}
 
@@ -42,24 +46,44 @@
             <p><strong>Account Number:</strong> {{ client.account_number }}</p>
             <p><strong>Assigned Plan:</strong> {{ client.billing_plan }}</p>
             <p><strong>Contract Term:</strong> {{ client.contract_term_length }}</p>
-            <p><strong>Support Level:</strong> {{ client.support_level }}</p>
+            <p><strong>Support Level:</strong> {{ support_level_display }}</p>
         </div>
         <div class="info-card">
             <h3>Billing Receipt for {{ selected_billing_period }}</h3>
             <table class="receipt-table">
                 <tr><td class="label">Network Management Fee</td><td class="value">${{ "%.2f"|format(receipt_data.nmf) }}</td></tr>
 
-                <tr><td class="label"><strong>User Charges</strong></td><td class="value"></td></tr>
-                {% for user in receipt_data.billed_users %}
-                <tr class="itemized-detail"><td class="label">{{ user.name }} ({{ user.type }})</td><td class="value">${{ "%.2f"|format(user.cost) }}</td></tr>
-                {% endfor %}
+                <tr>
+                    <td class="label"><strong>User Charges ({{ receipt_data.billed_users|length }})</strong></td>
+                    <td class="value"><strong>${{ "%.2f"|format(receipt_data.total_user_charges) }}</strong></td>
+                </tr>
+                <tr><td colspan="2" style="padding:0;">
+                    <details>
+                        <summary style="font-size:0.9em; color:#555; padding-left:20px;">View Details</summary>
+                        <table style="width:100%; border:none; box-shadow:none; margin-top: -10px;">
+                        {% for user in receipt_data.billed_users %}
+                        <tr class="itemized-detail"><td class="label" style="border:none;">{{ user.name }} ({{ user.type }})</td><td class="value" style="border:none;">${{ "%.2f"|format(user.cost) }}</td></tr>
+                        {% endfor %}
+                        </table>
+                    </details>
+                </td></tr>
 
-                <tr><td class="label"><strong>Asset Charges</strong></td><td class="value"></td></tr>
-                {% for asset in receipt_data.billed_assets %}
-                <tr class="itemized-detail"><td class="label">{{ asset.name }} ({{ asset.type }})</td><td class="value">${{ "%.2f"|format(asset.cost) }}</td></tr>
-                {% endfor %}
+                <tr>
+                    <td class="label"><strong>Asset Charges ({{ receipt_data.billed_assets|length }})</strong></td>
+                    <td class="value"><strong>${{ "%.2f"|format(receipt_data.total_asset_charges) }}</strong></td>
+                </tr>
+                <tr><td colspan="2" style="padding:0;">
+                    <details>
+                         <summary style="font-size:0.9em; color:#555; padding-left:20px;">View Details</summary>
+                         <table style="width:100%; border:none; box-shadow:none; margin-top: -10px;">
+                         {% for asset in receipt_data.billed_assets %}
+                         <tr class="itemized-detail"><td class="label" style="border:none;">{{ asset.name }} ({{ asset.type }})</td><td class="value" style="border:none;">${{ "%.2f"|format(asset.cost) }}</td></tr>
+                         {% endfor %}
+                         </table>
+                    </details>
+                </td></tr>
 
-                <tr><td class="label"><strong>Ticket Charges</strong></td><td class="value"><strong>${{ "%.2f"|format(receipt_data.ticket_charge) }}</strong></td></tr>
+                <tr><td class="label" style="padding-top:10px;"><strong>Ticket Charges</strong></td><td class="value" style="padding-top:10px;"><strong>${{ "%.2f"|format(receipt_data.ticket_charge) }}</strong></td></tr>
                 <tr class="itemized-detail"><td class="label">Total Hours This Period ({{ "%.2f"|format(receipt_data.hours_for_billing_period) }} hours)</td><td class="value"></td></tr>
                 <tr class="itemized-detail"><td class="label">Pre-paid Monthly Hours</td><td class="value">-{{ "%.2f"|format(receipt_data.prepaid_hours_monthly) }} hours</td></tr>
                 <tr class="itemized-detail"><td class="label">Pre-paid Yearly Hours (Remaining)</td><td class="value">-{{ "%.2f"|format(remaining_yearly_hours) }} hours</td></tr>
@@ -76,44 +100,95 @@
         </div>
     </div>
 
-    <h2>Ticket Breakdown for Billing Period ({{ selected_billing_period }})</h2>
-    <table>
-        <thead><tr><th>Ticket ID</th><th>Subject</th><th>Date Closed</th><th>Total Hours</th></tr></thead>
-        <tbody>
-            {% for ticket in tickets_for_billing_period %}
-            <tr>
-                <td><a href="https://integotecllc.freshservice.com/a/tickets/{{ ticket.ticket_id }}" target="_blank">#{{ ticket.ticket_id }}</a></td>
-                <td>{{ ticket.subject }}</td>
-                <td>{{ ticket.closed_at | humanize if ticket.closed_at else 'Still Open' }}</td>
-                <td>{{ "%.2f"|format(ticket.total_hours_spent) }}</td>
-            </tr>
+    <div class="info-card">
+        <h2>Billing Notes</h2>
+        <form method="POST" action="{{ url_for('client_breakdown', account_number=client.account_number) }}">
+             <textarea name="note_content" rows="3" placeholder="Add a new billing note..." style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;"></textarea>
+             <div style="text-align: right; margin-top: 10px;">
+                 <button type="submit" name="action" value="add_note">Add Note</button>
+             </div>
+        </form>
+        <hr style="margin: 20px 0;">
+        {% for note in notes %}
+            <div class="note">
+                <p>{{ note.note_content }}</p>
+                <p class="note-meta">Added on {{ note.created_at | humanize }} |
+                   <a href="{{ url_for('edit_note', account_number=client.account_number, note_id=note.id) }}">Edit</a> |
+                   <a href="{{ url_for('client_breakdown', account_number=client.account_number, delete_note=note.id) }}" onclick="return confirm('Are you sure you want to delete this note?');">Delete</a>
+                </p>
+            </div>
+        {% else %}
+            <p>No billing notes for this client yet.</p>
+        {% endfor %}
+    </div>
+
+    <div class="info-card">
+        <h2>Client Attachments</h2>
+        <form method="POST" action="{{ url_for('upload_file', account_number=client.account_number) }}" enctype="multipart/form-data">
+            <input type="file" name="file" required>
+            <button type="submit">Upload File</button>
+        </form>
+        <table class="item-table" style="margin-top: 20px;">
+            <thead><tr><th>Filename</th><th>Size</th><th>Uploaded</th><th>Actions</th></tr></thead>
+            <tbody>
+            {% for attachment in attachments %}
+                <tr>
+                    <td><a href="{{ url_for('download_file', account_number=client.account_number, filename=attachment.stored_filename) }}">{{ attachment.original_filename }}</a></td>
+                    <td>{{ attachment.file_size | filesizeformat }}</td>
+                    <td>{{ attachment.uploaded_at | humanize }}</td>
+                    <td><a href="{{ url_for('delete_attachment', account_number=client.account_number, attachment_id=attachment.id) }}" onclick="return confirm('Are you sure you want to delete this file?');">Delete</a></td>
+                </tr>
             {% else %}
-            <tr><td colspan="4">No tickets with time entries found for this period.</td></tr>
+                <tr><td colspan="4">No attachments for this client.</td></tr>
             {% endfor %}
-        </tbody>
-    </table>
+            </tbody>
+        </table>
+    </div>
+
+    <h2>Ticket Breakdown for Billing Period ({{ selected_billing_period }})</h2>
+    <details>
+        <summary>View Tickets ({{ tickets_for_billing_period|length }})</summary>
+        <table>
+            <thead><tr><th>Ticket ID</th><th>Subject</th><th>Date Closed</th><th>Total Hours</th></tr></thead>
+            <tbody>
+                {% for ticket in tickets_for_billing_period %}
+                <tr>
+                    <td><a href="https://integotecllc.freshservice.com/a/tickets/{{ ticket.ticket_id }}" target="_blank">#{{ ticket.ticket_id }}</a></td>
+                    <td>{{ ticket.subject }}</td>
+                    <td>{{ ticket.closed_at | humanize if ticket.closed_at else 'Still Open' }}</td>
+                    <td>{{ "%.2f"|format(ticket.total_hours_spent) }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4">No tickets with time entries found for this period.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </details>
 
     <h2>Tracked Assets & Users</h2>
-    <div class="grid-container">
-        <div>
-            <h4>Datto RMM Assets ({{ assets|length }})</h4>
-            <table><thead><tr><th>Hostname</th><th>Billing Type</th><th>OS</th><th>Backup Usage (TB)</th></tr></thead><tbody>
-                {% for asset in assets %}<tr><td>{{ asset.hostname }}</td><td>{{ asset.billing_type }}</td><td>{{ asset.operating_system }}</td><td>{{ "%.4f"|format(asset.backup_data_bytes / 1099511627776.0 if asset.backup_data_bytes else 0) }}</td></tr>{% else %}<tr><td colspan="4">No assets found.</td></tr>{% endfor %}
-            </tbody></table>
-            <h4>Manual Assets ({{ manual_assets|length }})</h4>
-            <table><thead><tr><th>Hostname</th><th>Billing Type</th><th>Cost</th></tr></thead><tbody>
-                {% for asset in manual_assets %}<tr><td>{{ asset.hostname }}</td><td>{{ asset.billing_type }}</td><td>${{ "%.2f"|format(asset.custom_cost) if asset.custom_cost else '0.00' }}</td></tr>{% else %}<tr><td colspan="4">No manual assets.</td></tr>{% endfor %}
-            </tbody></table>
+    <details>
+        <summary>View All Tracked Items</summary>
+        <div class="grid-container">
+            <div>
+                <h4>Datto RMM Assets ({{ assets|length }})</h4>
+                <table><thead><tr><th>Hostname</th><th>Billing Type</th><th>OS</th><th>Backup Usage (TB)</th></tr></thead><tbody>
+                    {% for asset in assets %}<tr><td>{{ asset.hostname }}</td><td>{{ asset.billing_type }}</td><td>{{ asset.operating_system }}</td><td>{{ "%.4f"|format(asset.backup_data_bytes / 1099511627776.0 if asset.backup_data_bytes else 0) }}</td></tr>{% else %}<tr><td colspan="4">No assets found.</td></tr>{% endfor %}
+                </tbody></table>
+                <h4>Manual Assets ({{ manual_assets|length }})</h4>
+                <table><thead><tr><th>Hostname</th><th>Billing Type</th><th>Cost</th></tr></thead><tbody>
+                    {% for asset in manual_assets %}<tr><td>{{ asset.hostname }}</td><td>{{ asset.billing_type }}</td><td>${{ "%.2f"|format(asset.custom_cost) if asset.custom_cost else '0.00' }}</td></tr>{% else %}<tr><td colspan="4">No manual assets.</td></tr>{% endfor %}
+                </tbody></table>
+            </div>
+            <div>
+                <h4>Freshservice Users ({{ users|length }})</h4>
+                <table><thead><tr><th>Full Name</th><th>Email</th><th>Billing Type</th></tr></thead><tbody>
+                    {% for user in users %}<tr><td>{{ user.full_name }}</td><td>{{ user.email }}</td><td>{{ user_overrides[user.id].billing_type if user_overrides[user.id] else 'Paid' }}</td></tr>{% else %}<tr><td colspan="4">No users found.</td></tr>{% endfor %}
+                </tbody></table>
+                <h4>Manual Users ({{ manual_users|length }})</h4>
+                <table><thead><tr><th>Full Name</th><th>Billing Type</th><th>Cost</th></tr></thead><tbody>
+                    {% for user in manual_users %}<tr><td>{{ user.full_name }}</td><td>{{ user.billing_type }}</td><td>${{ "%.2f"|format(user.custom_cost) if user.custom_cost else '0.00' }}</td></tr>{% else %}<tr><td colspan="4">No manual users.</td></tr>{% endfor %}
+                </tbody></table>
+            </div>
         </div>
-        <div>
-            <h4>Freshservice Users ({{ users|length }})</h4>
-            <table><thead><tr><th>Full Name</th><th>Email</th><th>Billing Type</th></tr></thead><tbody>
-                {% for user in users %}<tr><td>{{ user.full_name }}</td><td>{{ user.email }}</td><td>{{ user_overrides[user.id].billing_type if user_overrides[user.id] else 'Paid' }}</td></tr>{% else %}<tr><td colspan="4">No users found.</td></tr>{% endfor %}
-            </tbody></table>
-            <h4>Manual Users ({{ manual_users|length }})</h4>
-            <table><thead><tr><th>Full Name</th><th>Billing Type</th><th>Cost</th></tr></thead><tbody>
-                {% for user in manual_users %}<tr><td>{{ user.full_name }}</td><td>{{ user.billing_type }}</td><td>${{ "%.2f"|format(user.custom_cost) if user.custom_cost else '0.00' }}</td></tr>{% else %}<tr><td colspan="4">No manual users.</td></tr>{% endfor %}
-            </tbody></table>
-        </div>
-    </div>
+    </details>
 {% endblock %}

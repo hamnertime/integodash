@@ -1,6 +1,7 @@
 *.db
 *.txt
 *.pem
+uploads/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
