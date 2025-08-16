@@ -30,6 +30,11 @@
             {% endif %}
             <a href="{{ url_for('billing_settings') }}" class="{{ 'active' if request.endpoint == 'billing_settings' else '' }}">Settings & Sync</a>
         </div>
+        <div>
+            {% if 'username' in session %}
+                <span style="margin-right: 15px;">Welcome, {{ session['username'] }}</span>
+            {% endif %}
+        </div>
     </nav>
 
     <div class="container">

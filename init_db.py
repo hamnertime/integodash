@@ -15,8 +15,7 @@ DB_FILE = "brainhair.db"
 UPLOAD_FOLDER = 'uploads'
 
 # --- Default Billing Plan Data ---
-# CORRECTED: The order of values in each tuple now correctly matches the INSERT statement columns.
-# Tuple structure: (plan, term, nmf, puc, psc, pwc, pvc, pswitchc, pfirewallc, phtc, bbfw, bbfs, bit, bpt)
+# (Your existing default_plans_data remains here)
 default_plans_data = [
     # plan, term, nmf, puc, psc, pwc, pvc, pswitchc, pfirewallc, phtc, bbfw, bbfs, bit, bpt
     ('Break Fix', '1-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 90.00, 25.00, 50.00, 1.0, 15.00),
@@ -94,6 +93,7 @@ def create_database():
         cur.execute("PRAGMA foreign_keys = ON;")
 
         print("\nCreating database schema...")
+        # (Your existing table creation statements remain here)
         cur.execute("CREATE TABLE IF NOT EXISTS api_keys (service TEXT PRIMARY KEY, api_key TEXT, api_secret TEXT, api_endpoint TEXT)")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS companies (
@@ -122,7 +122,6 @@ def create_database():
                 FOREIGN KEY (company_account_number) REFERENCES companies (account_number)
             )
         """)
-
         cur.execute("""
             CREATE TABLE IF NOT EXISTS billing_plans (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -143,7 +142,6 @@ def create_database():
                 UNIQUE (billing_plan, term_length)
             )
         """)
-
         cur.execute("""
             CREATE TABLE IF NOT EXISTS client_billing_overrides (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -184,7 +182,6 @@ def create_database():
                 FOREIGN KEY (company_account_number) REFERENCES companies (account_number)
             )
         """)
-
         cur.execute("""
             CREATE TABLE IF NOT EXISTS asset_billing_overrides (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -194,7 +191,6 @@ def create_database():
                 FOREIGN KEY (asset_id) REFERENCES assets (id) ON DELETE CASCADE
             )
         """)
-
         cur.execute("""
             CREATE TABLE IF NOT EXISTS user_billing_overrides (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -204,7 +200,6 @@ def create_database():
                 FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
             )
         """)
-
         cur.execute("""
             CREATE TABLE IF NOT EXISTS manual_assets (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -216,7 +211,6 @@ def create_database():
                 FOREIGN KEY (company_account_number) REFERENCES companies (account_number) ON DELETE CASCADE
             )
         """)
-
         cur.execute("""
             CREATE TABLE IF NOT EXISTS manual_users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -228,7 +222,6 @@ def create_database():
                 FOREIGN KEY (company_account_number) REFERENCES companies (account_number) ON DELETE CASCADE
             )
         """)
-
         cur.execute("""
             CREATE TABLE IF NOT EXISTS ticket_details (
                 ticket_id INTEGER PRIMARY KEY,
@@ -240,7 +233,6 @@ def create_database():
                 FOREIGN KEY (company_account_number) REFERENCES companies (account_number)
             )
         """)
-
         cur.execute("""
             CREATE TABLE scheduler_jobs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -254,8 +246,6 @@ def create_database():
                 last_run_log TEXT
             )
         """)
-
-        # --- NEW TABLES ---
         cur.execute("""
             CREATE TABLE IF NOT EXISTS billing_notes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -266,7 +256,6 @@ def create_database():
                 FOREIGN KEY (company_account_number) REFERENCES companies (account_number) ON DELETE CASCADE
             )
         """)
-
         cur.execute("""
             CREATE TABLE IF NOT EXISTS client_attachments (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -278,7 +267,6 @@ def create_database():
                 FOREIGN KEY (company_account_number) REFERENCES companies (account_number) ON DELETE CASCADE
             )
         """)
-
         cur.execute("""
             CREATE TABLE IF NOT EXISTS custom_line_items (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -292,6 +280,26 @@ def create_database():
                 yearly_bill_month INTEGER,
                 yearly_bill_day INTEGER,
                 FOREIGN KEY (company_account_number) REFERENCES companies (account_number) ON DELETE CASCADE
+            )
+        """)
+
+        # --- NEW TABLES ---
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS app_users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL UNIQUE
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS audit_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                timestamp TEXT NOT NULL,
+                action TEXT NOT NULL,
+                table_name TEXT NOT NULL,
+                record_id INTEGER,
+                details TEXT,
+                FOREIGN KEY (user_id) REFERENCES app_users (id)
             )
         """)
         # --- END NEW TABLES ---
@@ -320,6 +328,9 @@ def create_database():
             INSERT INTO billing_plans (billing_plan, term_length, network_management_fee, per_user_cost, per_server_cost, per_workstation_cost, per_vm_cost, per_switch_cost, per_firewall_cost, per_hour_ticket_cost, backup_base_fee_workstation, backup_base_fee_server, backup_included_tb, backup_per_tb_fee)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, default_plans_data)
+
+        print("Adding default application user...")
+        cur.execute("INSERT INTO app_users (username) VALUES ('Admin')")
 
         con.commit()
         print(f"\n✅ Success! Encrypted database '{DB_FILE}' created and configured.")

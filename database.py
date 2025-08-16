@@ -1,5 +1,6 @@
 import os
 from flask import g, session
+from datetime import datetime, timezone
 
 try:
     from sqlcipher3 import dbapi2 as sqlite3
@@ -26,7 +27,6 @@ def get_db():
             raise ValueError("Database password not found in session.")
         try:
             g._database = get_db_connection(password)
-            # Test the connection with a simple query
             g._database.execute("SELECT name FROM sqlite_master WHERE type='table' LIMIT 1;")
         except sqlite3.DatabaseError:
             g._database = None
@@ -47,6 +47,36 @@ def query_db(query, args=(), one=False):
     if one:
         return rv[0] if rv else None
     return rv
+
+def log_and_execute(query, args=()):
+    """Logs and executes a database write operation."""
+    db = get_db()
+    user_id = session.get('user_id')
+    timestamp = datetime.now(timezone.utc).isoformat()
+
+    action = query.strip().split()[0].upper()
+    table_name = ''
+    if action == 'INSERT':
+        table_name = query.strip().split()[2]
+    elif action == 'UPDATE':
+        table_name = query.strip().split()[1]
+    elif action == 'DELETE':
+        table_name = query.strip().split()[2]
+
+    record_id = None
+    details = f"Query: {query}, Args: {str(args)}"
+
+    try:
+        cur = db.execute(query, args)
+        db.execute(
+            "INSERT INTO audit_log (user_id, timestamp, action, table_name, record_id, details) VALUES (?, ?, ?, ?, ?, ?)",
+            (user_id, timestamp, action, table_name, record_id, details)
+        )
+        db.commit()
+        return cur
+    except Exception as e:
+        db.rollback()
+        raise e
 
 def init_app_db(app):
     """Register database functions with the Flask app."""

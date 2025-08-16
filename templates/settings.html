@@ -43,6 +43,29 @@
         </div>
     </div>
 
+    <div class="form-section">
+        <h2>Application Users</h2>
+        <table class="plan-table">
+            <thead>
+                <tr>
+                    <th>Username</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in app_users %}
+                <tr>
+                    <td>{{ user.username }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <form method="POST" action="{{ url_for('billing_settings') }}" class="add-plan-form">
+            <input type="hidden" name="action" value="add_user">
+            <h3>Add New User</h3>
+            <input type="text" name="username" placeholder="Enter username" required>
+            <button type="submit">Add User</button>
+        </form>
+    </div>
 
     <h2>Automated Sync Scheduler</h2>
     <p>Configure and monitor the background data sync jobs. <strong>Note:</strong> You must restart the application for changes to interval or enabled status to take effect.</p>
