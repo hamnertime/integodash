@@ -15,7 +15,7 @@ import markdown
 import bleach
 
 # Local module imports
-from database import init_app_db, get_db, query_db, log_and_execute
+from database import init_app_db, get_db, query_db, log_and_execute, log_read_action
 from scheduler import run_job
 from billing import get_billing_dashboard_data, get_client_breakdown_data
 
@@ -376,6 +376,12 @@ def download_file(account_number, filename):
     attachment = query_db("SELECT original_filename FROM client_attachments WHERE stored_filename = ? AND company_account_number = ?", [filename, account_number], one=True)
     if not attachment:
         return "File not found.", 404
+
+    log_read_action(
+        action='DOWNLOAD',
+        details=f"Downloaded file '{attachment['original_filename']}' for client {account_number}."
+    )
+
     client_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], account_number)
     return send_from_directory(client_upload_dir, filename, as_attachment=True, download_name=attachment['original_filename'])
 
@@ -407,6 +413,7 @@ def billing_settings():
             else:
                 flash("Username cannot be empty.", "error")
             return redirect(url_for('billing_settings'))
+
     all_plans_raw = query_db("SELECT * FROM billing_plans ORDER BY billing_plan, term_length")
     grouped_plans = OrderedDict()
     for plan in all_plans_raw:
@@ -415,12 +422,30 @@ def billing_settings():
         grouped_plans[plan['billing_plan']].append(dict(plan))
     scheduler_jobs = query_db("SELECT * FROM scheduler_jobs ORDER BY id")
     app_users = query_db("SELECT * FROM app_users ORDER BY username")
-    audit_logs = query_db("SELECT al.*, au.username FROM audit_log al LEFT JOIN app_users au ON al.user_id = au.id ORDER BY al.timestamp DESC LIMIT 100")
-    return render_template('settings.html', grouped_plans=grouped_plans, scheduler_jobs=scheduler_jobs, app_users=app_users, audit_logs=audit_logs)
+    return render_template('settings.html', grouped_plans=grouped_plans, scheduler_jobs=scheduler_jobs, app_users=app_users)
+
+@app.route('/settings/audit_log')
+def view_audit_log():
+    audit_logs = query_db("SELECT al.*, au.username FROM audit_log al LEFT JOIN app_users au ON al.user_id = au.id ORDER BY al.timestamp DESC")
+    return render_template('audit_log.html', audit_logs=audit_logs)
+
+@app.route('/settings/delete_user/<int:user_id>', methods=['POST'])
+def delete_user(user_id):
+    if user_id == 1:
+        flash("Cannot delete the default Admin user.", "error")
+        return redirect(url_for('billing_settings'))
+    if user_id == session.get('user_id'):
+        flash("You cannot delete the user you are currently logged in as.", "error")
+        return redirect(url_for('billing_settings'))
+
+    log_and_execute("DELETE FROM app_users WHERE id = ?", (user_id,))
+    flash("User deleted successfully.", "success")
+    return redirect(url_for('billing_settings'))
 
 @app.route('/settings/export')
 def export_settings():
     export_data = {
+        'app_users': [dict(row) for row in query_db("SELECT * FROM app_users")],
         'billing_plans': [dict(row) for row in query_db("SELECT * FROM billing_plans")],
         'client_billing_overrides': [dict(row) for row in query_db("SELECT * FROM client_billing_overrides")],
         'asset_billing_overrides': [dict(row) for row in query_db("SELECT * FROM asset_billing_overrides")],
@@ -446,7 +471,7 @@ def import_settings():
         return redirect(url_for('billing_settings'))
     try:
         import_data = json.load(file)
-        tables_to_process = ['billing_plans', 'client_billing_overrides', 'asset_billing_overrides', 'user_billing_overrides', 'manual_assets', 'manual_users', 'billing_notes', 'custom_line_items']
+        tables_to_process = ['app_users', 'billing_plans', 'client_billing_overrides', 'asset_billing_overrides', 'user_billing_overrides', 'manual_assets', 'manual_users', 'billing_notes', 'custom_line_items']
         for table_name in tables_to_process:
             if table_name in import_data and import_data[table_name]:
                 log_and_execute(f"DELETE FROM {table_name};")

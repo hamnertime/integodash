@@ -78,6 +78,19 @@ def log_and_execute(query, args=()):
         db.rollback()
         raise e
 
+def log_read_action(action, details=""):
+    """Logs a non-modifying action, like a download or export."""
+    db = get_db()
+    user_id = session.get('user_id')
+    timestamp = datetime.now(timezone.utc).isoformat()
+
+    db.execute(
+        "INSERT INTO audit_log (user_id, timestamp, action, table_name, details) VALUES (?, ?, ?, ?, ?)",
+        (user_id, timestamp, action, 'N/A', details)
+    )
+    db.commit()
+
+
 def init_app_db(app):
     """Register database functions with the Flask app."""
     app.teardown_appcontext(close_connection)
