@@ -10,6 +10,8 @@
         .navbar a { color: white; text-decoration: none; padding: 8px 15px; border-radius: 5px; transition: background-color 0.2s; }
         .navbar a.active, .navbar a:hover { background-color: #004494; }
         .navbar .logo { font-weight: bold; font-size: 1.2em; }
+        .navbar .nav-left, .navbar .nav-center, .navbar .nav-right { display: flex; align-items: center; gap: 15px; }
+        .navbar .nav-center { flex-grow: 1; justify-content: center; }
         .container { padding: 20px; max-width: 95%; margin: 0 auto; }
         .flash-message { padding: 15px; margin-bottom: 20px; border-radius: 5px; border: 1px solid transparent; }
         .flash-success { background-color: #d4edda; color: #155724; border-color: #c3e6cb; }
@@ -20,19 +22,21 @@
 </head>
 <body>
     <nav class="navbar">
-        <div class="logo">Integodash</div>
-        <div>
+        <div class="nav-left">
+            <div class="logo">Integodash</div>
+        </div>
+        <div class="nav-center">
             <a href="{{ url_for('billing_dashboard') }}" class="{{ 'active' if request.endpoint == 'billing_dashboard' else '' }}">Billing</a>
-            {% if request.endpoint == 'client_breakdown' %}
-                <a href="{{ url_for('client_settings', account_number=client.account_number) }}">Override Settings</a>
-            {% elif request.endpoint == 'client_settings' %}
-                <a href="{{ url_for('client_breakdown', account_number=client.account_number) }}">Back to Breakdown</a>
+            {% if client and client.account_number %}
+                <a href="{{ url_for('client_settings', account_number=client.account_number) }}" class="{{ 'active' if request.endpoint == 'client_settings' else '' }}">Override Settings</a>
+                <a href="{{ url_for('client_breakdown', account_number=client.account_number) }}" class="{{ 'active' if request.endpoint == 'client_breakdown' else '' }}">Back to Breakdown</a>
             {% endif %}
             <a href="{{ url_for('billing_settings') }}" class="{{ 'active' if request.endpoint == 'billing_settings' else '' }}">Settings & Sync</a>
         </div>
-        <div>
+        <div class="nav-right">
             {% if 'username' in session %}
-                <span style="margin-right: 15px;">Welcome, {{ session['username'] }}</span>
+                <span>Welcome, {{ session['username'] }}</span>
+                <a href="{{ url_for('logout') }}">Switch User</a>
             {% endif %}
         </div>
     </nav>
@@ -41,11 +45,7 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    {% if category in ['success', 'error'] %}
-                        <div class="flash-message flash-{{ category }}">{{ message }}</div>
-                    {% elif category == 'output' %}
-                        <pre class="flash-output">{{ message }}</pre>
-                    {% endif %}
+                    <div class="flash-message flash-{{ category }}">{{ message }}</div>
                 {% endfor %}
             {% endif %}
         {% endwith %}

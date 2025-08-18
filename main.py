@@ -63,10 +63,8 @@ def to_markdown(text):
     """Converts a string of text to markdown and sanitizes it."""
     if not text:
         return ""
-    # Allow basic markdown tags
     allowed_tags = ['p', 'b', 'i', 'strong', 'em', 'br', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'pre', 'code', 'a', 'blockquote']
     allowed_attrs = {'a': ['href', 'title']}
-    # Convert markdown to html and then sanitize it
     html = markdown.markdown(text, extensions=['fenced_code', 'tables'])
     clean_html = bleach.clean(html, tags=allowed_tags, attributes=allowed_attrs)
     return clean_html
@@ -118,6 +116,14 @@ def select_user():
     users = query_db("SELECT * FROM app_users ORDER BY username")
     return render_template('user_selection.html', users=users)
 
+@app.route('/logout')
+def logout():
+    """Logs out the current user and redirects to the user selection screen."""
+    session.pop('user_id', None)
+    session.pop('username', None)
+    flash("You have been logged out.", "success")
+    return redirect(url_for('select_user'))
+
 @app.route('/')
 def billing_dashboard():
     try:
@@ -132,6 +138,8 @@ def billing_dashboard():
         return render_template('billing.html', clients=clients_data, sort_by=sort_by, sort_order=sort_order, month_options=month_options, current_year=today.year)
     except (ValueError, KeyError) as e:
         session.pop('db_password', None)
+        session.pop('user_id', None)
+        session.pop('username', None)
         flash(f"An error occurred on the dashboard: {e}. Please log in again.", 'error')
         return redirect(url_for('login'))
 
@@ -155,11 +163,9 @@ def client_breakdown(account_number):
             flash('Note deleted.', 'success')
             return redirect(url_for('client_breakdown', account_number=account_number))
 
-
         today = datetime.now(timezone.utc)
         first_day_of_current_month = today.replace(day=1)
         last_month_date = first_day_of_current_month - timedelta(days=1)
-
         year = request.args.get('year', default=last_month_date.year, type=int)
         month = request.args.get('month', default=last_month_date.month, type=int)
 
@@ -180,7 +186,6 @@ def client_breakdown(account_number):
         month_options = []
         for i in range(12, 0, -1):
              month_options.append({'year': today.year if i <= today.month else today.year -1, 'month': i, 'name': datetime(today.year, i, 1).strftime('%B %Y')})
-
         selected_billing_period = datetime(year, month, 1).strftime('%B %Y')
 
         return render_template(
@@ -193,9 +198,10 @@ def client_breakdown(account_number):
             notes=notes,
             attachments=attachments
         )
-
     except (ValueError, KeyError) as e:
         session.pop('db_password', None)
+        session.pop('user_id', None)
+        session.pop('username', None)
         flash(f"An error occurred on breakdown page: {e}. Please log in again.", 'error')
         return redirect(url_for('login'))
 
@@ -205,7 +211,6 @@ def edit_note(account_number, note_id):
     if not note:
         flash("Note not found.", "error")
         return redirect(url_for('client_breakdown', account_number=account_number))
-
     if request.method == 'POST':
         new_content = request.form.get('note_content')
         if new_content:
@@ -214,7 +219,6 @@ def edit_note(account_number, note_id):
         else:
             flash("Note content cannot be empty.", "error")
         return redirect(url_for('client_breakdown', account_number=account_number))
-
     client_name = query_db("SELECT name FROM companies WHERE account_number = ?", [account_number], one=True)['name']
     return render_template('edit_note.html', note=note, account_number=account_number, client_name=client_name)
 
@@ -224,13 +228,10 @@ def edit_line_item(account_number, item_id):
     if not item:
         flash("Line item not found.", "error")
         return redirect(url_for('client_settings', account_number=account_number))
-
     if request.method == 'POST':
         name = request.form.get('line_item_name')
         item_type = request.form.get('line_item_type')
-
         log_and_execute("UPDATE custom_line_items SET monthly_fee=NULL, one_off_fee=NULL, one_off_year=NULL, one_off_month=NULL, yearly_fee=NULL, yearly_bill_month=NULL, yearly_bill_day=NULL WHERE id = ?", [item_id])
-
         if item_type == 'recurring':
             fee = request.form.get('line_item_recurring_fee')
             log_and_execute("UPDATE custom_line_items SET name = ?, monthly_fee = ? WHERE id = ?", [name, fee, item_id])
@@ -244,17 +245,11 @@ def edit_line_item(account_number, item_id):
             month = request.form.get('line_item_yearly_month')
             day = request.form.get('line_item_yearly_day')
             log_and_execute("UPDATE custom_line_items SET name = ?, yearly_fee = ?, yearly_bill_month = ?, yearly_bill_day = ? WHERE id = ?", [name, fee, int(month), int(day), item_id])
-
         flash("Line item updated successfully.", "success")
         return redirect(url_for('client_settings', account_number=account_number))
-
     client_name = query_db("SELECT name FROM companies WHERE account_number = ?", [account_number], one=True)['name']
     today = datetime.now(timezone.utc)
-    month_options = []
-    for i in range(12):
-        target_date = today + timedelta(days=31*i)
-        month_options.append({'value': target_date.strftime('%Y-%m'), 'name': target_date.strftime('%B %Y')})
-
+    month_options = [{'value': (today + timedelta(days=31*i)).strftime('%Y-%m'), 'name': (today + timedelta(days=31*i)).strftime('%B %Y')} for i in range(12)]
     return render_template('edit_line_item.html', item=item, account_number=account_number, client_name=client_name, month_options=month_options)
 
 @app.route('/client/<account_number>/settings', methods=['GET', 'POST'])
@@ -275,29 +270,20 @@ def client_settings(account_number):
                 name = request.form.get('line_item_name')
                 if item_type == 'recurring':
                     fee = request.form.get('line_item_recurring_fee')
-                    log_and_execute("INSERT INTO custom_line_items (company_account_number, name, monthly_fee) VALUES (?, ?, ?)",
-                               [account_number, name, fee])
+                    log_and_execute("INSERT INTO custom_line_items (company_account_number, name, monthly_fee) VALUES (?, ?, ?)", [account_number, name, fee])
                 elif item_type == 'one_off':
                     fee = request.form.get('line_item_one_off_fee')
                     billing_period = request.form.get('line_item_one_off_month')
                     year, month = billing_period.split('-')
-                    log_and_execute("INSERT INTO custom_line_items (company_account_number, name, one_off_fee, one_off_year, one_off_month) VALUES (?, ?, ?, ?, ?)",
-                               [account_number, name, fee, int(year), int(month)])
+                    log_and_execute("INSERT INTO custom_line_items (company_account_number, name, one_off_fee, one_off_year, one_off_month) VALUES (?, ?, ?, ?, ?)", [account_number, name, fee, int(year), int(month)])
                 elif item_type == 'yearly':
                     fee = request.form.get('line_item_yearly_fee')
                     month = request.form.get('line_item_yearly_month')
                     day = request.form.get('line_item_yearly_day')
-                    log_and_execute("INSERT INTO custom_line_items (company_account_number, name, yearly_fee, yearly_bill_month, yearly_bill_day) VALUES (?, ?, ?, ?, ?)",
-                               [account_number, name, fee, int(month), int(day)])
+                    log_and_execute("INSERT INTO custom_line_items (company_account_number, name, yearly_fee, yearly_bill_month, yearly_bill_day) VALUES (?, ?, ?, ?, ?)", [account_number, name, fee, int(month), int(day)])
                 flash('Custom line item added.', 'success')
             elif action == 'save_overrides':
-                rate_map = {
-                    'nmf': 'network_management_fee', 'puc': 'per_user_cost', 'pwc': 'per_workstation_cost',
-                    'psc': 'per_server_cost', 'pvc': 'per_vm_cost', 'pswitchc': 'per_switch_cost',
-                    'pfirewallc': 'per_firewall_cost', 'phtc': 'per_hour_ticket_cost', 'bbfw': 'backup_base_fee_workstation',
-                    'bbfs': 'backup_base_fee_server', 'bit': 'backup_included_tb', 'bpt': 'backup_per_tb_fee',
-                    'prepaid_hours_monthly': 'prepaid_hours_monthly', 'prepaid_hours_yearly': 'prepaid_hours_yearly'
-                }
+                rate_map = {'nmf': 'network_management_fee', 'puc': 'per_user_cost', 'pwc': 'per_workstation_cost', 'psc': 'per_server_cost', 'pvc': 'per_vm_cost', 'pswitchc': 'per_switch_cost', 'pfirewallc': 'per_firewall_cost', 'phtc': 'per_hour_ticket_cost', 'bbfw': 'backup_base_fee_workstation', 'bbfs': 'backup_base_fee_server', 'bit': 'backup_included_tb', 'bpt': 'backup_per_tb_fee', 'prepaid_hours_monthly': 'prepaid_hours_monthly', 'prepaid_hours_yearly': 'prepaid_hours_yearly'}
                 columns_to_update, values_to_update = ['company_account_number'], [account_number]
                 for short_name, full_name in rate_map.items():
                     columns_to_update.append(full_name)
@@ -309,9 +295,7 @@ def client_settings(account_number):
                 update_setters = ', '.join([f"{col}=excluded.{col}" for col in columns_to_update[1:]])
                 sql = f"INSERT INTO client_billing_overrides ({', '.join(columns_to_update)}) VALUES ({placeholders}) ON CONFLICT(company_account_number) DO UPDATE SET {update_setters}"
                 log_and_execute(sql, values_to_update)
-
-                assets = query_db("SELECT id FROM assets WHERE company_account_number = ?", [account_number])
-                for asset in assets:
+                for asset in query_db("SELECT id FROM assets WHERE company_account_number = ?", [account_number]):
                     asset_id = asset['id']
                     billing_type = request.form.get(f'asset_billing_type_{asset_id}')
                     custom_cost = request.form.get(f'asset_custom_cost_{asset_id}')
@@ -319,9 +303,7 @@ def client_settings(account_number):
                          log_and_execute("INSERT INTO asset_billing_overrides (asset_id, billing_type, custom_cost) VALUES (?, ?, ?) ON CONFLICT(asset_id) DO UPDATE SET billing_type=excluded.billing_type, custom_cost=excluded.custom_cost", [asset_id, billing_type, custom_cost if custom_cost else None])
                     else:
                         log_and_execute("DELETE FROM asset_billing_overrides WHERE asset_id = ?", [asset_id])
-
-                users = query_db("SELECT id FROM users WHERE company_account_number = ?", [account_number])
-                for user in users:
+                for user in query_db("SELECT id FROM users WHERE company_account_number = ?", [account_number]):
                     user_id = user['id']
                     billing_type = request.form.get(f'user_billing_type_{user_id}')
                     custom_cost = request.form.get(f'user_custom_cost_{user_id}')
@@ -330,9 +312,7 @@ def client_settings(account_number):
                     else:
                         log_and_execute("DELETE FROM user_billing_overrides WHERE user_id = ?", [user_id])
                 flash("Overrides saved successfully!", 'success')
-
             return redirect(url_for('client_settings', account_number=account_number))
-
         if request.args.get('delete_manual_asset'):
             log_and_execute("DELETE FROM manual_assets WHERE id = ?", [request.args.get('delete_manual_asset')])
             flash('Manual asset deleted.', 'success')
@@ -349,31 +329,21 @@ def client_settings(account_number):
         client_info = query_db("SELECT * FROM companies WHERE account_number = ?", [account_number], one=True)
         default_plan = query_db("SELECT * FROM billing_plans WHERE billing_plan = ? AND term_length = ?", [client_info['billing_plan'], client_info['contract_term_length']], one=True)
         overrides_row = query_db("SELECT * FROM client_billing_overrides WHERE company_account_number = ?", [account_number], one=True)
-
         assets = query_db("SELECT * FROM assets WHERE company_account_number = ?", [account_number])
         users = query_db("SELECT * FROM users WHERE company_account_number = ? AND status = 'Active'", [account_number])
         manual_assets = query_db("SELECT * FROM manual_assets WHERE company_account_number = ?", [account_number])
         manual_users = query_db("SELECT * FROM manual_users WHERE company_account_number = ?", [account_number])
         custom_line_items = query_db("SELECT * FROM custom_line_items WHERE company_account_number = ?", [account_number])
-
         asset_overrides = {r['asset_id']: dict(r) for r in query_db("SELECT * FROM asset_billing_overrides ao JOIN assets a ON a.id = ao.asset_id WHERE a.company_account_number = ?", [account_number])}
         user_overrides = {r['user_id']: dict(r) for r in query_db("SELECT * FROM user_billing_overrides uo JOIN users u ON u.id = uo.user_id WHERE u.company_account_number = ?", [account_number])}
-
         today = datetime.now(timezone.utc)
-        month_options = []
-        for i in range(12):
-            target_date = today + timedelta(days=31*i)
-            month_options.append({'value': target_date.strftime('%Y-%m'), 'name': target_date.strftime('%B %Y')})
+        month_options = [{'value': (today + timedelta(days=31*i)).strftime('%Y-%m'), 'name': (today + timedelta(days=31*i)).strftime('%B %Y')} for i in range(12)]
 
-        return render_template('client_settings.html', client=client_info, defaults=default_plan,
-                               overrides=dict(overrides_row) if overrides_row else {},
-                               assets=assets, users=users, manual_assets=manual_assets, manual_users=manual_users,
-                               custom_line_items=custom_line_items,
-                               asset_overrides=asset_overrides, user_overrides=user_overrides,
-                               month_options=month_options)
-
+        return render_template('client_settings.html', client=client_info, defaults=default_plan, overrides=dict(overrides_row) if overrides_row else {}, assets=assets, users=users, manual_assets=manual_assets, manual_users=manual_users, custom_line_items=custom_line_items, asset_overrides=asset_overrides, user_overrides=user_overrides, month_options=month_options)
     except (ValueError, KeyError) as e:
         session.pop('db_password', None)
+        session.pop('user_id', None)
+        session.pop('username', None)
         flash(f"A database or key error occurred on settings page: {e}. Please log in again.", 'error')
         return redirect(url_for('login'))
 
@@ -389,17 +359,13 @@ def upload_file(account_number):
     if file and allowed_file(file.filename):
         original_filename = secure_filename(file.filename)
         stored_filename = f"{uuid.uuid4().hex}_{original_filename}"
-
         client_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], account_number)
         if not os.path.exists(client_upload_dir):
             os.makedirs(client_upload_dir)
-
         file_path = os.path.join(client_upload_dir, stored_filename)
         file.save(file_path)
         file_size = os.path.getsize(file_path)
-
-        log_and_execute("INSERT INTO client_attachments (company_account_number, original_filename, stored_filename, uploaded_at, file_size) VALUES (?, ?, ?, ?, ?)",
-                   (account_number, original_filename, stored_filename, datetime.now(timezone.utc).isoformat(), file_size))
+        log_and_execute("INSERT INTO client_attachments (company_account_number, original_filename, stored_filename, uploaded_at, file_size) VALUES (?, ?, ?, ?, ?)", (account_number, original_filename, stored_filename, datetime.now(timezone.utc).isoformat(), file_size))
         flash('File uploaded successfully!', 'success')
     else:
         flash('File type not allowed.', 'error')
@@ -426,7 +392,6 @@ def delete_attachment(account_number, attachment_id):
         flash("Attachment not found.", 'error')
     return redirect(url_for('client_breakdown', account_number=account_number))
 
-
 @app.route('/settings', methods=['GET', 'POST'])
 def billing_settings():
     if request.method == 'POST':
@@ -442,14 +407,12 @@ def billing_settings():
             else:
                 flash("Username cannot be empty.", "error")
             return redirect(url_for('billing_settings'))
-
     all_plans_raw = query_db("SELECT * FROM billing_plans ORDER BY billing_plan, term_length")
     grouped_plans = OrderedDict()
     for plan in all_plans_raw:
         if plan['billing_plan'] not in grouped_plans:
             grouped_plans[plan['billing_plan']] = []
         grouped_plans[plan['billing_plan']].append(dict(plan))
-
     scheduler_jobs = query_db("SELECT * FROM scheduler_jobs ORDER BY id")
     app_users = query_db("SELECT * FROM app_users ORDER BY username")
     audit_logs = query_db("SELECT al.*, au.username FROM audit_log al LEFT JOIN app_users au ON al.user_id = au.id ORDER BY al.timestamp DESC LIMIT 100")
@@ -467,7 +430,6 @@ def export_settings():
         'billing_notes': [dict(row) for row in query_db("SELECT * FROM billing_notes")],
         'custom_line_items': [dict(row) for row in query_db("SELECT * FROM custom_line_items")],
     }
-
     response = jsonify(export_data)
     timestamp = datetime.now().strftime('%Y-%m-%d_%H%M%S')
     response.headers['Content-Disposition'] = f'attachment; filename=integodash_settings_export_{timestamp}.json'
@@ -482,20 +444,9 @@ def import_settings():
     if file.filename == '' or not allowed_file(file.filename):
         flash('No selected file or file type not allowed. Must be .json', 'error')
         return redirect(url_for('billing_settings'))
-
     try:
         import_data = json.load(file)
-        tables_to_process = [
-            'billing_plans',
-            'client_billing_overrides',
-            'asset_billing_overrides',
-            'user_billing_overrides',
-            'manual_assets',
-            'manual_users',
-            'billing_notes',
-            'custom_line_items'
-        ]
-
+        tables_to_process = ['billing_plans', 'client_billing_overrides', 'asset_billing_overrides', 'user_billing_overrides', 'manual_assets', 'manual_users', 'billing_notes', 'custom_line_items']
         for table_name in tables_to_process:
             if table_name in import_data and import_data[table_name]:
                 log_and_execute(f"DELETE FROM {table_name};")
@@ -505,58 +456,33 @@ def import_settings():
                     placeholders = ', '.join(['?'] * len(columns))
                     sql = f"INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders})"
                     values = [tuple(rec.get(col) for col in columns) for rec in records]
-                    # log_and_execute does not support executemany, so we loop
                     for val in values:
                         log_and_execute(sql, val)
-
         flash('Settings imported successfully! Existing settings have been replaced.', 'success')
-
     except Exception as e:
         flash(f'An error occurred during import: {e}', 'error')
-
     return redirect(url_for('billing_settings'))
-
 
 @app.route('/settings/plan/action', methods=['POST'])
 def billing_settings_action():
     form_action = request.form.get('form_action')
     plan_name = request.form.get('plan_name')
-
     if form_action == 'delete':
         log_and_execute("DELETE FROM billing_plans WHERE billing_plan = ?", [plan_name])
         flash(f"Billing plan '{plan_name}' and all its terms have been deleted.", 'success')
-
     elif form_action == 'save':
         plan_ids = request.form.getlist('plan_ids')
         for plan_id in plan_ids:
             form = request.form
             log_and_execute("""
                 UPDATE billing_plans SET
-                    network_management_fee = ?, per_user_cost = ?,
-                    per_workstation_cost = ?, per_server_cost = ?, per_vm_cost = ?,
-                    per_switch_cost = ?, per_firewall_cost = ?, per_hour_ticket_cost = ?,
-                    backup_base_fee_workstation = ?, backup_base_fee_server = ?,
-                    backup_included_tb = ?, backup_per_tb_fee = ?
+                    network_management_fee = ?, per_user_cost = ?, per_workstation_cost = ?, per_server_cost = ?, per_vm_cost = ?,
+                    per_switch_cost = ?, per_firewall_cost = ?, per_hour_ticket_cost = ?, backup_base_fee_workstation = ?,
+                    backup_base_fee_server = ?, backup_included_tb = ?, backup_per_tb_fee = ?
                 WHERE id = ?
-            """, (
-                float(form.get(f'network_management_fee_{plan_id}',0)),
-                float(form.get(f'per_user_cost_{plan_id}',0)),
-                float(form.get(f'per_workstation_cost_{plan_id}',0)),
-                float(form.get(f'per_server_cost_{plan_id}',0)),
-                float(form.get(f'per_vm_cost_{plan_id}',0)),
-                float(form.get(f'per_switch_cost_{plan_id}',0)),
-                float(form.get(f'per_firewall_cost_{plan_id}',0)),
-                float(form.get(f'per_hour_ticket_cost_{plan_id}',0)),
-                float(form.get(f'backup_base_fee_workstation_{plan_id}',0)),
-                float(form.get(f'backup_base_fee_server_{plan_id}',0)),
-                float(form.get(f'backup_included_tb_{plan_id}',0)),
-                float(form.get(f'backup_per_tb_fee_{plan_id}',0)),
-                plan_id
-            ))
+            """, (float(form.get(f'network_management_fee_{plan_id}',0)), float(form.get(f'per_user_cost_{plan_id}',0)), float(form.get(f'per_workstation_cost_{plan_id}',0)), float(form.get(f'per_server_cost_{plan_id}',0)), float(form.get(f'per_vm_cost_{plan_id}',0)), float(form.get(f'per_switch_cost_{plan_id}',0)), float(form.get(f'per_firewall_cost_{plan_id}',0)), float(form.get(f'per_hour_ticket_cost_{plan_id}',0)), float(form.get(f'backup_base_fee_workstation_{plan_id}',0)), float(form.get(f'backup_base_fee_server_{plan_id}',0)), float(form.get(f'backup_included_tb_{plan_id}',0)), float(form.get(f'backup_per_tb_fee_{plan_id}',0)), plan_id))
         flash(f"Default plan '{plan_name}' updated successfully!", 'success')
-
     return redirect(url_for('billing_settings'))
-
 
 @app.route('/settings/plan/add', methods=['POST'])
 def add_billing_plan():
@@ -564,15 +490,12 @@ def add_billing_plan():
     if not plan_name:
         flash("New plan name cannot be empty.", 'error')
         return redirect(url_for('billing_settings'))
-
     if query_db("SELECT 1 FROM billing_plans WHERE billing_plan = ?", [plan_name], one=True):
         flash(f"A plan named '{plan_name}' already exists.", 'error')
         return redirect(url_for('billing_settings'))
-
     terms = ["Month to Month", "1-Year", "2-Year", "3-Year"]
     for term in terms:
         log_and_execute("INSERT INTO billing_plans (billing_plan, term_length) VALUES (?, ?)", (plan_name, term))
-
     flash(f"New billing plan '{plan_name}' added with default terms.", 'success')
     return redirect(url_for('billing_settings'))
 
@@ -601,15 +524,12 @@ def get_log(job_id):
 def generate_quickbooks_csv(client_data):
     output = io.StringIO()
     writer = csv.writer(output)
-
     writer.writerow(['InvoiceNo', 'Customer', 'InvoiceDate', 'DueDate', 'Item(Product/Service)', 'Description', 'Qty', 'Rate', 'Amount'])
-
     receipt = client_data['receipt_data']
     client_name = client_data['client']['name']
     invoice_date = datetime.now().strftime('%Y-%m-%d')
     due_date = (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
     invoice_number = f"{client_data['client']['account_number']}-{datetime.now().strftime('%Y%m')}"
-
     if receipt['nmf'] > 0:
         writer.writerow([invoice_number, client_name, invoice_date, due_date, 'Managed Services', 'Network Management Fee', 1, f"{receipt['nmf']:.2f}", f"{receipt['nmf']:.2f}"])
     for user in receipt['billed_users']:
@@ -627,38 +547,27 @@ def generate_quickbooks_csv(client_data):
             writer.writerow([invoice_number, client_name, invoice_date, due_date, 'Backup Services', 'Server Backup Base Fee', len([a for a in client_data['assets'] if a['billing_type'] in ['Server','VM'] and a.get('backup_data_bytes',0)>0]), f"{client_data['effective_rates']['backup_base_fee_server']:.2f}", f"{receipt['backup_base_server']:.2f}"])
         if receipt['overage_charge'] > 0:
             writer.writerow([invoice_number, client_name, invoice_date, due_date, 'Backup Services', f"Storage Overage ({receipt['overage_tb']:.2f} TB)", f"{receipt['overage_tb']:.2f}", f"{client_data['effective_rates']['backup_per_tb_fee']:.2f}", f"{receipt['overage_charge']:.2f}"])
-
-
     return output.getvalue()
 
 @app.route('/client/<account_number>/export/quickbooks')
 def export_quickbooks_csv(account_number):
     year = request.args.get('year', datetime.now().year, type=int)
     month = request.args.get('month', datetime.now().month, type=int)
-
     breakdown_data = get_client_breakdown_data(account_number, year, month)
     if not breakdown_data:
         flash(f"Could not generate export for client {account_number}.", 'error')
         return redirect(url_for('billing_dashboard'))
-
     csv_content = generate_quickbooks_csv(breakdown_data)
-
-    return Response(
-        csv_content,
-        mimetype="text/csv",
-        headers={"Content-disposition": f"attachment; filename=quickbooks_export_{account_number}_{year}-{month:02d}.csv"}
-    )
+    return Response(csv_content, mimetype="text/csv", headers={"Content-disposition": f"attachment; filename=quickbooks_export_{account_number}_{year}-{month:02d}.csv"})
 
 @app.route('/export/all_bills', methods=['POST'])
 def export_all_bills_zip():
     year = int(request.form.get('year'))
     month = int(request.form.get('month'))
-
     all_clients = get_billing_dashboard_data()
     if not all_clients:
         flash("No clients found to export.", "error")
         return redirect(url_for('billing_dashboard'))
-
     memory_file = io.BytesIO()
     with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
         for client in all_clients:
@@ -668,13 +577,8 @@ def export_all_bills_zip():
                 sanitized_name = client['name'].replace('/', '_').replace(' ', '_')
                 file_name = f"{sanitized_name}_{year}-{month:02d}.csv"
                 zf.writestr(file_name, csv_content)
-
     memory_file.seek(0)
-    return Response(
-        memory_file,
-        mimetype='application/zip',
-        headers={'Content-Disposition': f'attachment;filename=all_invoices_{year}-{month:02d}.zip'}
-    )
+    return Response(memory_file, mimetype='application/zip', headers={'Content-Disposition': f'attachment;filename=all_invoices_{year}-{month:02d}.zip'})
 
 if __name__ == '__main__':
     if not os.path.exists(DATABASE):
@@ -682,7 +586,6 @@ if __name__ == '__main__':
         sys.exit(1)
     if not os.path.exists(UPLOAD_FOLDER):
         os.makedirs(UPLOAD_FOLDER)
-
     print("--- Starting Flask Web Server ---")
     try:
         app.run(debug=True, host='0.0.0.0', port=5002, ssl_context=('cert.pem', 'key.pem'))
