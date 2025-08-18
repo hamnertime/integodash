@@ -302,6 +302,14 @@ def create_database():
                 FOREIGN KEY (user_id) REFERENCES app_users (id)
             )
         """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS custom_links (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                url TEXT NOT NULL,
+                link_order INTEGER DEFAULT 0
+            )
+        """)
         # --- END NEW TABLES ---
 
         print("Schema creation complete.")

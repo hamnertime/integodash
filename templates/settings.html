@@ -3,7 +3,7 @@
 
 {% block head %}
 <style>
-    h1, h2 { border-bottom: 2px solid #0056b3; padding-bottom: 10px; margin-bottom: 20px; }
+    h1, h2 { border-bottom: 2px solid var(--primary-color); padding-bottom: 10px; margin-bottom: 20px; }
     .plan-group, .form-section { margin-bottom: 40px; padding: 20px; background-color: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
     .plan-group-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
     .plan-group-header h3 { margin: 0; border: none; }
@@ -14,8 +14,8 @@
     .plan-table td:first-child { font-weight: 500; }
     .action-cell { text-align: right !important; }
     .add-plan-form { margin-top: 30px; padding: 20px; background-color: #e9ecef; border-radius: 8px; }
-    .add-plan-form input[type="text"] { padding: 8px; border-radius: 4px; border: 1px solid #ccc; margin-right: 10px; }
-    .button, button { padding: 10px 20px; background-color: #0056b3; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1em; text-decoration: none; display: inline-block; }
+    .add-plan-form input[type="text"], .add-plan-form input[type="url"], .add-plan-form input[type="number"] { padding: 8px; border-radius: 4px; border: 1px solid #ccc; margin-right: 10px; }
+    .button, button { padding: 10px 20px; background-color: var(--primary-color); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1em; text-decoration: none; display: inline-block; }
     .button.secondary { background-color: #6c757d; }
     .button.danger { background-color: #dc3545; }
 
@@ -29,6 +29,41 @@
 
 {% block content %}
     <h1>Settings & Sync</h1>
+
+    <div class="form-section">
+        <h2>Custom Links</h2>
+        <table class="plan-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>URL</th>
+                    <th>Order</th>
+                    <th class="action-cell">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for link in custom_links %}
+                <tr>
+                    <td>{{ link.name }}</td>
+                    <td><a href="{{ link.url }}" target="_blank">{{ link.url }}</a></td>
+                    <td>{{ link.link_order }}</td>
+                    <td class="action-cell">
+                        <form action="{{ url_for('delete_link', link_id=link.id) }}" method="POST" style="display: inline;">
+                            <button type="submit" class="button danger">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <form method="POST" action="{{ url_for('add_link') }}" class="add-plan-form">
+            <h3>Add New Link</h3>
+            <input type="text" name="name" placeholder="Link Name" required>
+            <input type="url" name="url" placeholder="https://example.com" required>
+            <input type="number" name="order" placeholder="Order" value="0" style="width: 80px;">
+            <button type="submit">Add Link</button>
+        </form>
+    </div>
 
     <div class="form-section">
         <h2>Application Users & Auditing</h2>
@@ -97,7 +132,7 @@
                     <form action="{{ url_for('run_now', job_id=job.id) }}" method="post" style="display:inline-block; margin-right: 10px;">
                         <button type="submit">Run Now</button>
                     </form>
-                    <a class="view-log" data-job-id="{{ job.id }}" data-job-name="{{ job.job_name }}" style="cursor: pointer; text-decoration: underline; color: #0056b3;">View Log</a>
+                    <a class="view-log" data-job-id="{{ job.id }}" data-job-name="{{ job.job_name }}" style="cursor: pointer; text-decoration: underline; color: var(--primary-color);">View Log</a>
                 </td>
             </tr>
             {% endfor %}

@@ -15,7 +15,7 @@ import markdown
 import bleach
 
 # Local module imports
-from database import init_app_db, get_db, query_db, log_and_execute, log_read_action
+from database import init_app_db, get_db, query_db, log_and_execute, log_read_action, log_page_view
 from scheduler import run_job
 from billing import get_billing_dashboard_data, get_client_breakdown_data
 
@@ -69,6 +69,16 @@ def to_markdown(text):
     clean_html = bleach.clean(html, tags=allowed_tags, attributes=allowed_attrs)
     return clean_html
 
+# --- Context Processors ---
+@app.context_processor
+def inject_custom_links():
+    if 'db_password' in session and 'user_id' in session:
+        try:
+            links = query_db("SELECT * FROM custom_links ORDER BY link_order")
+            return dict(custom_links=links)
+        except Exception:
+            return dict(custom_links=[])
+    return dict(custom_links=[])
 
 # --- Web Application Routes ---
 @app.before_request
@@ -77,6 +87,17 @@ def require_login():
         return redirect(url_for('login'))
     if 'user_id' not in session and request.endpoint not in ['login', 'select_user', 'static']:
         return redirect(url_for('select_user'))
+
+@app.after_request
+def log_request(response):
+    if 'db_password' in session and 'user_id' in session:
+        try:
+            log_page_view(response)
+        except Exception as e:
+            # This might fail if the DB password is wrong, etc.
+            # Don't crash the whole app if logging fails.
+            print(f"Failed to log page view: {e}", file=sys.stderr)
+    return response
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -422,7 +443,8 @@ def billing_settings():
         grouped_plans[plan['billing_plan']].append(dict(plan))
     scheduler_jobs = query_db("SELECT * FROM scheduler_jobs ORDER BY id")
     app_users = query_db("SELECT * FROM app_users ORDER BY username")
-    return render_template('settings.html', grouped_plans=grouped_plans, scheduler_jobs=scheduler_jobs, app_users=app_users)
+    custom_links = query_db("SELECT * FROM custom_links ORDER BY link_order")
+    return render_template('settings.html', grouped_plans=grouped_plans, scheduler_jobs=scheduler_jobs, app_users=app_users, custom_links=custom_links)
 
 @app.route('/settings/audit_log')
 def view_audit_log():
@@ -440,6 +462,24 @@ def delete_user(user_id):
 
     log_and_execute("DELETE FROM app_users WHERE id = ?", (user_id,))
     flash("User deleted successfully.", "success")
+    return redirect(url_for('billing_settings'))
+
+@app.route('/settings/links/add', methods=['POST'])
+def add_link():
+    name = request.form.get('name')
+    url = request.form.get('url')
+    order = request.form.get('order', 0)
+    if name and url:
+        log_and_execute("INSERT INTO custom_links (name, url, link_order) VALUES (?, ?, ?)", (name, url, order))
+        flash("Link added successfully.", "success")
+    else:
+        flash("Link name and URL are required.", "error")
+    return redirect(url_for('billing_settings'))
+
+@app.route('/settings/links/delete/<int:link_id>', methods=['POST'])
+def delete_link(link_id):
+    log_and_execute("DELETE FROM custom_links WHERE id = ?", (link_id,))
+    flash("Link deleted successfully.", "success")
     return redirect(url_for('billing_settings'))
 
 @app.route('/settings/export')

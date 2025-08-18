@@ -1,5 +1,5 @@
 import os
-from flask import g, session
+from flask import g, session, request
 from datetime import datetime, timezone
 
 try:
@@ -90,6 +90,18 @@ def log_read_action(action, details=""):
     )
     db.commit()
 
+def log_page_view(response):
+    """Logs a page view."""
+    if 'user_id' in session and request.endpoint not in ['static']:
+        db = get_db()
+        user_id = session.get('user_id')
+        timestamp = datetime.now(timezone.utc).isoformat()
+        details = f"Path: {request.path}, Method: {request.method}, Status: {response.status_code}"
+        db.execute(
+            "INSERT INTO audit_log (user_id, timestamp, action, table_name, details) VALUES (?, ?, ?, ?, ?)",
+            (user_id, timestamp, 'PAGE_VIEW', 'N/A', details)
+        )
+        db.commit()
 
 def init_app_db(app):
     """Register database functions with the Flask app."""
