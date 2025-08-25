@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 User=integotec
-Group=user
+Group=integotec
 WorkingDirectory=/home/integotec/integodash
 ExecStart=/home/integotec/integodash/main.py
 Restart=always
