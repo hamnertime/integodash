@@ -2,15 +2,18 @@ from collections import defaultdict
 from datetime import datetime, timezone, timedelta
 from database import query_db
 import calendar
+import sys
 
 def get_billing_data_for_client(account_number, year, month):
     """
     A comprehensive function to fetch all data and calculate billing details for a specific client and period.
     This is the core logic that powers both the dashboard and the breakdown view.
     """
-    client_info = query_db("SELECT * FROM companies WHERE account_number = ?", [account_number], one=True)
-    if not client_info:
+    client_info_raw = query_db("SELECT * FROM companies WHERE account_number = ?", [account_number], one=True)
+    if not client_info_raw:
         return None
+
+    client_info = dict(client_info_raw) # Make it a mutable dictionary
 
     # --- 1. Fetch all raw data from the database ---
     assets = [dict(r) for r in query_db("SELECT * FROM assets WHERE company_account_number = ? ORDER BY hostname", [account_number])]
@@ -44,12 +47,44 @@ def get_billing_data_for_client(account_number, year, month):
             if rate_overrides[f'override_{short_key}_enabled']:
                 effective_rates[rate_key] = rate_overrides[rate_key]
 
-        feature_key_map = {'antivirus': 'feature_antivirus', 'soc': 'feature_soc', 'training': 'feature_training', 'phone': 'feature_phone'}
+        feature_key_map = {'antivirus': 'feature_antivirus', 'soc': 'feature_soc', 'training': 'feature_training', 'phone': 'feature_phone', 'email': 'feature_email'}
         for short_key, feature_key in feature_key_map.items():
             if rate_overrides[f'override_feature_{short_key}_enabled']:
                 effective_rates[feature_key] = rate_overrides[feature_key]
 
     support_level_display = "Unlimited" if effective_rates.get('per_hour_ticket_cost', 0) == 0 else "Billed Hourly"
+
+    # --- 2a. Calculate Contract End Date ---
+    contract_end_date = "N/A"
+    if client_info['contract_start_date'] and client_info['contract_term_length']:
+        try:
+            # Extract the date part from the string, which might contain extra text.
+            date_str_full = client_info['contract_start_date'].split()[-1]
+            # Isolate just the date part by splitting at 'T' and taking the first part.
+            date_str_only = date_str_full.split('T')[0]
+            # Clean and parse the extracted date string.
+            start_date = datetime.fromisoformat(date_str_only)
+
+            # Reformat the start date for clean display in the template
+            client_info['contract_start_date'] = start_date.strftime('%Y-%m-%d')
+
+            term = client_info['contract_term_length']
+            years_to_add = 0
+            if term == '1-Year':
+                years_to_add = 1
+            elif term == '2-Year':
+                years_to_add = 2
+            elif term == '3-Year':
+                years_to_add = 3
+
+            if years_to_add > 0:
+                # Add years and subtract one day to get the end date
+                contract_end_date = (start_date.replace(year=start_date.year + years_to_add) - timedelta(days=1)).strftime('%Y-%m-%d')
+            elif term == 'Month to Month':
+                contract_end_date = "Month to Month"
+
+        except (ValueError, TypeError, IndexError):
+            contract_end_date = "Invalid Start Date"
 
     # --- 3. Calculate Itemized Asset Charges ---
     billed_assets = []
@@ -183,7 +218,7 @@ def get_billing_data_for_client(account_number, year, month):
     }
 
     return {
-        'client': dict(client_info),
+        'client': client_info,
         'assets': assets, 'manual_assets': manual_assets,
         'users': users, 'manual_users': manual_users,
         'custom_line_items': custom_line_items,
@@ -198,7 +233,8 @@ def get_billing_data_for_client(account_number, year, month):
         'remaining_yearly_hours': remaining_yearly_hours,
         'hours_this_month': hours_this_month,
         'hours_last_month': hours_last_month,
-        'support_level_display': support_level_display
+        'support_level_display': support_level_display,
+        'contract_end_date': contract_end_date,
     }
 
 def get_billing_dashboard_data(sort_by='name', sort_order='asc'):

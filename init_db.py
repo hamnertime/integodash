@@ -143,6 +143,7 @@ def create_database():
                 feature_soc BOOLEAN DEFAULT 0,
                 feature_training BOOLEAN DEFAULT 0,
                 feature_phone BOOLEAN DEFAULT 0,
+                feature_email BOOLEAN DEFAULT 0,
                 UNIQUE (billing_plan, term_length)
             )
         """)
@@ -188,12 +189,14 @@ def create_database():
                 feature_soc BOOLEAN,
                 feature_training BOOLEAN,
                 feature_phone BOOLEAN,
+                feature_email BOOLEAN,
 
                 -- Enable/Disable Flags for each feature override
                 override_feature_antivirus_enabled BOOLEAN DEFAULT 0,
                 override_feature_soc_enabled BOOLEAN DEFAULT 0,
                 override_feature_training_enabled BOOLEAN DEFAULT 0,
                 override_feature_phone_enabled BOOLEAN DEFAULT 0,
+                override_feature_email_enabled BOOLEAN DEFAULT 0,
 
                 FOREIGN KEY (company_account_number) REFERENCES companies (account_number)
             )

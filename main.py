@@ -305,7 +305,7 @@ def client_settings(account_number):
                 flash('Custom line item added.', 'success')
             elif action == 'save_overrides':
                 rate_map = {'nmf': 'network_management_fee', 'puc': 'per_user_cost', 'pwc': 'per_workstation_cost', 'psc': 'per_server_cost', 'pvc': 'per_vm_cost', 'pswitchc': 'per_switch_cost', 'pfirewallc': 'per_firewall_cost', 'phtc': 'per_hour_ticket_cost', 'bbfw': 'backup_base_fee_workstation', 'bbfs': 'backup_base_fee_server', 'bit': 'backup_included_tb', 'bpt': 'backup_per_tb_fee', 'prepaid_hours_monthly': 'prepaid_hours_monthly', 'prepaid_hours_yearly': 'prepaid_hours_yearly'}
-                feature_map = {'antivirus': 'feature_antivirus', 'soc': 'feature_soc', 'training': 'feature_training', 'phone': 'feature_phone'}
+                feature_map = {'antivirus': 'feature_antivirus', 'soc': 'feature_soc', 'training': 'feature_training', 'phone': 'feature_phone', 'email': 'feature_email'}
                 columns_to_update, values_to_update = ['company_account_number'], [account_number]
 
                 for short_name, full_name in rate_map.items():
@@ -554,7 +554,8 @@ def billing_settings_action():
                     network_management_fee = ?, per_user_cost = ?, per_workstation_cost = ?, per_server_cost = ?, per_vm_cost = ?,
                     per_switch_cost = ?, per_firewall_cost = ?, per_hour_ticket_cost = ?, backup_base_fee_workstation = ?,
                     backup_base_fee_server = ?, backup_included_tb = ?, backup_per_tb_fee = ?,
-                    feature_antivirus = ?, feature_soc = ?, feature_training = ?, feature_phone = ?
+                    feature_antivirus = ?, feature_soc = ?, feature_training = ?, feature_phone = ?,
+                    feature_email = ?
                 WHERE id = ?
             """, (
                 float(form.get(f'network_management_fee_{plan_id}', 0)),
@@ -573,6 +574,7 @@ def billing_settings_action():
                 1 if f'feature_soc_{plan_id}' in form else 0,
                 1 if f'feature_training_{plan_id}' in form else 0,
                 1 if f'feature_phone_{plan_id}' in form else 0,
+                1 if f'feature_email_{plan_id}' in form else 0,
                 plan_id
             ))
         flash(f"Default plan '{plan_name}' updated successfully!", 'success')

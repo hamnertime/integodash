@@ -9,8 +9,8 @@
         table { width: 100%; border-collapse: collapse; background-color: #ffffff; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 1em; margin-bottom: 20px; }
         th, td { border: 1px solid #ced4da; padding: 12px 15px; text-align: left; vertical-align: middle; }
         th { background-color: #e9ecef; font-weight: 600; }
-        .grid-container { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 30px; }
-        .info-card { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; align-items: start; }
+        .info-card { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 30px; }
         .receipt-table { width: 100%; }
         .receipt-table td { border: none; padding: 8px 0; }
         .receipt-table .label { text-align: left; }
@@ -42,19 +42,24 @@
     </div>
 
     <div class="grid-container">
-        <div class="info-card">
-            <h3>Client Details</h3>
-            <p><strong>Account Number:</strong> {{ client.account_number }}</p>
-            <p><strong>Assigned Plan:</strong> {{ client.billing_plan }}</p>
-            <p><strong>Contract Term:</strong> {{ client.contract_term_length }}</p>
-            <p><strong>Support Level:</strong> {{ support_level_display }}</p>
-        </div>
-        <div class="info-card">
-            <h3>Client Features</h3>
-            <p><strong>Antivirus:</strong> {{ 'Included' if effective_rates.feature_antivirus else 'Not Included' }}</p>
-            <p><strong>SOC:</strong> {{ 'Included' if effective_rates.feature_soc else 'Not Included' }}</p>
-            <p><strong>Security Awareness Training:</strong> {{ 'Included' if effective_rates.feature_training else 'Not Included' }}</p>
-            <p><strong>Phone System:</strong> {{ 'Included' if effective_rates.feature_phone else 'Not Included' }}</p>
+        <div class="left-column">
+            <div class="info-card">
+                <h3>Client Details</h3>
+                <p><strong>Account Number:</strong> {{ client.account_number }}</p>
+                <p><strong>Assigned Plan:</strong> {{ client.billing_plan }}</p>
+                <p><strong>Contract Term:</strong> {{ client.contract_term_length }}</p>
+                <p><strong>Contract Start Date:</strong> {{ client.contract_start_date or 'N/A' }}</p>
+                <p><strong>Contract End Date:</strong> {{ contract_end_date }}</p>
+                <p><strong>Support Level:</strong> {{ support_level_display }}</p>
+            </div>
+            <div class="info-card">
+                <h3>Client Features</h3>
+                <p><strong>Antivirus:</strong> {{ 'Included' if effective_rates.feature_antivirus else 'Not Included' }}</p>
+                <p><strong>Email:</strong> {{ 'Included' if effective_rates.feature_email else 'Not Included' }}</p>
+                <p><strong>Phone System:</strong> {{ 'Included' if effective_rates.feature_phone else 'Not Included' }}</p>
+                <p><strong>SOC:</strong> {{ 'Included' if effective_rates.feature_soc else 'Not Included' }}</p>
+                <p><strong>Security Awareness Training:</strong> {{ 'Included' if effective_rates.feature_training else 'Not Included' }}</p>
+            </div>
         </div>
         <div class="info-card">
             <h3>Billing Receipt for {{ selected_billing_period }}</h3>
@@ -168,50 +173,54 @@
         </table>
     </div>
 
-    <h2>Ticket Breakdown for Billing Period ({{ selected_billing_period }})</h2>
-    <details>
-        <summary>View Tickets ({{ tickets_for_billing_period|length }})</summary>
-        <table>
-            <thead><tr><th>Ticket ID</th><th>Subject</th><th>Date Closed</th><th>Total Hours</th></tr></thead>
-            <tbody>
-                {% for ticket in tickets_for_billing_period %}
-                <tr>
-                    <td><a href="https://integotecllc.freshservice.com/a/tickets/{{ ticket.ticket_id }}" target="_blank">#{{ ticket.ticket_id }}</a></td>
-                    <td>{{ ticket.subject }}</td>
-                    <td>{{ ticket.closed_at | humanize if ticket.closed_at else 'Still Open' }}</td>
-                    <td>{{ "%.2f"|format(ticket.total_hours_spent) }}</td>
-                </tr>
-                {% else %}
-                <tr><td colspan="4">No tickets with time entries found for this period.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </details>
+    <div class="info-card">
+        <h2>Ticket Breakdown for Billing Period ({{ selected_billing_period }})</h2>
+        <details>
+            <summary>View Tickets ({{ tickets_for_billing_period|length }})</summary>
+            <table>
+                <thead><tr><th>Ticket ID</th><th>Subject</th><th>Date Closed</th><th>Total Hours</th></tr></thead>
+                <tbody>
+                    {% for ticket in tickets_for_billing_period %}
+                    <tr>
+                        <td><a href="https://integotecllc.freshservice.com/a/tickets/{{ ticket.ticket_id }}" target="_blank">#{{ ticket.ticket_id }}</a></td>
+                        <td>{{ ticket.subject }}</td>
+                        <td>{{ ticket.closed_at | humanize if ticket.closed_at else 'Still Open' }}</td>
+                        <td>{{ "%.2f"|format(ticket.total_hours_spent) }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4">No tickets with time entries found for this period.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </details>
+    </div>
 
-    <h2>Tracked Assets & Users</h2>
-    <details>
-        <summary>View All Tracked Items</summary>
-        <div class="grid-container">
-            <div>
-                <h4>Datto RMM Assets ({{ assets|length }})</h4>
-                <table><thead><tr><th>Hostname</th><th>Billing Type</th><th>OS</th><th>Backup Usage (TB)</th></tr></thead><tbody>
-                    {% for asset in assets %}<tr><td>{{ asset.hostname }}</td><td>{{ asset.billing_type }}</td><td>{{ asset.operating_system }}</td><td>{{ "%.4f"|format(asset.backup_data_bytes / 1099511627776.0 if asset.backup_data_bytes else 0) }}</td></tr>{% else %}<tr><td colspan="4">No assets found.</td></tr>{% endfor %}
-                </tbody></table>
-                <h4>Manual Assets ({{ manual_assets|length }})</h4>
-                <table><thead><tr><th>Hostname</th><th>Billing Type</th><th>Cost</th></tr></thead><tbody>
-                    {% for asset in manual_assets %}<tr><td>{{ asset.hostname }}</td><td>{{ asset.billing_type }}</td><td>${{ "%.2f"|format(asset.custom_cost) if asset.custom_cost else '0.00' }}</td></tr>{% else %}<tr><td colspan="4">No manual assets.</td></tr>{% endfor %}
-                </tbody></table>
+    <div class="info-card">
+        <h2>Tracked Assets & Users</h2>
+        <details>
+            <summary>View All Tracked Items</summary>
+            <div class="grid-container">
+                <div>
+                    <h4>Datto RMM Assets ({{ assets|length }})</h4>
+                    <table><thead><tr><th>Hostname</th><th>Billing Type</th><th>OS</th><th>Backup Usage (TB)</th></tr></thead><tbody>
+                        {% for asset in assets %}<tr><td>{{ asset.hostname }}</td><td>{{ asset.billing_type }}</td><td>{{ asset.operating_system }}</td><td>{{ "%.4f"|format(asset.backup_data_bytes / 1099511627776.0 if asset.backup_data_bytes else 0) }}</td></tr>{% else %}<tr><td colspan="4">No assets found.</td></tr>{% endfor %}
+                    </tbody></table>
+                    <h4>Manual Assets ({{ manual_assets|length }})</h4>
+                    <table><thead><tr><th>Hostname</th><th>Billing Type</th><th>Cost</th></tr></thead><tbody>
+                        {% for asset in manual_assets %}<tr><td>{{ asset.hostname }}</td><td>{{ asset.billing_type }}</td><td>${{ "%.2f"|format(asset.custom_cost) if asset.custom_cost else '0.00' }}</td></tr>{% else %}<tr><td colspan="4">No manual assets.</td></tr>{% endfor %}
+                    </tbody></table>
+                </div>
+                <div>
+                    <h4>Freshservice Users ({{ users|length }})</h4>
+                    <table><thead><tr><th>Full Name</th><th>Email</th><th>Billing Type</th></tr></thead><tbody>
+                        {% for user in users %}<tr><td>{{ user.full_name }}</td><td>{{ user.email }}</td><td>{{ user_overrides[user.id].billing_type if user_overrides[user.id] else 'Paid' }}</td></tr>{% else %}<tr><td colspan="4">No users found.</td></tr>{% endfor %}
+                    </tbody></table>
+                    <h4>Manual Users ({{ manual_users|length }})</h4>
+                    <table><thead><tr><th>Full Name</th><th>Billing Type</th><th>Cost</th></tr></thead><tbody>
+                        {% for user in manual_users %}<tr><td>{{ user.full_name }}</td><td>{{ user.billing_type }}</td><td>${{ "%.2f"|format(user.custom_cost) if user.custom_cost else '0.00' }}</td></tr>{% else %}<tr><td colspan="4">No manual users.</td></tr>{% endfor %}
+                    </tbody></table>
+                </div>
             </div>
-            <div>
-                <h4>Freshservice Users ({{ users|length }})</h4>
-                <table><thead><tr><th>Full Name</th><th>Email</th><th>Billing Type</th></tr></thead><tbody>
-                    {% for user in users %}<tr><td>{{ user.full_name }}</td><td>{{ user.email }}</td><td>{{ user_overrides[user.id].billing_type if user_overrides[user.id] else 'Paid' }}</td></tr>{% else %}<tr><td colspan="4">No users found.</td></tr>{% endfor %}
-                </tbody></table>
-                <h4>Manual Users ({{ manual_users|length }})</h4>
-                <table><thead><tr><th>Full Name</th><th>Billing Type</th><th>Cost</th></tr></thead><tbody>
-                    {% for user in manual_users %}<tr><td>{{ user.full_name }}</td><td>{{ user.billing_type }}</td><td>${{ "%.2f"|format(user.custom_cost) if user.custom_cost else '0.00' }}</td></tr>{% else %}<tr><td colspan="4">No manual users.</td></tr>{% endfor %}
-                </tbody></table>
-            </div>
-        </div>
-    </details>
+        </details>
+    </div>
 {% endblock %}
