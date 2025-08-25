@@ -70,21 +70,23 @@
                 <div class="header override">Override Value</div>
                 <div class="header">Enable</div>
 
-                {% macro feature_input(name, label, short_name) %}
+                {% macro feature_input(name, label, short_name, options) %}
                     <label>{{ label }}</label>
-                    <input type="text" value="{{ 'Included' if defaults and defaults[name] else 'Not Included' }}" disabled>
+                    <input type="text" value="{{ defaults[name] if defaults else 'Not Included' }}" disabled>
                     <select name="{{ name }}">
-                        <option value="1" {% if overrides and overrides[name] %}selected{% endif %}>Included</option>
-                        <option value="0" {% if overrides and not overrides[name] %}selected{% endif %}>Not Included</option>
+                        <option value="">-- No Override --</option>
+                        {% for option in options %}
+                        <option value="{{ option.option_name }}" {% if overrides and overrides[name] == option.option_name %}selected{% endif %}>{{ option.option_name }}</option>
+                        {% endfor %}
                     </select>
                     <input type="checkbox" name="override_feature_{{ short_name }}_enabled" {% if overrides and overrides['override_feature_' + short_name + '_enabled'] %}checked{% endif %} title="Enable Override">
                 {% endmacro %}
 
-                {{ feature_input('feature_antivirus', 'Antivirus', 'antivirus') }}
-                {{ feature_input('feature_email', 'Email', 'email') }}
-                {{ feature_input('feature_phone', 'Phone System', 'phone') }}
-                {{ feature_input('feature_soc', 'SOC', 'soc') }}
-                {{ feature_input('feature_training', 'Security Awareness Training', 'training') }}
+                {{ feature_input('feature_antivirus', 'Antivirus', 'antivirus', feature_options.antivirus) }}
+                {{ feature_input('feature_email', 'Email', 'email', feature_options.email) }}
+                {{ feature_input('feature_phone', 'Phone System', 'phone', feature_options.phone) }}
+                {{ feature_input('feature_soc', 'SOC', 'soc', feature_options.soc) }}
+                {{ feature_input('feature_training', 'Security Awareness Training', 'training', feature_options.training) }}
             </div>
         </div>
 

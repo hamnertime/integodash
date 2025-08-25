@@ -139,11 +139,11 @@ def create_database():
                 backup_base_fee_server REAL DEFAULT 50,
                 backup_included_tb REAL DEFAULT 1,
                 backup_per_tb_fee REAL DEFAULT 15,
-                feature_antivirus BOOLEAN DEFAULT 0,
-                feature_soc BOOLEAN DEFAULT 0,
-                feature_training BOOLEAN DEFAULT 0,
-                feature_phone BOOLEAN DEFAULT 0,
-                feature_email BOOLEAN DEFAULT 0,
+                feature_antivirus TEXT DEFAULT 'Not Included',
+                feature_soc TEXT DEFAULT 'Not Included',
+                feature_training TEXT DEFAULT 'Not Included',
+                feature_phone TEXT DEFAULT 'Not Included',
+                feature_email TEXT DEFAULT 'Not Included',
                 UNIQUE (billing_plan, term_length)
             )
         """)
@@ -185,11 +185,11 @@ def create_database():
                 override_prepaid_hours_yearly_enabled BOOLEAN DEFAULT 0,
 
                 -- Feature Overrides
-                feature_antivirus BOOLEAN,
-                feature_soc BOOLEAN,
-                feature_training BOOLEAN,
-                feature_phone BOOLEAN,
-                feature_email BOOLEAN,
+                feature_antivirus TEXT,
+                feature_soc TEXT,
+                feature_training TEXT,
+                feature_phone TEXT,
+                feature_email TEXT,
 
                 -- Enable/Disable Flags for each feature override
                 override_feature_antivirus_enabled BOOLEAN DEFAULT 0,
@@ -329,6 +329,14 @@ def create_database():
                 link_order INTEGER DEFAULT 0
             )
         """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS feature_options (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                feature_type TEXT NOT NULL,
+                option_name TEXT NOT NULL,
+                UNIQUE (feature_type, option_name)
+            )
+        """)
         # --- END NEW TABLES ---
 
         print("Schema creation complete.")
@@ -355,6 +363,23 @@ def create_database():
             INSERT INTO billing_plans (billing_plan, term_length, network_management_fee, per_user_cost, per_server_cost, per_workstation_cost, per_vm_cost, per_switch_cost, per_firewall_cost, per_hour_ticket_cost, backup_base_fee_workstation, backup_base_fee_server, backup_included_tb, backup_per_tb_fee)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, default_plans_data)
+
+        print("Populating default feature options...")
+        default_features = [
+            ('antivirus', 'Not Included'),
+            ('antivirus', 'SentinelOne'),
+            ('antivirus', 'Datto EDR'),
+            ('soc', 'Not Included'),
+            ('soc', 'RocketCyber'),
+            ('email', 'Not Included'),
+            ('email', 'Microsoft 365'),
+            ('email', 'Google Workspace'),
+            ('phone', 'Not Included'),
+            ('phone', 'VoIP Service'),
+            ('training', 'Not Included'),
+            ('training', 'KnowBe4'),
+        ]
+        cur.executemany("INSERT INTO feature_options (feature_type, option_name) VALUES (?, ?)", default_features)
 
         print("Adding default application user...")
         cur.execute("INSERT INTO app_users (username) VALUES ('Admin')")

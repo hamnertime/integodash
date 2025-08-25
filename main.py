@@ -318,7 +318,7 @@ def client_settings(account_number):
                 for short_name, full_name in feature_map.items():
                     columns_to_update.append(full_name)
                     value = request.form.get(full_name)
-                    values_to_update.append(1 if value == '1' else 0)
+                    values_to_update.append(value if value else None)
                     columns_to_update.append(f'override_feature_{short_name}_enabled')
                     values_to_update.append(1 if f'override_feature_{short_name}_enabled' in request.form else 0)
 
@@ -370,7 +370,15 @@ def client_settings(account_number):
         today = datetime.now(timezone.utc)
         month_options = [{'value': (today + timedelta(days=31*i)).strftime('%Y-%m'), 'name': (today + timedelta(days=31*i)).strftime('%B %Y')} for i in range(12)]
 
-        return render_template('client_settings.html', client=client_info, defaults=default_plan, overrides=dict(overrides_row) if overrides_row else {}, assets=assets, users=users, manual_assets=manual_assets, manual_users=manual_users, custom_line_items=custom_line_items, asset_overrides=asset_overrides, user_overrides=user_overrides, month_options=month_options)
+        feature_options_raw = query_db("SELECT * FROM feature_options ORDER BY feature_type, option_name")
+        feature_options = {
+            'antivirus': [], 'soc': [], 'email': [], 'phone': [], 'training': []
+        }
+        for option in feature_options_raw:
+            if option['feature_type'] in feature_options:
+                feature_options[option['feature_type']].append(dict(option))
+
+        return render_template('client_settings.html', client=client_info, defaults=default_plan, overrides=dict(overrides_row) if overrides_row else {}, assets=assets, users=users, manual_assets=manual_assets, manual_users=manual_users, custom_line_items=custom_line_items, asset_overrides=asset_overrides, user_overrides=user_overrides, month_options=month_options, feature_options=feature_options)
     except (ValueError, KeyError) as e:
         session.pop('db_password', None)
         session.pop('user_id', None)
@@ -451,10 +459,26 @@ def billing_settings():
         if plan['billing_plan'] not in grouped_plans:
             grouped_plans[plan['billing_plan']] = []
         grouped_plans[plan['billing_plan']].append(dict(plan))
+
     scheduler_jobs = query_db("SELECT * FROM scheduler_jobs ORDER BY id")
     app_users = query_db("SELECT * FROM app_users ORDER BY username")
     custom_links = query_db("SELECT * FROM custom_links ORDER BY link_order")
-    return render_template('settings.html', grouped_plans=grouped_plans, scheduler_jobs=scheduler_jobs, app_users=app_users, custom_links=custom_links)
+
+    feature_options_raw = query_db("SELECT * FROM feature_options ORDER BY feature_type, option_name")
+    feature_options = {
+        'antivirus': [], 'soc': [], 'email': [], 'phone': [], 'training': []
+    }
+    for option in feature_options_raw:
+        if option['feature_type'] in feature_options:
+            feature_options[option['feature_type']].append(dict(option))
+
+    return render_template('settings.html',
+        grouped_plans=grouped_plans,
+        scheduler_jobs=scheduler_jobs,
+        app_users=app_users,
+        custom_links=custom_links,
+        feature_options=feature_options
+    )
 
 @app.route('/settings/audit_log')
 def view_audit_log():
@@ -490,6 +514,24 @@ def add_link():
 def delete_link(link_id):
     log_and_execute("DELETE FROM custom_links WHERE id = ?", (link_id,))
     flash("Link deleted successfully.", "success")
+    return redirect(url_for('billing_settings'))
+
+@app.route('/settings/features/add', methods=['POST'])
+def add_feature_option():
+    feature_type = request.form.get('feature_type')
+    option_name = request.form.get('option_name')
+    if feature_type and option_name:
+        try:
+            log_and_execute("INSERT INTO feature_options (feature_type, option_name) VALUES (?, ?)", (feature_type, option_name))
+            flash("Feature option added.", "success")
+        except Exception as e:
+            flash(f"Could not add option: {e}", "error")
+    return redirect(url_for('billing_settings'))
+
+@app.route('/settings/features/delete/<int:option_id>', methods=['POST'])
+def delete_feature_option(option_id):
+    log_and_execute("DELETE FROM feature_options WHERE id = ?", (option_id,))
+    flash("Feature option deleted.", "success")
     return redirect(url_for('billing_settings'))
 
 @app.route('/settings/export')
@@ -570,11 +612,11 @@ def billing_settings_action():
                 float(form.get(f'backup_base_fee_server_{plan_id}', 0)),
                 float(form.get(f'backup_included_tb_{plan_id}', 0)),
                 float(form.get(f'backup_per_tb_fee_{plan_id}', 0)),
-                1 if f'feature_antivirus_{plan_id}' in form else 0,
-                1 if f'feature_soc_{plan_id}' in form else 0,
-                1 if f'feature_training_{plan_id}' in form else 0,
-                1 if f'feature_phone_{plan_id}' in form else 0,
-                1 if f'feature_email_{plan_id}' in form else 0,
+                form.get(f'feature_antivirus_{plan_id}'),
+                form.get(f'feature_soc_{plan_id}'),
+                form.get(f'feature_training_{plan_id}'),
+                form.get(f'feature_phone_{plan_id}'),
+                form.get(f'feature_email_{plan_id}'),
                 plan_id
             ))
         flash(f"Default plan '{plan_name}' updated successfully!", 'success')
