@@ -134,7 +134,7 @@ This project includes example `systemd` service files in the `./startup/` direct
 
 5.  **Start the Services Immediately:**
     ```bash
-    sudo systemctl start integodash-dash.service
+    sudo systemctl start integodash.service
     ```
 
 6.  **Check the Status of the Services:**
