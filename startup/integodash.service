@@ -6,7 +6,10 @@ After=network.target
 User=integotec
 Group=integotec
 WorkingDirectory=/home/integotec/integodash
-ExecStart=/home/integotec/integodash/main.py
+
+# Correctly call the python interpreter to run the script
+# If you are using a virtual environment, the path should be /home/integotec/integodash/venv/bin/python
+ExecStart=/usr/bin/python3 /home/integotec/integodash/main.py
 Restart=always
 
 [Install]
