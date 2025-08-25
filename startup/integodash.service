@@ -1,0 +1,13 @@
+[Unit]
+Description=Integodash Billing Dashboard
+After=network.target
+
+[Service]
+User=integotec
+Group=user
+WorkingDirectory=/home/integotec/integodash
+ExecStart=/home/integotec/integodash/main.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
