@@ -131,9 +131,13 @@ def populate_companies_database(db_connection, companies_data):
     cur.executemany("""
         INSERT INTO companies (account_number, name, freshservice_id, contract_type, billing_plan, contract_term_length, contract_start_date, support_level)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(account_number) DO UPDATE SET
-            name=excluded.name, freshservice_id=excluded.freshservice_id, contract_type=excluded.contract_type,
-            billing_plan=excluded.billing_plan, contract_term_length=excluded.contract_term_length, contract_start_date=excluded.contract_start_date,
+        ON CONFLICT(freshservice_id) DO UPDATE SET
+            name=excluded.name,
+            account_number=excluded.account_number,
+            contract_type=excluded.contract_type,
+            billing_plan=excluded.billing_plan,
+            contract_term_length=excluded.contract_term_length,
+            contract_start_date=excluded.contract_start_date,
             support_level=excluded.support_level
     """, companies_to_insert)
     print(f"\nSuccessfully inserted/updated {cur.rowcount} companies in the database.")
