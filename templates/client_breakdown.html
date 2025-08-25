@@ -9,7 +9,7 @@
         table { width: 100%; border-collapse: collapse; background-color: #ffffff; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 1em; margin-bottom: 20px; }
         th, td { border: 1px solid #ced4da; padding: 12px 15px; text-align: left; vertical-align: middle; }
         th { background-color: #e9ecef; font-weight: 600; }
-        .grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+        .grid-container { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 30px; }
         .info-card { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
         .receipt-table { width: 100%; }
         .receipt-table td { border: none; padding: 8px 0; }
@@ -48,6 +48,13 @@
             <p><strong>Assigned Plan:</strong> {{ client.billing_plan }}</p>
             <p><strong>Contract Term:</strong> {{ client.contract_term_length }}</p>
             <p><strong>Support Level:</strong> {{ support_level_display }}</p>
+        </div>
+        <div class="info-card">
+            <h3>Client Features</h3>
+            <p><strong>Antivirus:</strong> {{ 'Included' if effective_rates.feature_antivirus else 'Not Included' }}</p>
+            <p><strong>SOC:</strong> {{ 'Included' if effective_rates.feature_soc else 'Not Included' }}</p>
+            <p><strong>Security Awareness Training:</strong> {{ 'Included' if effective_rates.feature_training else 'Not Included' }}</p>
+            <p><strong>Phone System:</strong> {{ 'Included' if effective_rates.feature_phone else 'Not Included' }}</p>
         </div>
         <div class="info-card">
             <h3>Billing Receipt for {{ selected_billing_period }}</h3>
