@@ -305,13 +305,23 @@ def client_settings(account_number):
                 flash('Custom line item added.', 'success')
             elif action == 'save_overrides':
                 rate_map = {'nmf': 'network_management_fee', 'puc': 'per_user_cost', 'pwc': 'per_workstation_cost', 'psc': 'per_server_cost', 'pvc': 'per_vm_cost', 'pswitchc': 'per_switch_cost', 'pfirewallc': 'per_firewall_cost', 'phtc': 'per_hour_ticket_cost', 'bbfw': 'backup_base_fee_workstation', 'bbfs': 'backup_base_fee_server', 'bit': 'backup_included_tb', 'bpt': 'backup_per_tb_fee', 'prepaid_hours_monthly': 'prepaid_hours_monthly', 'prepaid_hours_yearly': 'prepaid_hours_yearly'}
+                feature_map = {'antivirus': 'feature_antivirus', 'soc': 'feature_soc', 'training': 'feature_training', 'phone': 'feature_phone'}
                 columns_to_update, values_to_update = ['company_account_number'], [account_number]
+
                 for short_name, full_name in rate_map.items():
                     columns_to_update.append(full_name)
                     value = request.form.get(full_name)
                     values_to_update.append(float(value) if value else None)
                     columns_to_update.append(f'override_{short_name}_enabled')
                     values_to_update.append(1 if f'override_{short_name}_enabled' in request.form else 0)
+
+                for short_name, full_name in feature_map.items():
+                    columns_to_update.append(full_name)
+                    value = request.form.get(full_name)
+                    values_to_update.append(1 if value == '1' else 0)
+                    columns_to_update.append(f'override_feature_{short_name}_enabled')
+                    values_to_update.append(1 if f'override_feature_{short_name}_enabled' in request.form else 0)
+
                 placeholders = ', '.join(['?'] * len(columns_to_update))
                 update_setters = ', '.join([f"{col}=excluded.{col}" for col in columns_to_update[1:]])
                 sql = f"INSERT INTO client_billing_overrides ({', '.join(columns_to_update)}) VALUES ({placeholders}) ON CONFLICT(company_account_number) DO UPDATE SET {update_setters}"
@@ -543,9 +553,28 @@ def billing_settings_action():
                 UPDATE billing_plans SET
                     network_management_fee = ?, per_user_cost = ?, per_workstation_cost = ?, per_server_cost = ?, per_vm_cost = ?,
                     per_switch_cost = ?, per_firewall_cost = ?, per_hour_ticket_cost = ?, backup_base_fee_workstation = ?,
-                    backup_base_fee_server = ?, backup_included_tb = ?, backup_per_tb_fee = ?
+                    backup_base_fee_server = ?, backup_included_tb = ?, backup_per_tb_fee = ?,
+                    feature_antivirus = ?, feature_soc = ?, feature_training = ?, feature_phone = ?
                 WHERE id = ?
-            """, (float(form.get(f'network_management_fee_{plan_id}',0)), float(form.get(f'per_user_cost_{plan_id}',0)), float(form.get(f'per_workstation_cost_{plan_id}',0)), float(form.get(f'per_server_cost_{plan_id}',0)), float(form.get(f'per_vm_cost_{plan_id}',0)), float(form.get(f'per_switch_cost_{plan_id}',0)), float(form.get(f'per_firewall_cost_{plan_id}',0)), float(form.get(f'per_hour_ticket_cost_{plan_id}',0)), float(form.get(f'backup_base_fee_workstation_{plan_id}',0)), float(form.get(f'backup_base_fee_server_{plan_id}',0)), float(form.get(f'backup_included_tb_{plan_id}',0)), float(form.get(f'backup_per_tb_fee_{plan_id}',0)), plan_id))
+            """, (
+                float(form.get(f'network_management_fee_{plan_id}', 0)),
+                float(form.get(f'per_user_cost_{plan_id}', 0)),
+                float(form.get(f'per_workstation_cost_{plan_id}', 0)),
+                float(form.get(f'per_server_cost_{plan_id}', 0)),
+                float(form.get(f'per_vm_cost_{plan_id}', 0)),
+                float(form.get(f'per_switch_cost_{plan_id}', 0)),
+                float(form.get(f'per_firewall_cost_{plan_id}', 0)),
+                float(form.get(f'per_hour_ticket_cost_{plan_id}', 0)),
+                float(form.get(f'backup_base_fee_workstation_{plan_id}', 0)),
+                float(form.get(f'backup_base_fee_server_{plan_id}', 0)),
+                float(form.get(f'backup_included_tb_{plan_id}', 0)),
+                float(form.get(f'backup_per_tb_fee_{plan_id}', 0)),
+                1 if f'feature_antivirus_{plan_id}' in form else 0,
+                1 if f'feature_soc_{plan_id}' in form else 0,
+                1 if f'feature_training_{plan_id}' in form else 0,
+                1 if f'feature_phone_{plan_id}' in form else 0,
+                plan_id
+            ))
         flash(f"Default plan '{plan_name}' updated successfully!", 'success')
     return redirect(url_for('billing_settings'))
 

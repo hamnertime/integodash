@@ -8,7 +8,7 @@
     .form-section { background-color: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 30px; }
     .form-grid { display: grid; grid-template-columns: auto 1fr 1fr auto; gap: 15px 20px; align-items: center; }
     .form-grid label { font-weight: bold; text-align: right; }
-    .form-grid input[type="number"], .form-grid input[type="text"] { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+    .form-grid input[type="number"], .form-grid input[type="text"], .form-grid select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
     .form-grid .header { font-weight: bold; color: #495057; text-align: center;}
     .form-grid .header.default { grid-column: 2; }
     .form-grid .header.override { grid-column: 3; }
@@ -59,6 +59,31 @@
                 {{ rate_input('backup_per_tb_fee', 'Backup per TB Fee', 'bpt') }}
                 {{ rate_input('prepaid_hours_monthly', 'Pre-paid Hours (Monthly)', 'prepaid_hours_monthly') }}
                 {{ rate_input('prepaid_hours_yearly', 'Pre-paid Hours (Yearly)', 'prepaid_hours_yearly') }}
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h2>Feature Overrides</h2>
+            <div class="form-grid">
+                <div></div>
+                <div class="header default">Default Value</div>
+                <div class="header override">Override Value</div>
+                <div class="header">Enable</div>
+
+                {% macro feature_input(name, label, short_name) %}
+                    <label>{{ label }}</label>
+                    <input type="text" value="{{ 'Included' if defaults and defaults[name] else 'Not Included' }}" disabled>
+                    <select name="{{ name }}">
+                        <option value="1" {% if overrides and overrides[name] %}selected{% endif %}>Included</option>
+                        <option value="0" {% if overrides and not overrides[name] %}selected{% endif %}>Not Included</option>
+                    </select>
+                    <input type="checkbox" name="override_feature_{{ short_name }}_enabled" {% if overrides and overrides['override_feature_' + short_name + '_enabled'] %}checked{% endif %} title="Enable Override">
+                {% endmacro %}
+
+                {{ feature_input('feature_antivirus', 'Antivirus', 'antivirus') }}
+                {{ feature_input('feature_soc', 'SOC', 'soc') }}
+                {{ feature_input('feature_training', 'Security Awareness Training', 'training') }}
+                {{ feature_input('feature_phone', 'Phone System', 'phone') }}
             </div>
         </div>
 

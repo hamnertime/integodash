@@ -139,6 +139,10 @@ def create_database():
                 backup_base_fee_server REAL DEFAULT 50,
                 backup_included_tb REAL DEFAULT 1,
                 backup_per_tb_fee REAL DEFAULT 15,
+                feature_antivirus BOOLEAN DEFAULT 0,
+                feature_soc BOOLEAN DEFAULT 0,
+                feature_training BOOLEAN DEFAULT 0,
+                feature_phone BOOLEAN DEFAULT 0,
                 UNIQUE (billing_plan, term_length)
             )
         """)
@@ -178,6 +182,18 @@ def create_database():
                 override_bpt_enabled BOOLEAN DEFAULT 0,
                 override_prepaid_hours_monthly_enabled BOOLEAN DEFAULT 0,
                 override_prepaid_hours_yearly_enabled BOOLEAN DEFAULT 0,
+
+                -- Feature Overrides
+                feature_antivirus BOOLEAN,
+                feature_soc BOOLEAN,
+                feature_training BOOLEAN,
+                feature_phone BOOLEAN,
+
+                -- Enable/Disable Flags for each feature override
+                override_feature_antivirus_enabled BOOLEAN DEFAULT 0,
+                override_feature_soc_enabled BOOLEAN DEFAULT 0,
+                override_feature_training_enabled BOOLEAN DEFAULT 0,
+                override_feature_phone_enabled BOOLEAN DEFAULT 0,
 
                 FOREIGN KEY (company_account_number) REFERENCES companies (account_number)
             )

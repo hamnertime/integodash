@@ -44,6 +44,11 @@ def get_billing_data_for_client(account_number, year, month):
             if rate_overrides[f'override_{short_key}_enabled']:
                 effective_rates[rate_key] = rate_overrides[rate_key]
 
+        feature_key_map = {'antivirus': 'feature_antivirus', 'soc': 'feature_soc', 'training': 'feature_training', 'phone': 'feature_phone'}
+        for short_key, feature_key in feature_key_map.items():
+            if rate_overrides[f'override_feature_{short_key}_enabled']:
+                effective_rates[feature_key] = rate_overrides[feature_key]
+
     support_level_display = "Unlimited" if effective_rates.get('per_hour_ticket_cost', 0) == 0 else "Billed Hourly"
 
     # --- 3. Calculate Itemized Asset Charges ---
