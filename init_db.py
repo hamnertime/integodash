@@ -369,15 +369,15 @@ def create_database():
             ('antivirus', 'Not Included'),
             ('antivirus', 'SentinelOne'),
             ('antivirus', 'Datto EDR'),
-            ('soc', 'Not Included'),
-            ('soc', 'RocketCyber'),
+            ('SOC', 'Not Included'),
+            ('SOC', 'RocketCyber'),
             ('email', 'Not Included'),
             ('email', 'Microsoft 365'),
             ('email', 'Google Workspace'),
             ('phone', 'Not Included'),
             ('phone', 'VoIP Service'),
-            ('training', 'Not Included'),
-            ('training', 'KnowBe4'),
+            ('SAT', 'Not Included'),
+            ('SAT', 'KnowBe4'),
         ]
         cur.executemany("INSERT INTO feature_options (feature_type, option_name) VALUES (?, ?)", default_features)
 

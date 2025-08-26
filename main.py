@@ -372,7 +372,7 @@ def client_settings(account_number):
 
         feature_options_raw = query_db("SELECT * FROM feature_options ORDER BY feature_type, option_name")
         feature_options = {
-            'antivirus': [], 'soc': [], 'email': [], 'phone': [], 'training': []
+            'antivirus': [], 'SOC': [], 'email': [], 'phone': [], 'SAT': []
         }
         for option in feature_options_raw:
             if option['feature_type'] in feature_options:
@@ -466,7 +466,7 @@ def billing_settings():
 
     feature_options_raw = query_db("SELECT * FROM feature_options ORDER BY feature_type, option_name")
     feature_options = {
-        'antivirus': [], 'soc': [], 'email': [], 'phone': [], 'training': []
+        'antivirus': [], 'SOC': [], 'email': [], 'phone': [], 'SAT': []
     }
     for option in feature_options_raw:
         if option['feature_type'] in feature_options:
@@ -532,6 +532,19 @@ def add_feature_option():
 def delete_feature_option(option_id):
     log_and_execute("DELETE FROM feature_options WHERE id = ?", (option_id,))
     flash("Feature option deleted.", "success")
+    return redirect(url_for('billing_settings'))
+
+@app.route('/settings/features/edit/<int:option_id>', methods=['POST'])
+def edit_feature_option(option_id):
+    new_name = request.form.get('option_name')
+    if new_name:
+        try:
+            log_and_execute("UPDATE feature_options SET option_name = ? WHERE id = ?", (new_name, option_id))
+            flash("Feature option updated.", "success")
+        except Exception as e:
+            flash(f"Could not update option: {e}", "error")
+    else:
+        flash("Option name cannot be empty.", "error")
     return redirect(url_for('billing_settings'))
 
 @app.route('/settings/export')

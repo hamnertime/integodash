@@ -13,19 +13,20 @@
     .plan-table input[type="number"] { width: 120px; padding: 8px; border-radius: 4px; border: 1px solid #ccc; }
     .plan-table td:first-child { font-weight: 500; }
     .action-cell { text-align: right !important; }
-    .add-plan-form { margin-top: 30px; padding: 20px; background-color: #e9ecef; border-radius: 8px; }
+    .add-plan-form { margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6; }
     .add-plan-form input[type="text"], .add-plan-form input[type="url"], .add-plan-form input[type="number"] { padding: 8px; border-radius: 4px; border: 1px solid #ccc; margin-right: 10px; }
     .button, button { padding: 10px 20px; background-color: var(--primary-color); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1em; text-decoration: none; display: inline-block; }
     .button.secondary { background-color: #6c757d; }
     .button.danger { background-color: #dc3545; }
 
     .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); }
-    .modal-content { background-color: #fefefe; margin: 5% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 900px; border-radius: 8px; }
+    .modal-content { background-color: #fefefe; margin: 5% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 500px; border-radius: 8px; }
     .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #dee2e6; padding-bottom: 10px; margin-bottom: 15px; }
     #log-content { white-space: pre-wrap; background-color: #2a2a40; color: #e0e0ff; padding: 15px; border-radius: 5px; max-height: 60vh; overflow-y: auto; font-family: 'Courier New', Courier, monospace; }
     .close-button { color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer; }
     .feature-options-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
     .feature-type-card { background-color: #f8f9fa; padding: 15px; border-radius: 8px; }
+    .feature-type-card h3 { display: flex; justify-content: space-between; align-items: center; }
 </style>
 {% endblock %}
 
@@ -107,127 +108,131 @@
         </div>
     </div>
 
-    <h2>Automated Sync Scheduler</h2>
-    <p>Configure and monitor the background data sync jobs. <strong>Note:</strong> You must restart the application for changes to interval or enabled status to take effect.</p>
-    <table class="plan-table">
-        <thead>
-            <tr>
-                <th style="text-align: left;">Job Name</th>
-                <th>Schedule (minutes)</th>
-                <th>Enabled</th>
-                <th>Last Run</th>
-                <th>Status</th>
-                <th class="action-cell">Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for job in scheduler_jobs %}
-            <tr>
-                <td style="text-align: left;">{{ job.job_name }}</td>
-                <form action="{{ url_for('update_scheduler_job', job_id=job.id) }}" method="post" style="display: contents;">
-                    <td><input type="number" name="interval_minutes" value="{{ job.interval_minutes }}" style="width: 80px; text-align: center;"></td>
-                    <td><input type="checkbox" name="enabled" {% if job.enabled %}checked{% endif %} onchange="this.form.submit()"></td>
-                </form>
-                <td>{{ job.last_run or 'Never' }}</td>
-                <td style="font-weight: bold; color: {{ 'green' if job.last_status == 'Success' else '#dc3545' }}">{{ job.last_status or 'N/A' }}</td>
-                <td class="action-cell">
-                    <form action="{{ url_for('run_now', job_id=job.id) }}" method="post" style="display:inline-block; margin-right: 10px;">
-                        <button type="submit">Run Now</button>
+    <div class="form-section">
+        <h2>Automated Sync Scheduler</h2>
+        <p>Configure and monitor the background data sync jobs. <strong>Note:</strong> You must restart the application for changes to interval or enabled status to take effect.</p>
+        <table class="plan-table">
+            <thead>
+                <tr>
+                    <th style="text-align: left;">Job Name</th>
+                    <th>Schedule (minutes)</th>
+                    <th>Enabled</th>
+                    <th>Last Run</th>
+                    <th>Status</th>
+                    <th class="action-cell">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for job in scheduler_jobs %}
+                <tr>
+                    <td style="text-align: left;">{{ job.job_name }}</td>
+                    <form action="{{ url_for('update_scheduler_job', job_id=job.id) }}" method="post" style="display: contents;">
+                        <td><input type="number" name="interval_minutes" value="{{ job.interval_minutes }}" style="width: 80px; text-align: center;"></td>
+                        <td><input type="checkbox" name="enabled" {% if job.enabled %}checked{% endif %} onchange="this.form.submit()"></td>
                     </form>
-                    <a class="view-log" data-job-id="{{ job.id }}" data-job-name="{{ job.job_name }}" style="cursor: pointer; text-decoration: underline; color: var(--primary-color);">View Log</a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
-    <h2 style="margin-top: 50px;">Default Billing Plan Settings</h2>
-    <p>These are the default rates for each billing plan and contract term combination. Client-specific overrides can be set on each client's individual settings page.</p>
-    {% for plan_name, plans in grouped_plans.items() %}
-    <div class="plan-group">
-        <form method="POST" action="{{ url_for('billing_settings_action') }}">
-            <input type="hidden" name="plan_name" value="{{ plan_name }}">
-            <div class="plan-group-header">
-                <h3>{{ plan_name }}</h3>
-                <div>
-                    <button type="submit" name="form_action" value="save">Save Plan</button>
-                    <button type="submit" class="delete-button" name="form_action" value="delete" onclick="return confirm('Are you sure you want to delete the entire {{ plan_name }} plan and all its terms?');">Delete Plan</button>
-                </div>
-            </div>
-            <table class="plan-table" style="overflow-x: auto; display: block;">
-                <thead>
-                    <tr>
-                        <th>Contract Term</th><th>Network Fee ($)</th><th>Per Regular User ($)</th><th>Per Workstation ($)</th>
-                        <th>Per Server ($)</th><th>Per VM ($)</th><th>Per Switch ($)</th><th>Per Firewall ($)</th>
-                        <th>Per Hour Ticket Cost ($)</th><th>Backup Base (Workstation) ($)</th><th>Backup Base (Server) ($)</th>
-                        <th>Backup Included (TB)</th><th>Backup per TB ($)</th>
-                        <th>Antivirus</th><th>Email</th><th>Phone System</th><th>SOC</th><th>Training</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for plan in plans %}
-                    <tr>
-                        <td>{{ plan.term_length }}</td>
-                        <input type="hidden" name="plan_ids" value="{{ plan.id }}">
-                        <td><input type="number" step="0.01" name="network_management_fee_{{ plan.id }}" value="{{ '%.2f'|format(plan.network_management_fee) }}"></td>
-                        <td><input type="number" step="0.01" name="per_user_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_user_cost) }}"></td>
-                        <td><input type="number" step="0.01" name="per_workstation_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_workstation_cost) }}"></td>
-                        <td><input type="number" step="0.01" name="per_server_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_server_cost) }}"></td>
-                        <td><input type="number" step="0.01" name="per_vm_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_vm_cost) }}"></td>
-                        <td><input type="number" step="0.01" name="per_switch_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_switch_cost) }}"></td>
-                        <td><input type="number" step="0.01" name="per_firewall_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_firewall_cost) }}"></td>
-                        <td><input type="number" step="0.01" name="per_hour_ticket_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_hour_ticket_cost) }}"></td>
-                        <td><input type="number" step="0.01" name="backup_base_fee_workstation_{{ plan.id }}" value="{{ '%.2f'|format(plan.backup_base_fee_workstation) }}"></td>
-                        <td><input type="number" step="0.01" name="backup_base_fee_server_{{ plan.id }}" value="{{ '%.2f'|format(plan.backup_base_fee_server) }}"></td>
-                        <td><input type="number" step="0.01" name="backup_included_tb_{{ plan.id }}" value="{{ '%.2f'|format(plan.backup_included_tb) }}"></td>
-                        <td><input type="number" step="0.01" name="backup_per_tb_fee_{{ plan.id }}" value="{{ '%.2f'|format(plan.backup_per_tb_fee) }}"></td>
-                        <td>
-                            <select name="feature_antivirus_{{ plan.id }}">
-                                {% for option in feature_options.antivirus %}
-                                <option value="{{ option.option_name }}" {% if plan.feature_antivirus == option.option_name %}selected{% endif %}>{{ option.option_name }}</option>
-                                {% endfor %}
-                            </select>
-                        </td>
-                        <td>
-                            <select name="feature_email_{{ plan.id }}">
-                                {% for option in feature_options.email %}
-                                <option value="{{ option.option_name }}" {% if plan.feature_email == option.option_name %}selected{% endif %}>{{ option.option_name }}</option>
-                                {% endfor %}
-                            </select>
-                        </td>
-                        <td>
-                            <select name="feature_phone_{{ plan.id }}">
-                                {% for option in feature_options.phone %}
-                                <option value="{{ option.option_name }}" {% if plan.feature_phone == option.option_name %}selected{% endif %}>{{ option.option_name }}</option>
-                                {% endfor %}
-                            </select>
-                        </td>
-                        <td>
-                             <select name="feature_soc_{{ plan.id }}">
-                                {% for option in feature_options.soc %}
-                                <option value="{{ option.option_name }}" {% if plan.feature_soc == option.option_name %}selected{% endif %}>{{ option.option_name }}</option>
-                                {% endfor %}
-                            </select>
-                        </td>
-                        <td>
-                            <select name="feature_training_{{ plan.id }}">
-                                {% for option in feature_options.training %}
-                                <option value="{{ option.option_name }}" {% if plan.feature_training == option.option_name %}selected{% endif %}>{{ option.option_name }}</option>
-                                {% endfor %}
-                            </select>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </form>
+                    <td>{{ job.last_run or 'Never' }}</td>
+                    <td style="font-weight: bold; color: {{ 'green' if job.last_status == 'Success' else '#dc3545' }}">{{ job.last_status or 'N/A' }}</td>
+                    <td class="action-cell">
+                        <form action="{{ url_for('run_now', job_id=job.id) }}" method="post" style="display:inline-block; margin-right: 10px;">
+                            <button type="submit">Run Now</button>
+                        </form>
+                        <a class="view-log" data-job-id="{{ job.id }}" data-job-name="{{ job.job_name }}" style="cursor: pointer; text-decoration: underline; color: var(--primary-color);">View Log</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
-    {% endfor %}
 
-    <div class="add-plan-form">
-        <h3>Add New Billing Plan</h3>
-        <form action="{{ url_for('add_billing_plan') }}" method="POST">
-            <input type="text" name="new_plan_name" placeholder="Enter New Plan Name" required>
+    <div class="form-section">
+        <h2>Default Billing Plan Settings</h2>
+        <p>These are the default rates for each billing plan and contract term combination. Client-specific overrides can be set on each client's individual settings page.</p>
+        {% for plan_name, plans in grouped_plans.items() %}
+        <div class="plan-group">
+            <form method="POST" action="{{ url_for('billing_settings_action') }}">
+                <input type="hidden" name="plan_name" value="{{ plan_name }}">
+                <div class="plan-group-header">
+                    <h3>{{ plan_name }}</h3>
+                    <div>
+                        <button type="submit" name="form_action" value="save">Save Plan</button>
+                        <button type="submit" class="delete-button" name="form_action" value="delete" onclick="return confirm('Are you sure you want to delete the entire {{ plan_name }} plan and all its terms?');">Delete Plan</button>
+                    </div>
+                </div>
+                <table class="plan-table" style="overflow-x: auto; display: block;">
+                    <thead>
+                        <tr>
+                            <th>Contract Term</th><th>Network Fee ($)</th><th>Per Regular User ($)</th><th>Per Workstation ($)</th>
+                            <th>Per Server ($)</th><th>Per VM ($)</th><th>Per Switch ($)</th><th>Per Firewall ($)</th>
+                            <th>Per Hour Ticket Cost ($)</th><th>Backup Base (Workstation) ($)</th><th>Backup Base (Server) ($)</th>
+                            <th>Backup Included (TB)</th><th>Backup per TB ($)</th>
+                            <th>Antivirus</th><th>Email</th><th>Phone System</th><th>SOC</th><th>SAT</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for plan in plans %}
+                        <tr>
+                            <td>{{ plan.term_length }}</td>
+                            <input type="hidden" name="plan_ids" value="{{ plan.id }}">
+                            <td><input type="number" step="0.01" name="network_management_fee_{{ plan.id }}" value="{{ '%.2f'|format(plan.network_management_fee) }}"></td>
+                            <td><input type="number" step="0.01" name="per_user_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_user_cost) }}"></td>
+                            <td><input type="number" step="0.01" name="per_workstation_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_workstation_cost) }}"></td>
+                            <td><input type="number" step="0.01" name="per_server_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_server_cost) }}"></td>
+                            <td><input type="number" step="0.01" name="per_vm_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_vm_cost) }}"></td>
+                            <td><input type="number" step="0.01" name="per_switch_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_switch_cost) }}"></td>
+                            <td><input type="number" step="0.01" name="per_firewall_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_firewall_cost) }}"></td>
+                            <td><input type="number" step="0.01" name="per_hour_ticket_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_hour_ticket_cost) }}"></td>
+                            <td><input type="number" step="0.01" name="backup_base_fee_workstation_{{ plan.id }}" value="{{ '%.2f'|format(plan.backup_base_fee_workstation) }}"></td>
+                            <td><input type="number" step="0.01" name="backup_base_fee_server_{{ plan.id }}" value="{{ '%.2f'|format(plan.backup_base_fee_server) }}"></td>
+                            <td><input type="number" step="0.01" name="backup_included_tb_{{ plan.id }}" value="{{ '%.2f'|format(plan.backup_included_tb) }}"></td>
+                            <td><input type="number" step="0.01" name="backup_per_tb_fee_{{ plan.id }}" value="{{ '%.2f'|format(plan.backup_per_tb_fee) }}"></td>
+                            <td>
+                                <select name="feature_antivirus_{{ plan.id }}">
+                                    {% for option in feature_options.antivirus %}
+                                    <option value="{{ option.option_name }}" {% if plan.feature_antivirus == option.option_name %}selected{% endif %}>{{ option.option_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <select name="feature_email_{{ plan.id }}">
+                                    {% for option in feature_options.email %}
+                                    <option value="{{ option.option_name }}" {% if plan.feature_email == option.option_name %}selected{% endif %}>{{ option.option_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <select name="feature_phone_{{ plan.id }}">
+                                    {% for option in feature_options.phone %}
+                                    <option value="{{ option.option_name }}" {% if plan.feature_phone == option.option_name %}selected{% endif %}>{{ option.option_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                 <select name="feature_soc_{{ plan.id }}">
+                                    {% for option in feature_options.SOC %}
+                                    <option value="{{ option.option_name }}" {% if plan.feature_soc == option.option_name %}selected{% endif %}>{{ option.option_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <select name="feature_training_{{ plan.id }}">
+                                    {% for option in feature_options.SAT %}
+                                    <option value="{{ option.option_name }}" {% if plan.feature_training == option.option_name %}selected{% endif %}>{{ option.option_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="form-section">
+        <h2>Add New Billing Plan</h2>
+        <form action="{{ url_for('add_billing_plan') }}" method="POST" style="display: flex; gap: 10px; align-items: center;">
+            <input type="text" name="new_plan_name" placeholder="Enter New Plan Name" required style="flex-grow: 1; margin: 0; padding: 10px; border-radius: 4px; border: 1px solid #ccc;">
             <button type="submit">Create Plan</button>
         </form>
     </div>
@@ -237,14 +242,18 @@
         <div class="feature-options-grid">
             {% for feature_type, options in feature_options.items() %}
             <div class="feature-type-card">
-                <h3>{{ feature_type|capitalize }}</h3>
+                <h3>
+                    <span>{{ feature_type|capitalize }}</span>
+                    <button class="button secondary add-feature-option" data-feature-type="{{ feature_type }}">Add</button>
+                </h3>
                 <table class="plan-table">
                     <tbody>
                         {% for option in options %}
                         <tr>
                             <td>{{ option.option_name }}</td>
                             <td class="action-cell">
-                                <form action="{{ url_for('delete_feature_option', option_id=option.id) }}" method="POST" onsubmit="return confirm('Are you sure?')">
+                                <button class="button secondary edit-feature-option" data-option-id="{{ option.id }}" data-option-name="{{ option.option_name }}">Edit</button>
+                                <form action="{{ url_for('delete_feature_option', option_id=option.id) }}" method="POST" onsubmit="return confirm('Are you sure?')" style="display:inline;">
                                     <button type="submit" class="button danger">Delete</button>
                                 </form>
                             </td>
@@ -252,11 +261,6 @@
                         {% endfor %}
                     </tbody>
                 </table>
-                <form method="POST" action="{{ url_for('add_feature_option') }}" class="add-plan-form" style="margin-top: 15px;">
-                    <input type="hidden" name="feature_type" value="{{ feature_type }}">
-                    <input type="text" name="option_name" placeholder="New {{ feature_type }} option" required>
-                    <button type="submit">Add</button>
-                </form>
             </div>
             {% endfor %}
         </div>
@@ -271,24 +275,42 @@
             <pre id="log-content">Loading log...</pre>
         </div>
     </div>
+
+    <div id="featureModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="featureModalTitle"></h2>
+                <span class="close-button">&times;</span>
+            </div>
+            <form id="featureModalForm" method="POST">
+                <input type="hidden" name="feature_type" id="featureModalType">
+                <label for="featureModalName">Option Name:</label>
+                <input type="text" name="option_name" id="featureModalName" required style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ccc;">
+                <div style="text-align: right; margin-top: 20px;">
+                    <button type="submit" class="button">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const modal = document.getElementById('logModal');
+    const logModal = document.getElementById('logModal');
+    const featureModal = document.getElementById('featureModal');
     const logContent = document.getElementById('log-content');
-    const modalTitle = modal.querySelector('.modal-header h2');
-    const closeButton = document.querySelector('.close-button');
+    const logModalTitle = logModal.querySelector('.modal-header h2');
+    const closeButtons = document.querySelectorAll('.close-button');
 
     document.querySelectorAll('.view-log').forEach(button => {
         button.addEventListener('click', function(event) {
             event.preventDefault();
             const jobId = this.dataset.jobId;
             const jobName = this.dataset.jobName;
-            modalTitle.textContent = `Log for: ${jobName}`;
+            logModalTitle.textContent = `Log for: ${jobName}`;
             logContent.textContent = 'Loading log...';
-            modal.style.display = 'block';
+            logModal.style.display = 'block';
             fetch(`/scheduler/log/${jobId}`)
                 .then(response => response.ok ? response.json() : Promise.reject(response))
                 .then(data => { logContent.textContent = data.log || 'Log is empty or an error occurred.'; })
@@ -296,8 +318,43 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    closeButton.onclick = () => { modal.style.display = 'none'; }
-    window.onclick = (event) => { if (event.target == modal) { modal.style.display = 'none'; } }
+    document.querySelectorAll('.add-feature-option').forEach(button => {
+        button.addEventListener('click', function() {
+            const featureType = this.dataset.featureType;
+            document.getElementById('featureModalTitle').textContent = `Add New ${featureType} Option`;
+            document.getElementById('featureModalForm').action = "{{ url_for('add_feature_option') }}";
+            document.getElementById('featureModalType').value = featureType;
+            document.getElementById('featureModalName').value = '';
+            featureModal.style.display = 'block';
+        });
+    });
+
+    document.querySelectorAll('.edit-feature-option').forEach(button => {
+        button.addEventListener('click', function() {
+            const optionId = this.dataset.optionId;
+            const optionName = this.dataset.optionName;
+            document.getElementById('featureModalTitle').textContent = `Edit Option: ${optionName}`;
+            document.getElementById('featureModalForm').action = `/settings/features/edit/${optionId}`;
+            document.getElementById('featureModalName').value = optionName;
+            featureModal.style.display = 'block';
+        });
+    });
+
+    closeButtons.forEach(button => {
+        button.onclick = () => {
+            logModal.style.display = 'none';
+            featureModal.style.display = 'none';
+        }
+    });
+
+    window.onclick = (event) => {
+        if (event.target == logModal) {
+            logModal.style.display = 'none';
+        }
+        if (event.target == featureModal) {
+            featureModal.style.display = 'none';
+        }
+    }
 });
 </script>
 {% endblock %}
