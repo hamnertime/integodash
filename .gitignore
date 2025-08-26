@@ -1,6 +1,7 @@
 *.db
 *.txt
 *.pem
+*.bak
 uploads/
 
 # Byte-compiled / optimized / DLL files
