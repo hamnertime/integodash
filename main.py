@@ -510,6 +510,41 @@ def add_link():
         flash("Link name and URL are required.", "error")
     return redirect(url_for('billing_settings'))
 
+@app.route('/settings/links/edit/<int:link_id>', methods=['POST'])
+def edit_link(link_id):
+    name = request.form.get('name')
+    url = request.form.get('url')
+    order = request.form.get('order', 0)
+    if name and url:
+        log_and_execute("UPDATE custom_links SET name = ?, url = ?, link_order = ? WHERE id = ?", (name, url, order, link_id))
+        flash("Link updated successfully.", "success")
+    else:
+        flash("Link name and URL are required.", "error")
+    return redirect(url_for('billing_settings'))
+
+@app.route('/settings/user/edit/<int:user_id>', methods=['POST'])
+def edit_user(user_id):
+    if user_id == 1:
+        flash("The Admin user cannot be edited.", "error")
+        return redirect(url_for('billing_settings'))
+
+    new_username = request.form.get('username')
+    if new_username:
+        try:
+            existing_user = query_db("SELECT id FROM app_users WHERE username = ? AND id != ?", [new_username, user_id], one=True)
+            if existing_user:
+                flash(f"Username '{new_username}' is already taken.", "error")
+            else:
+                log_and_execute("UPDATE app_users SET username = ? WHERE id = ?", (new_username, user_id))
+                flash("Username updated successfully.", "success")
+                if session.get('user_id') == user_id:
+                    session['username'] = new_username
+        except Exception as e:
+            flash(f"An error occurred: {e}", "error")
+    else:
+        flash("Username cannot be empty.", "error")
+    return redirect(url_for('billing_settings'))
+
 @app.route('/settings/links/delete/<int:link_id>', methods=['POST'])
 def delete_link(link_id):
     log_and_execute("DELETE FROM custom_links WHERE id = ?", (link_id,))
