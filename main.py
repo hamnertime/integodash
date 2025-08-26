@@ -24,6 +24,7 @@ app = Flask(__name__)
 app.secret_key = os.urandom(24)
 DATABASE = 'brainhair.db'
 UPLOAD_FOLDER = 'uploads'
+STATIC_CSS_FOLDER = 'static/css'
 ALLOWED_EXTENSIONS = {'pdf', 'txt', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'xls', 'xlsx', 'json'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
@@ -810,6 +811,8 @@ if __name__ == '__main__':
         sys.exit(1)
     if not os.path.exists(UPLOAD_FOLDER):
         os.makedirs(UPLOAD_FOLDER)
+    if not os.path.exists(STATIC_CSS_FOLDER):
+        os.makedirs(STATIC_CSS_FOLDER)
     print("--- Starting Flask Web Server ---")
     try:
         app.run(debug=True, host='0.0.0.0', port=5002, ssl_context=('cert.pem', 'key.pem'))

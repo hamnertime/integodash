@@ -1,17 +1,6 @@
 {% extends "layout.html" %}
 {% block title %}Audit Log{% endblock %}
 
-{% block head %}
-<style>
-    h1 { border-bottom: 2px solid var(--primary-color); padding-bottom: 10px; margin-bottom: 20px; }
-    .log-table { width: 100%; border-collapse: collapse; background-color: var(--card-bg); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    .log-table th, .log-table td { text-align: left; padding: 12px; border-bottom: 1px solid var(--table-border-color); }
-    .log-table th { font-weight: 600; background-color: var(--table-header-bg); }
-    .log-table tr:hover { background-color: var(--table-row-hover-bg); }
-    .audit-details { white-space: pre-wrap; background-color: #2a2a40; color: #e0e0ff; padding: 15px; border-radius: 5px; max-height: 200px; overflow-y: auto; font-family: 'Courier New', Courier, monospace; }
-</style>
-{% endblock %}
-
 {% block content %}
     <h1>Audit Log</h1>
     <table class="log-table">

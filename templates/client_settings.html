@@ -1,61 +1,6 @@
 {% extends "layout.html" %}
 {% block title %}{{ client.name }} Overrides{% endblock %}
 
-{% block head %}
-<style>
-    h1 { text-align: center; }
-    h1, h2, h3 {
-        border-bottom: 2px solid var(--primary-color);
-        padding-bottom: 10px;
-        margin-bottom: 20px;
-    }
-    .form-section { background-color: var(--card-bg); padding: 25px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 30px; }
-    .form-grid { display: grid; grid-template-columns: auto 1fr 1fr auto; gap: 15px 20px; align-items: center; }
-    .form-grid label { font-weight: bold; text-align: right; }
-    .form-grid input[type="number"], .form-grid input[type="text"], .form-grid select { width: 100%; padding: 8px; border: 1px solid var(--input-border); border-radius: 4px; box-sizing: border-box; background-color: var(--input-bg); color: var(--text-color); }
-    .form-grid .header { font-weight: bold; color: var(--text-color); text-align: center;}
-    .form-grid .header.default { grid-column: 2; }
-    .form-grid .header.override { grid-column: 3; }
-    .form-grid input[type="checkbox"] { justify-self: center; transform: scale(1.2); grid-column: 4; }
-    .item-table { width: 100%; margin-top: 15px; }
-    .item-table th, .item-table td { padding: 8px; border-bottom: 1px solid var(--table-border-color); text-align: left; vertical-align: middle; }
-    .item-table select, .item-table input { padding: 6px; border-radius: 4px; border: 1px solid var(--input-border); background-color: var(--input-bg); color: var(--text-color); }
-    .item-table a { color: inherit; text-decoration: none; }
-    .item-table a:hover { color: var(--primary-color); text-decoration: underline; }
-    .button-container { text-align: right; margin-top: 20px; }
-    .button, button { padding: 12px 25px; background-color: var(--primary-color); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1.1em; text-decoration: none; display: inline-block; }
-    .icon-button { background: none; border: none; cursor: pointer; padding: 5px; vertical-align: middle; }
-    .icon-button svg { width: 20px; height: 20px; }
-    .icon-button.edit svg { fill: var(--primary-color); }
-    .icon-button.delete svg { fill: #dc3545; }
-
-    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); }
-    .modal-content { background-color: var(--card-bg); margin: 5% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 500px; border-radius: 8px; color: var(--text-color); }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--table-border-color); padding-bottom: 10px; margin-bottom: 15px; }
-    .close-button { color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer; }
-    .close-button:hover { color: var(--text-color); }
-
-    .simple-form label { display: block; margin-bottom: 5px; font-weight: bold; }
-    .simple-form input[type="text"],
-    .simple-form input[type="number"],
-    .simple-form select {
-        width: 100%;
-        padding: 8px;
-        margin-bottom: 15px;
-        border: 1px solid var(--input-border);
-        border-radius: 4px;
-        box-sizing: border-box;
-        background-color: var(--input-bg);
-        color: var(--text-color);
-    }
-    .form-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 20px;
-    }
-</style>
-{% endblock %}
-
 {% block content %}
     <h1>Override Settings for {{ client.name }}</h1>
 
