@@ -40,7 +40,6 @@
         <div class="form-section">
             <h2>Billing Receipt for {{ selected_billing_period }}</h2>
             <table class="receipt-table">
-                <tr><td class="label">Network Management Fee</td><td class="value">${{ "%.2f"|format(receipt_data.nmf) }}</td></tr>
 
                 <tr>
                     <td class="label"><strong>User Charges ({{ receipt_data.billed_users|length }})</strong></td>

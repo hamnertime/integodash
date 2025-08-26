@@ -311,7 +311,7 @@ def client_settings(account_number):
                     log_and_execute("INSERT INTO custom_line_items (company_account_number, name, yearly_fee, yearly_bill_month, yearly_bill_day) VALUES (?, ?, ?, ?, ?)", [account_number, name, fee, int(month), int(day)])
                 flash('Custom line item added.', 'success')
             elif action == 'save_overrides':
-                rate_map = {'nmf': 'network_management_fee', 'puc': 'per_user_cost', 'pwc': 'per_workstation_cost', 'psc': 'per_server_cost', 'pvc': 'per_vm_cost', 'pswitchc': 'per_switch_cost', 'pfirewallc': 'per_firewall_cost', 'phtc': 'per_hour_ticket_cost', 'bbfw': 'backup_base_fee_workstation', 'bbfs': 'backup_base_fee_server', 'bit': 'backup_included_tb', 'bpt': 'backup_per_tb_fee', 'prepaid_hours_monthly': 'prepaid_hours_monthly', 'prepaid_hours_yearly': 'prepaid_hours_yearly'}
+                rate_map = {'puc': 'per_user_cost', 'pwc': 'per_workstation_cost', 'psc': 'per_server_cost', 'pvc': 'per_vm_cost', 'pswitchc': 'per_switch_cost', 'pfirewallc': 'per_firewall_cost', 'phtc': 'per_hour_ticket_cost', 'bbfw': 'backup_base_fee_workstation', 'bbfs': 'backup_base_fee_server', 'bit': 'backup_included_tb', 'bpt': 'backup_per_tb_fee', 'prepaid_hours_monthly': 'prepaid_hours_monthly', 'prepaid_hours_yearly': 'prepaid_hours_yearly'}
                 feature_map = {'antivirus': 'feature_antivirus', 'soc': 'feature_soc', 'training': 'feature_training', 'phone': 'feature_phone', 'email': 'feature_email'}
                 columns_to_update, values_to_update = ['company_account_number'], [account_number]
 
@@ -680,14 +680,12 @@ def billing_settings_action():
             form = request.form
             log_and_execute("""
                 UPDATE billing_plans SET
-                    network_management_fee = ?, per_user_cost = ?, per_workstation_cost = ?, per_server_cost = ?, per_vm_cost = ?,
+                    per_user_cost = ?, per_workstation_cost = ?, per_server_cost = ?, per_vm_cost = ?,
                     per_switch_cost = ?, per_firewall_cost = ?, per_hour_ticket_cost = ?, backup_base_fee_workstation = ?,
                     backup_base_fee_server = ?, backup_included_tb = ?, backup_per_tb_fee = ?,
-                    feature_antivirus = ?, feature_soc = ?, feature_training = ?, feature_phone = ?,
-                    feature_email = ?
+                    feature_antivirus = ?, feature_soc = ?, feature_training = ?
                 WHERE id = ?
             """, (
-                float(form.get(f'network_management_fee_{plan_id}', 0)),
                 float(form.get(f'per_user_cost_{plan_id}', 0)),
                 float(form.get(f'per_workstation_cost_{plan_id}', 0)),
                 float(form.get(f'per_server_cost_{plan_id}', 0)),
@@ -702,8 +700,6 @@ def billing_settings_action():
                 form.get(f'feature_antivirus_{plan_id}'),
                 form.get(f'feature_soc_{plan_id}'),
                 form.get(f'feature_training_{plan_id}'),
-                form.get(f'feature_phone_{plan_id}'),
-                form.get(f'feature_email_{plan_id}'),
                 plan_id
             ))
         flash(f"Default plan '{plan_name}' updated successfully!", 'success')
@@ -755,8 +751,6 @@ def generate_quickbooks_csv(client_data):
     invoice_date = datetime.now().strftime('%Y-%m-%d')
     due_date = (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
     invoice_number = f"{client_data['client']['account_number']}-{datetime.now().strftime('%Y%m')}"
-    if receipt['nmf'] > 0:
-        writer.writerow([invoice_number, client_name, invoice_date, due_date, 'Managed Services', 'Network Management Fee', 1, f"{receipt['nmf']:.2f}", f"{receipt['nmf']:.2f}"])
     for user in receipt['billed_users']:
         writer.writerow([invoice_number, client_name, invoice_date, due_date, 'Managed Services', f"User: {user['name']} ({user['type']})", 1, f"{user['cost']:.2f}", f"{user['cost']:.2f}"])
     for asset in receipt['billed_assets']:

@@ -36,7 +36,6 @@ def dump_billing_plans(password):
             SELECT
                 billing_plan,
                 term_length,
-                network_management_fee,
                 per_user_cost,
                 per_lite_user_cost,
                 per_server_cost,
@@ -64,8 +63,8 @@ def dump_billing_plans(password):
         print("\ndefault_plans_data = [")
 
         for plan in plans:
-            (billing_plan, term, nmf, puc, pluc, psc, pwc, phc, pvc, pswitchc, pfirewallc, bbfw, bbfs, bit, bpt) = plan
-            print(f"    ('{billing_plan}', '{term}', {nmf:.2f}, {puc:.2f}, {pluc:.2f}, {psc:.2f}, {pwc:.2f}, {phc:.2f}, {pvc:.2f}, {pswitchc:.2f}, {pfirewallc:.2f}, {bbfw:.2f}, {bbfs:.2f}, {bit:.2f}, {bpt:.2f}),")
+            (billing_plan, term, puc, pluc, psc, pwc, phc, pvc, pswitchc, pfirewallc, bbfw, bbfs, bit, bpt) = plan
+            print(f"    ('{billing_plan}', '{term}', {puc:.2f}, {pluc:.2f}, {psc:.2f}, {pwc:.2f}, {phc:.2f}, {pvc:.2f}, {pswitchc:.2f}, {pfirewallc:.2f}, {bbfw:.2f}, {bbfs:.2f}, {bit:.2f}, {bpt:.2f}),")
 
         print("]")
         print("\n--- End of list ---")

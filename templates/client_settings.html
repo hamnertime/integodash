@@ -25,7 +25,6 @@
                     <input type="checkbox" name="override_{{ short_name }}_enabled" {% if overrides and overrides['override_' + short_name + '_enabled'] %}checked{% endif %} title="Enable Override">
                 {% endmacro %}
 
-                {{ rate_input('network_management_fee', 'Network Mgmt Fee', 'nmf') }}
                 {{ rate_input('per_user_cost', 'Per Regular User Cost', 'puc') }}
                 {{ rate_input('per_workstation_cost', 'Per Workstation Cost', 'pwc') }}
                 {{ rate_input('per_server_cost', 'Per Server Cost', 'psc') }}

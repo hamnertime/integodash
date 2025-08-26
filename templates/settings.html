@@ -111,11 +111,11 @@
                 <table class="plan-table" style="overflow-x: auto; display: block;">
                     <thead>
                         <tr>
-                            <th>Contract Term</th><th>Network Fee ($)</th><th>Per Regular User ($)</th><th>Per Workstation ($)</th>
+                            <th>Contract Term</th><th>Per Regular User ($)</th><th>Per Workstation ($)</th>
                             <th>Per Server ($)</th><th>Per VM ($)</th><th>Per Switch ($)</th><th>Per Firewall ($)</th>
                             <th>Per Hour Ticket Cost ($)</th><th>Backup Base (Workstation) ($)</th><th>Backup Base (Server) ($)</th>
                             <th>Backup Included (TB)</th><th>Backup per TB ($)</th>
-                            <th>Antivirus</th><th>Email</th><th>Phone System</th><th>SOC</th><th>SAT</th>
+                            <th>Antivirus</th><th>SOC</th><th>SAT</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -123,7 +123,6 @@
                         <tr>
                             <td>{{ plan.term_length }}</td>
                             <input type="hidden" name="plan_ids" value="{{ plan.id }}">
-                            <td><input type="number" step="0.01" name="network_management_fee_{{ plan.id }}" value="{{ '%.2f'|format(plan.network_management_fee) }}"></td>
                             <td><input type="number" step="0.01" name="per_user_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_user_cost) }}"></td>
                             <td><input type="number" step="0.01" name="per_workstation_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_workstation_cost) }}"></td>
                             <td><input type="number" step="0.01" name="per_server_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_server_cost) }}"></td>
@@ -139,20 +138,6 @@
                                 <select name="feature_antivirus_{{ plan.id }}">
                                     {% for option in feature_options.antivirus %}
                                     <option value="{{ option.option_name }}" {% if plan.feature_antivirus == option.option_name %}selected{% endif %}>{{ option.option_name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </td>
-                            <td>
-                                <select name="feature_email_{{ plan.id }}">
-                                    {% for option in feature_options.email %}
-                                    <option value="{{ option.option_name }}" {% if plan.feature_email == option.option_name %}selected{% endif %}>{{ option.option_name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </td>
-                            <td>
-                                <select name="feature_phone_{{ plan.id }}">
-                                    {% for option in feature_options.phone %}
-                                    <option value="{{ option.option_name }}" {% if plan.feature_phone == option.option_name %}selected{% endif %}>{{ option.option_name }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
