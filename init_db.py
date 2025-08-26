@@ -197,6 +197,9 @@ def create_database(new_password, existing_data=None):
             feature_antivirus TEXT DEFAULT 'Not Included',
             feature_soc TEXT DEFAULT 'Not Included',
             feature_training TEXT DEFAULT 'Not Included',
+            feature_email TEXT DEFAULT 'No Business Email',
+            feature_phone TEXT DEFAULT 'No Business Phone',
+            feature_password_manager TEXT DEFAULT 'Not Included',
             UNIQUE (billing_plan, term_length)
         )
     """)
@@ -218,12 +221,13 @@ def create_database(new_password, existing_data=None):
             override_prepaid_hours_monthly_enabled BOOLEAN DEFAULT 0,
             override_prepaid_hours_yearly_enabled BOOLEAN DEFAULT 0,
             feature_antivirus TEXT, feature_soc TEXT, feature_training TEXT,
-            feature_phone TEXT, feature_email TEXT,
+            feature_phone TEXT, feature_email TEXT, feature_password_manager TEXT,
             override_feature_antivirus_enabled BOOLEAN DEFAULT 0,
             override_feature_soc_enabled BOOLEAN DEFAULT 0,
             override_feature_training_enabled BOOLEAN DEFAULT 0,
             override_feature_phone_enabled BOOLEAN DEFAULT 0,
             override_feature_email_enabled BOOLEAN DEFAULT 0,
+            override_feature_password_manager_enabled BOOLEAN DEFAULT 0,
             FOREIGN KEY (company_account_number) REFERENCES companies (account_number)
         )
     """)
@@ -274,11 +278,12 @@ def create_database(new_password, existing_data=None):
 
         print("Populating default feature options...")
         default_features = [
-            ('antivirus', 'Not Included'), ('antivirus', 'SentinelOne'), ('antivirus', 'Datto EDR'),
-            ('SOC', 'Not Included'), ('SOC', 'RocketCyber'),
-            ('email', 'Not Included'), ('email', 'Microsoft 365'), ('email', 'Google Workspace'),
-            ('phone', 'Not Included'), ('phone', 'VoIP Service'),
-            ('SAT', 'Not Included'), ('SAT', 'KnowBe4'),
+            ('antivirus', 'Datto EDR'), ('antivirus', 'SentinelOne'), ('antivirus', 'Not Included'),
+            ('SOC', 'RocketCyber'), ('SOC', 'Not Included'),
+            ('email', 'Google Workspace'), ('email', 'Microsoft 365'), ('email', 'Other Business Email'), ('email', 'No Business Email'),
+            ('phone', 'Zoom'), ('phone', 'DFN'), ('phone', 'Spectrum'), ('phone', 'RingCentral'), ('phone', 'Personal Cell'), ('phone', 'No Business Phone'),
+            ('SAT', 'BSN'), ('SAT', 'Not Included'),
+            ('password_manager', 'Keeper'), ('password_manager', 'Not Included'),
         ]
         cur.executemany("INSERT INTO feature_options (feature_type, option_name) VALUES (?, ?)", default_features)
 

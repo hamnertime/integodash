@@ -312,7 +312,7 @@ def client_settings(account_number):
                 flash('Custom line item added.', 'success')
             elif action == 'save_overrides':
                 rate_map = {'puc': 'per_user_cost', 'pwc': 'per_workstation_cost', 'psc': 'per_server_cost', 'pvc': 'per_vm_cost', 'pswitchc': 'per_switch_cost', 'pfirewallc': 'per_firewall_cost', 'phtc': 'per_hour_ticket_cost', 'bbfw': 'backup_base_fee_workstation', 'bbfs': 'backup_base_fee_server', 'bit': 'backup_included_tb', 'bpt': 'backup_per_tb_fee', 'prepaid_hours_monthly': 'prepaid_hours_monthly', 'prepaid_hours_yearly': 'prepaid_hours_yearly'}
-                feature_map = {'antivirus': 'feature_antivirus', 'soc': 'feature_soc', 'training': 'feature_training', 'phone': 'feature_phone', 'email': 'feature_email'}
+                feature_map = {'antivirus': 'feature_antivirus', 'soc': 'feature_soc', 'training': 'feature_training', 'phone': 'feature_phone', 'email': 'feature_email', 'password_manager': 'feature_password_manager'}
                 columns_to_update, values_to_update = ['company_account_number'], [account_number]
 
                 for short_name, full_name in rate_map.items():
@@ -379,7 +379,7 @@ def client_settings(account_number):
 
         feature_options_raw = query_db("SELECT * FROM feature_options ORDER BY feature_type, option_name")
         feature_options = {
-            'antivirus': [], 'SOC': [], 'email': [], 'phone': [], 'SAT': []
+            'antivirus': [], 'SOC': [], 'email': [], 'phone': [], 'SAT': [], 'password_manager': []
         }
         for option in feature_options_raw:
             if option['feature_type'] in feature_options:
@@ -505,7 +505,7 @@ def billing_settings():
 
     feature_options_raw = query_db("SELECT * FROM feature_options ORDER BY feature_type, option_name")
     feature_options = {
-        'antivirus': [], 'SOC': [], 'email': [], 'phone': [], 'SAT': []
+        'antivirus': [], 'SOC': [], 'email': [], 'phone': [], 'SAT': [], 'password_manager': []
     }
     for option in feature_options_raw:
         if option['feature_type'] in feature_options:
@@ -683,7 +683,7 @@ def billing_settings_action():
                     per_user_cost = ?, per_workstation_cost = ?, per_server_cost = ?, per_vm_cost = ?,
                     per_switch_cost = ?, per_firewall_cost = ?, per_hour_ticket_cost = ?, backup_base_fee_workstation = ?,
                     backup_base_fee_server = ?, backup_included_tb = ?, backup_per_tb_fee = ?,
-                    feature_antivirus = ?, feature_soc = ?, feature_training = ?
+                    feature_antivirus = ?, feature_soc = ?, feature_training = ?, feature_password_manager = ?
                 WHERE id = ?
             """, (
                 float(form.get(f'per_user_cost_{plan_id}', 0)),
@@ -700,6 +700,7 @@ def billing_settings_action():
                 form.get(f'feature_antivirus_{plan_id}'),
                 form.get(f'feature_soc_{plan_id}'),
                 form.get(f'feature_training_{plan_id}'),
+                form.get(f'feature_password_manager_{plan_id}'),
                 plan_id
             ))
         flash(f"Default plan '{plan_name}' updated successfully!", 'success')

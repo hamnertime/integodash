@@ -209,7 +209,7 @@
             {% for feature_type, options in feature_options.items() %}
             <div class="feature-type-card">
                 <h4>
-                    <span>{{ feature_type|capitalize }}</span>
+                    <span>{{ feature_type if feature_type in ['SOC', 'SAT'] else feature_type|capitalize }}</span>
                     <button class="button add-feature-option" data-feature-type="{{ feature_type }}">Add</button>
                 </h4>
                 <table class="plan-table">

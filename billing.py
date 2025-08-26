@@ -47,7 +47,7 @@ def get_billing_data_for_client(account_number, year, month):
             if rate_overrides[f'override_{short_key}_enabled']:
                 effective_rates[rate_key] = rate_overrides[rate_key]
 
-        feature_key_map = {'antivirus': 'feature_antivirus', 'soc': 'feature_soc', 'training': 'feature_training', 'phone': 'feature_phone', 'email': 'feature_email'}
+        feature_key_map = {'antivirus': 'feature_antivirus', 'soc': 'feature_soc', 'training': 'feature_training', 'phone': 'feature_phone', 'email': 'feature_email', 'password_manager': 'feature_password_manager'}
         for short_key, feature_key in feature_key_map.items():
             if rate_overrides[f'override_feature_{short_key}_enabled']:
                 effective_rates[feature_key] = rate_overrides[feature_key]
