@@ -99,10 +99,10 @@ def get_billing_data_for_client(account_number, year, month):
 
         cost = 0.0
         if billing_type == 'Custom':
-            cost = (override.get('custom_cost') or 0.0) if override else 0.0
+            cost = float(override.get('custom_cost') or 0.0) if override else 0.0
         elif billing_type != 'No Charge':
             rate_key = f"per_{billing_type.lower()}_cost"
-            cost = effective_rates.get(rate_key, 0.0) or 0.0
+            cost = float(effective_rates.get(rate_key, 0.0) or 0.0)
 
         total_asset_charges += cost
         quantities[billing_type.lower()] += 1
@@ -120,9 +120,9 @@ def get_billing_data_for_client(account_number, year, month):
 
         cost = 0.0
         if billing_type == 'Custom':
-            cost = (override.get('custom_cost') or 0.0) if override else 0.0
+            cost = float(override.get('custom_cost') or 0.0) if override else 0.0
         elif billing_type == 'Paid':
-            cost = effective_rates.get('per_user_cost', 0.0) or 0.0
+            cost = float(effective_rates.get('per_user_cost', 0.0) or 0.0)
 
         total_user_charges += cost
         quantities['regular_users' if billing_type == 'Paid' else 'free_users'] += 1
@@ -136,14 +136,14 @@ def get_billing_data_for_client(account_number, year, month):
     tickets_for_period = [t for t in all_tickets_this_year if start_of_billing_month <= datetime.fromisoformat(t['last_updated_at'].replace('Z', '+00:00')) <= end_of_billing_month]
     hours_for_period = sum(t['total_hours_spent'] for t in tickets_for_period)
 
-    prepaid_monthly = (rate_overrides['prepaid_hours_monthly'] if rate_overrides and rate_overrides['override_prepaid_hours_monthly_enabled'] else 0) or 0
-    prepaid_yearly = (rate_overrides['prepaid_hours_yearly'] if rate_overrides and rate_overrides['override_prepaid_hours_yearly_enabled'] else 0) or 0
+    prepaid_monthly = float((rate_overrides['prepaid_hours_monthly'] if rate_overrides and rate_overrides['override_prepaid_hours_monthly_enabled'] else 0) or 0)
+    prepaid_yearly = float((rate_overrides['prepaid_hours_yearly'] if rate_overrides and rate_overrides['override_prepaid_hours_yearly_enabled'] else 0) or 0)
 
     hours_used_prior = sum(t['total_hours_spent'] for t in all_tickets_this_year if datetime.fromisoformat(t['last_updated_at'].replace('Z', '+00:00')) < start_of_billing_month)
     remaining_yearly_hours = max(0, prepaid_yearly - hours_used_prior)
 
     billable_hours = max(0, max(0, hours_for_period - prepaid_monthly) - remaining_yearly_hours)
-    ticket_charge = billable_hours * (effective_rates.get('per_hour_ticket_cost', 0) or 0)
+    ticket_charge = billable_hours * float((effective_rates.get('per_hour_ticket_cost', 0) or 0))
 
     # --- 5a. Calculate hours for dashboard view ---
     now = datetime.now(timezone.utc)
@@ -161,12 +161,12 @@ def get_billing_data_for_client(account_number, year, month):
         'backed_up_servers': sum(1 for a in assets if a.get('billing_type') in ('Server', 'VM') and a.get('backup_data_bytes')),
     }
     total_backup_tb = backup_info['total_backup_bytes'] / 1099511627776.0
-    included_tb = (backup_info['backed_up_workstations'] + backup_info['backed_up_servers']) * (effective_rates.get('backup_included_tb', 1) or 1)
+    included_tb = (backup_info['backed_up_workstations'] + backup_info['backed_up_servers']) * float((effective_rates.get('backup_included_tb', 1) or 1))
     overage_tb = max(0, total_backup_tb - included_tb)
 
-    backup_base_workstation_charge = backup_info['backed_up_workstations'] * (effective_rates.get('backup_base_fee_workstation', 0) or 0)
-    backup_base_server_charge = backup_info['backed_up_servers'] * (effective_rates.get('backup_base_fee_server', 0) or 0)
-    overage_charge = overage_tb * (effective_rates.get('backup_per_tb_fee', 0) or 0)
+    backup_base_workstation_charge = backup_info['backed_up_workstations'] * float((effective_rates.get('backup_base_fee_workstation', 0) or 0))
+    backup_base_server_charge = backup_info['backed_up_servers'] * float((effective_rates.get('backup_base_fee_server', 0) or 0))
+    overage_charge = overage_tb * float((effective_rates.get('backup_per_tb_fee', 0) or 0))
     backup_charge = backup_base_workstation_charge + backup_base_server_charge + overage_charge
 
     # --- 7. Calculate Custom Line Item Charges ---
@@ -175,25 +175,33 @@ def get_billing_data_for_client(account_number, year, month):
     for item in custom_line_items:
         cost = 0.0
         item_type = None
+        fee = 0.0
         if item['monthly_fee'] is not None:
-            cost = item['monthly_fee']
-            item_type = 'Recurring'
-            total_line_item_charges += cost
+            try:
+                fee = float(item['monthly_fee'])
+                item_type = 'Recurring'
+            except (ValueError, TypeError):
+                fee = 0.0
         elif item['one_off_year'] == year and item['one_off_month'] == month:
-            cost = item['one_off_fee']
-            item_type = 'One-Off'
-            total_line_item_charges += cost
+            try:
+                fee = float(item['one_off_fee'])
+                item_type = 'One-Off'
+            except (ValueError, TypeError):
+                fee = 0.0
         elif item['yearly_bill_month'] == month:
-            # Simple check for now. We might need to check the day as well if it matters.
-            cost = item['yearly_fee']
-            item_type = 'Yearly'
-            total_line_item_charges += cost
+            try:
+                fee = float(item['yearly_fee'])
+                item_type = 'Yearly'
+            except (ValueError, TypeError):
+                fee = 0.0
 
         if item_type:
+            cost = fee
+            total_line_item_charges += cost
             billed_line_items.append({'name': item['name'], 'type': item_type, 'cost': cost})
 
     # --- 8. Assemble Final Bill and Data Package ---
-    nmf_charge = effective_rates.get('network_management_fee', 0) or 0
+    nmf_charge = float(effective_rates.get('network_management_fee', 0) or 0)
     total_bill = nmf_charge + total_asset_charges + total_user_charges + ticket_charge + backup_charge + total_line_item_charges
 
     receipt = {

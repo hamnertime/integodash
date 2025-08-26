@@ -240,8 +240,9 @@ def edit_note(account_number, note_id):
         else:
             flash("Note content cannot be empty.", "error")
         return redirect(url_for('client_breakdown', account_number=account_number))
-    client_name = query_db("SELECT name FROM companies WHERE account_number = ?", [account_number], one=True)['name']
-    return render_template('edit_note.html', note=note, account_number=account_number, client_name=client_name)
+    # This part is no longer needed as we are using a modal
+    flash("This action should be performed via the modal.", "error")
+    return redirect(url_for('client_breakdown', account_number=account_number))
 
 @app.route('/client/<account_number>/edit_line_item/<int:item_id>', methods=['GET', 'POST'])
 def edit_line_item(account_number, item_id):
@@ -249,29 +250,34 @@ def edit_line_item(account_number, item_id):
     if not item:
         flash("Line item not found.", "error")
         return redirect(url_for('client_settings', account_number=account_number))
+
     if request.method == 'POST':
         name = request.form.get('line_item_name')
         item_type = request.form.get('line_item_type')
+
+        # Clear old fee values first
         log_and_execute("UPDATE custom_line_items SET monthly_fee=NULL, one_off_fee=NULL, one_off_year=NULL, one_off_month=NULL, yearly_fee=NULL, yearly_bill_month=NULL, yearly_bill_day=NULL WHERE id = ?", [item_id])
+
         if item_type == 'recurring':
             fee = request.form.get('line_item_recurring_fee')
-            log_and_execute("UPDATE custom_line_items SET name = ?, monthly_fee = ? WHERE id = ?", [name, fee, item_id])
+            log_and_execute("UPDATE custom_line_items SET name = ?, monthly_fee = ? WHERE id = ?", [name, fee if fee else None, item_id])
         elif item_type == 'one_off':
             fee = request.form.get('line_item_one_off_fee')
             billing_period = request.form.get('line_item_one_off_month')
             year, month = billing_period.split('-')
-            log_and_execute("UPDATE custom_line_items SET name = ?, one_off_fee = ?, one_off_year = ?, one_off_month = ? WHERE id = ?", [name, fee, int(year), int(month), item_id])
+            log_and_execute("UPDATE custom_line_items SET name = ?, one_off_fee = ?, one_off_year = ?, one_off_month = ? WHERE id = ?", [name, fee if fee else None, int(year), int(month), item_id])
         elif item_type == 'yearly':
             fee = request.form.get('line_item_yearly_fee')
             month = request.form.get('line_item_yearly_month')
             day = request.form.get('line_item_yearly_day')
-            log_and_execute("UPDATE custom_line_items SET name = ?, yearly_fee = ?, yearly_bill_month = ?, yearly_bill_day = ? WHERE id = ?", [name, fee, int(month), int(day), item_id])
+            log_and_execute("UPDATE custom_line_items SET name = ?, yearly_fee = ?, yearly_bill_month = ?, yearly_bill_day = ? WHERE id = ?", [name, fee if fee else None, int(month), int(day), item_id])
+
         flash("Line item updated successfully.", "success")
         return redirect(url_for('client_settings', account_number=account_number))
-    client_name = query_db("SELECT name FROM companies WHERE account_number = ?", [account_number], one=True)['name']
-    today = datetime.now(timezone.utc)
-    month_options = [{'value': (today + timedelta(days=31*i)).strftime('%Y-%m'), 'name': (today + timedelta(days=31*i)).strftime('%B %Y')} for i in range(12)]
-    return render_template('edit_line_item.html', item=item, account_number=account_number, client_name=client_name, month_options=month_options)
+
+    # This part is no longer needed as we are using a modal
+    flash("This action should be performed via the modal.", "error")
+    return redirect(url_for('client_settings', account_number=account_number))
 
 @app.route('/client/<account_number>/settings', methods=['GET', 'POST'])
 def client_settings(account_number):
@@ -385,6 +391,38 @@ def client_settings(account_number):
         session.pop('username', None)
         flash(f"A database or key error occurred on settings page: {e}. Please log in again.", 'error')
         return redirect(url_for('login'))
+
+@app.route('/client/<account_number>/edit_manual_asset/<int:asset_id>', methods=['POST'])
+def edit_manual_asset(account_number, asset_id):
+    hostname = request.form.get('hostname')
+    billing_type = request.form.get('billing_type')
+    custom_cost = request.form.get('custom_cost')
+    if hostname and billing_type:
+        log_and_execute("""
+            UPDATE manual_assets
+            SET hostname = ?, billing_type = ?, custom_cost = ?
+            WHERE id = ? AND company_account_number = ?
+        """, (hostname, billing_type, custom_cost if custom_cost else None, asset_id, account_number))
+        flash('Manual asset updated successfully.', 'success')
+    else:
+        flash('Hostname and Billing Type are required.', 'error')
+    return redirect(url_for('client_settings', account_number=account_number))
+
+@app.route('/client/<account_number>/edit_manual_user/<int:user_id>', methods=['POST'])
+def edit_manual_user(account_number, user_id):
+    full_name = request.form.get('full_name')
+    billing_type = request.form.get('billing_type')
+    custom_cost = request.form.get('custom_cost')
+    if full_name and billing_type:
+        log_and_execute("""
+            UPDATE manual_users
+            SET full_name = ?, billing_type = ?, custom_cost = ?
+            WHERE id = ? AND company_account_number = ?
+        """, (full_name, billing_type, custom_cost if custom_cost else None, user_id, account_number))
+        flash('Manual user updated successfully.', 'success')
+    else:
+        flash('Full Name and Billing Type are required.', 'error')
+    return redirect(url_for('client_settings', account_number=account_number))
 
 @app.route('/client/<account_number>/upload', methods=['POST'])
 def upload_file(account_number):

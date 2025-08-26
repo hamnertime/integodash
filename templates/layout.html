@@ -12,6 +12,7 @@
             --header-text-color: #353C47; /* Dark Gray for light mode headers */
             --background-color: #f4f6f8;
             --text-color: #212529;
+            --text-color-secondary: #6c757d; /* Added for secondary text */
             --card-bg: #ffffff;
             --table-border-color: #ced4da;
             --table-header-bg: #e9ecef;
@@ -25,6 +26,7 @@
             --header-text-color: #f4f6f8; /* Light gray for dark mode headers */
             --background-color: #1a1a1a;
             --text-color: #f8f9fa;
+            --text-color-secondary: #adb5bd; /* Added for secondary text in dark mode */
             --card-bg: #2c2c2c;
             --table-border-color: #444;
             --table-header-bg: #353C47;
@@ -80,12 +82,16 @@
             position: absolute;
             transition: .4s;
             width: 16px;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23353C47' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3ccircle cx='12' cy='12' r='5'%3e%3c/circle%3e%3cline x1='12' y1='1' x2='12' y2='3'%3e%3c/line%3e%3cline x1='12' y1='21' x2='12' y2='23'%3e%3c/line%3e%3cline x1='4.22' y1='4.22' x2='5.64' y2='5.64'%3e%3c/line%3e%3cline x1='18.36' y1='18.36' x2='19.78' y2='19.78'%3e%3c/line%3e%3cline x1='1' y1='12' x2='3' y2='12'%3e%3c/line%3e%3cline x1='21' y1='12' x2='23' y2='12'%3e%3c/line%3e%3cline x1='4.22' y1='19.78' x2='5.64' y2='18.36'%3e%3c/line%3e%3cline x1='18.36' y1='5.64' x2='19.78' y2='4.22'%3e%3c/line%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: center;
         }
         input:checked + .slider {
             background-color: var(--primary-color);
         }
         input:checked + .slider:before {
             transform: translateX(26px);
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23353C47' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpath d='M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z'%3e%3c/path%3e%3c/svg%3e");
         }
         .slider.round {
             border-radius: 34px;
@@ -101,14 +107,14 @@
     <nav class="navbar">
         <div class="logo">Integodash</div>
         <div class="nav-links">
-            <a href="{{ url_for('billing_dashboard') }}" class="{{ 'active' if request.endpoint == 'billing_dashboard' else '' }}">Billing</a>
+            <a href="{{ url_for('billing_dashboard') }}" class="{{ 'active' if request.endpoint == 'billing_dashboard' else '' }}">Overview</a>
+            {% if client and client.account_number %}
+                <a href="{{ url_for('client_breakdown', account_number=client.account_number) }}" class="{{ 'active' if request.endpoint == 'client_breakdown' else '' }}">Client Details</a>
+                <a href="{{ url_for('client_settings', account_number=client.account_number) }}" class="{{ 'active' if request.endpoint == 'client_settings' else '' }}">Client Overrides</a>
+            {% endif %}
             {% for link in custom_links %}
                 <a href="{{ link.url }}" target="_blank">{{ link.name }}</a>
             {% endfor %}
-            {% if client and client.account_number %}
-                <a href="{{ url_for('client_settings', account_number=client.account_number) }}" class="{{ 'active' if request.endpoint == 'client_settings' else '' }}">Override Settings</a>
-                <a href="{{ url_for('client_breakdown', account_number=client.account_number) }}" class="{{ 'active' if request.endpoint == 'client_breakdown' else '' }}">Back to Breakdown</a>
-            {% endif %}
             <a href="{{ url_for('billing_settings') }}" class="{{ 'active' if request.endpoint in ['billing_settings', 'view_audit_log'] else '' }}">Settings & Sync</a>
             {% if 'username' in session %}
                 <span style="border-left: 1px solid #fff; padding-left: 15px; margin-left: 5px;">Welcome, {{ session['username'] }}</span>

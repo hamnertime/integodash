@@ -3,8 +3,12 @@
 
 {% block head %}
 <style>
-    h1, h2 { color: var(--secondary-color); }
     h1 { text-align: center; }
+    h1, h2, h3 {
+        border-bottom: 2px solid var(--primary-color);
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+    }
     .form-section { background-color: var(--card-bg); padding: 25px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 30px; }
     .form-grid { display: grid; grid-template-columns: auto 1fr 1fr auto; gap: 15px 20px; align-items: center; }
     .form-grid label { font-weight: bold; text-align: right; }
@@ -16,8 +20,39 @@
     .item-table { width: 100%; margin-top: 15px; }
     .item-table th, .item-table td { padding: 8px; border-bottom: 1px solid var(--table-border-color); text-align: left; vertical-align: middle; }
     .item-table select, .item-table input { padding: 6px; border-radius: 4px; border: 1px solid var(--input-border); background-color: var(--input-bg); color: var(--text-color); }
+    .item-table a { color: inherit; text-decoration: none; }
+    .item-table a:hover { color: var(--primary-color); text-decoration: underline; }
     .button-container { text-align: right; margin-top: 20px; }
     .button, button { padding: 12px 25px; background-color: var(--primary-color); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1.1em; text-decoration: none; display: inline-block; }
+    .icon-button { background: none; border: none; cursor: pointer; padding: 5px; vertical-align: middle; }
+    .icon-button svg { width: 20px; height: 20px; }
+    .icon-button.edit svg { fill: var(--primary-color); }
+    .icon-button.delete svg { fill: #dc3545; }
+
+    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); }
+    .modal-content { background-color: var(--card-bg); margin: 5% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 500px; border-radius: 8px; color: var(--text-color); }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--table-border-color); padding-bottom: 10px; margin-bottom: 15px; }
+    .close-button { color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer; }
+    .close-button:hover { color: var(--text-color); }
+
+    .simple-form label { display: block; margin-bottom: 5px; font-weight: bold; }
+    .simple-form input[type="text"],
+    .simple-form input[type="number"],
+    .simple-form select {
+        width: 100%;
+        padding: 8px;
+        margin-bottom: 15px;
+        border: 1px solid var(--input-border);
+        border-radius: 4px;
+        box-sizing: border-box;
+        background-color: var(--input-bg);
+        color: var(--text-color);
+    }
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
 </style>
 {% endblock %}
 
@@ -35,11 +70,11 @@
                 {% macro rate_input(name, label, short_name) %}
                     <label for="{{ name }}">{{ label }}</label>
                     {% if name == 'backup_included_tb' %}
-                         <input type="text" value="{{ ('%.2f'|format(defaults[name]) if defaults and defaults[name] is not none else 'N/A') ~ ' TB' }}" disabled>
+                         <input type="text" value="{{ ('%.2f'|format(defaults[name]|float)) if defaults and defaults[name] is not none else 'N/A' }} TB" disabled>
                     {% elif name == 'prepaid_hours_monthly' or name == 'prepaid_hours_yearly' %}
                         <input type="text" value="{{ defaults[name] if defaults and defaults[name] is not none else '0' }} hours" disabled>
                     {% else %}
-                         <input type="text" value="${{ '%.2f'|format(defaults[name]) if defaults and defaults[name] is not none else 'N/A' }}" disabled>
+                         <input type="text" value="${{ '%.2f'|format(defaults[name]|float) if defaults and defaults[name] is not none else 'N/A' }}" disabled>
                     {% endif %}
                     <input type="number" step="0.01" name="{{ name }}" id="{{ name }}" value="{{ overrides[name] if overrides and overrides[name] is not none }}">
                     <input type="checkbox" name="override_{{ short_name }}_enabled" {% if overrides and overrides['override_' + short_name + '_enabled'] %}checked{% endif %} title="Enable Override">
@@ -116,13 +151,26 @@
             </table>
             <h3 style="margin-top: 20px;">Manually Added Assets</h3>
              <table class="item-table">
+                <thead><tr><th>Hostname</th><th>Source</th><th>Billing Type</th><th>Cost</th><th>Actions</th></tr></thead>
                 <tbody>
                 {% for asset in manual_assets %}
                     <tr>
                         <td>{{ asset.hostname }}</td>
                         <td>MANUAL</td>
-                        <td>{{ asset.billing_type }} {% if asset.billing_type == 'Custom' %}(${{ "%.2f"|format(asset.custom_cost) }}){% endif %}</td>
-                        <td><a href="{{ url_for('client_settings', account_number=client.account_number, delete_manual_asset=asset.id) }}" onclick="return confirm('Are you sure?')">Delete</a></td>
+                        <td>{{ asset.billing_type }}</td>
+                        <td>${{ "%.2f"|format(asset.custom_cost|float) if asset.custom_cost is not none else '0.00' }}</td>
+                        <td>
+                             <button type="button" class="icon-button edit edit-manual-asset"
+                                data-asset-id="{{ asset.id }}"
+                                data-hostname="{{ asset.hostname }}"
+                                data-billing-type="{{ asset.billing_type }}"
+                                data-custom-cost="{{ asset.custom_cost if asset.custom_cost is not none else '' }}">
+                                <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
+                            </button>
+                            <a href="{{ url_for('client_settings', account_number=client.account_number, delete_manual_asset=asset.id) }}" class="icon-button delete" onclick="return confirm('Are you sure?')">
+                                <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
+                            </a>
+                        </td>
                     </tr>
                 {% endfor %}
                 </tbody>
@@ -152,13 +200,26 @@
             </table>
             <h3 style="margin-top: 20px;">Manually Added Users</h3>
             <table class="item-table">
+                 <thead><tr><th>Full Name</th><th>Source</th><th>Billing Type</th><th>Cost</th><th>Actions</th></tr></thead>
                 <tbody>
                 {% for user in manual_users %}
                     <tr>
                         <td>{{ user.full_name }}</td>
                         <td>MANUAL</td>
-                        <td>{{ user.billing_type }} {% if user.billing_type == 'Custom' %}(${{ "%.2f"|format(user.custom_cost) }}){% endif %}</td>
-                        <td><a href="{{ url_for('client_settings', account_number=client.account_number, delete_manual_user=user.id) }}" onclick="return confirm('Are you sure?')">Delete</a></td>
+                        <td>{{ user.billing_type }}</td>
+                        <td>${{ "%.2f"|format(user.custom_cost|float) if user.custom_cost is not none else '0.00' }}</td>
+                        <td>
+                            <button type="button" class="icon-button edit edit-manual-user"
+                                data-user-id="{{ user.id }}"
+                                data-full-name="{{ user.full_name }}"
+                                data-billing-type="{{ user.billing_type }}"
+                                data-custom-cost="{{ user.custom_cost if user.custom_cost is not none else '' }}">
+                                <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
+                            </button>
+                             <a href="{{ url_for('client_settings', account_number=client.account_number, delete_manual_user=user.id) }}" class="icon-button delete" onclick="return confirm('Are you sure?')">
+                                <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
+                            </a>
+                        </td>
                     </tr>
                 {% endfor %}
                 </tbody>
@@ -171,44 +232,60 @@
     </form>
 
     <div style="display: flex; gap: 30px; margin-top: 30px;">
-        <form method="POST" action="{{ url_for('client_settings', account_number=client.account_number) }}" class="form-section" style="flex: 1;">
-            <h2>Add Non-Detected Asset</h2>
-            <label>Hostname:</label>
-            <input type="text" name="manual_asset_hostname" required>
-            <label>Billing Type:</label>
-            <select name="manual_asset_billing_type">
-                <option value="Workstation">Workstation</option>
-                <option value="Server">Server</option>
-                <option value="VM">VM</option>
-                <option value="No Charge">No Charge</option>
-                <option value="Custom">Custom</option>
-            </select>
-            <label>Custom Cost:</label>
-            <input type="number" name="manual_asset_custom_cost" step="0.01">
+        <form method="POST" action="{{ url_for('client_settings', account_number=client.account_number) }}" class="form-section simple-form" style="flex: 1;">
+            <h2>Add Manual Asset</h2>
+            <div class="form-row">
+                <div>
+                    <label for="manual_asset_hostname">Hostname:</label>
+                    <input type="text" id="manual_asset_hostname" name="manual_asset_hostname" required>
+                </div>
+                <div>
+                    <label for="manual_asset_custom_cost">Custom Cost:</label>
+                    <input type="number" id="manual_asset_custom_cost" name="manual_asset_custom_cost" step="0.01">
+                </div>
+            </div>
+            <div>
+                <label for="manual_asset_billing_type">Billing Type:</label>
+                <select id="manual_asset_billing_type" name="manual_asset_billing_type">
+                    <option value="Workstation">Workstation</option>
+                    <option value="Server">Server</option>
+                    <option value="VM">VM</option>
+                    <option value="No Charge">No Charge</option>
+                    <option value="Custom">Custom</option>
+                </select>
+            </div>
             <div class="button-container">
                 <button type="submit" name="action" value="add_manual_asset">Add Asset</button>
             </div>
         </form>
 
-        <form method="POST" action="{{ url_for('client_settings', account_number=client.account_number) }}" class="form-section" style="flex: 1;">
-            <h2>Add Non-Detected User</h2>
-            <label>Full Name:</label>
-            <input type="text" name="manual_user_name" required>
-            <label>Billing Type:</label>
-            <select name="manual_user_billing_type">
-                <option value="Paid">Paid</option>
-                <option value="No Charge">No Charge</option>
-                <option value="Custom">Custom</option>
-            </select>
-            <label>Custom Cost:</label>
-            <input type="number" name="manual_user_custom_cost" step="0.01">
+        <form method="POST" action="{{ url_for('client_settings', account_number=client.account_number) }}" class="form-section simple-form" style="flex: 1;">
+            <h2>Add Manual User</h2>
+            <div class="form-row">
+                <div>
+                    <label for="manual_user_name">Full Name:</label>
+                    <input type="text" id="manual_user_name" name="manual_user_name" required>
+                </div>
+                <div>
+                    <label for="manual_user_custom_cost">Custom Cost:</label>
+                    <input type="number" id="manual_user_custom_cost" name="manual_user_custom_cost" step="0.01">
+                </div>
+            </div>
+            <div>
+                <label for="manual_user_billing_type">Billing Type:</label>
+                <select id="manual_user_billing_type" name="manual_user_billing_type">
+                    <option value="Paid">Paid</option>
+                    <option value="No Charge">No Charge</option>
+                    <option value="Custom">Custom</option>
+                </select>
+            </div>
             <div class="button-container">
                 <button type="submit" name="action" value="add_manual_user">Add User</button>
             </div>
         </form>
     </div>
 
-    <div class="form-section">
+    <div class="form-section simple-form">
         <h2>Custom Line Items</h2>
         <table class="item-table">
             <thead><tr><th>Name</th><th>Type</th><th>Amount</th><th>Billing Period</th><th>Actions</th></tr></thead>
@@ -221,15 +298,29 @@
                         {% elif item.yearly_fee is not none %}Yearly
                         {% else %}One-Off{% endif %}
                     </td>
-                    <td>${{ "%.2f"|format(item.monthly_fee or item.one_off_fee or item.yearly_fee) }}</td>
+                    <td>${{ "%.2f"|format(item.monthly_fee or item.one_off_fee or item.yearly_fee or 0.0) }}</td>
                     <td>
                         {% if item.one_off_year %}{{ item.one_off_year }}-{{ "%02d"|format(item.one_off_month) }}
                         {% elif item.yearly_bill_month %}Every {{ "%02d"|format(item.yearly_bill_month) }}/{{ "%02d"|format(item.yearly_bill_day) }}
                         {% else %}N/A{% endif %}
                     </td>
                     <td>
-                        <a href="{{ url_for('edit_line_item', account_number=client.account_number, item_id=item.id) }}">Edit</a> |
-                        <a href="{{ url_for('client_settings', account_number=client.account_number, delete_line_item=item.id) }}" onclick="return confirm('Are you sure?')">Delete</a>
+                        <button type="button" class="icon-button edit edit-line-item"
+                            data-item-id="{{ item.id }}"
+                            data-name="{{ item.name }}"
+                            data-monthly-fee="{{ item.monthly_fee if item.monthly_fee is not none else '' }}"
+                            data-one-off-fee="{{ item.one_off_fee if item.one_off_fee is not none else '' }}"
+                            data-one-off-month="{{ item.one_off_month if item.one_off_month is not none else '' }}"
+                            data-one-off-year="{{ item.one_off_year if item.one_off_year is not none else '' }}"
+                            data-yearly-fee="{{ item.yearly_fee if item.yearly_fee is not none else '' }}"
+                            data-yearly-bill-month="{{ item.yearly_bill_month if item.yearly_bill_month is not none else '' }}"
+                            data-yearly-bill-day="{{ item.yearly_bill_day if item.yearly_bill_day is not none else '' }}"
+                        >
+                            <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
+                        </button>
+                        <a href="{{ url_for('client_settings', account_number=client.account_number, delete_line_item=item.id) }}" class="icon-button delete" onclick="return confirm('Are you sure?')">
+                            <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
+                        </a>
                     </td>
                 </tr>
             {% endfor %}
@@ -238,25 +329,30 @@
 
         <h3 style="margin-top: 20px;">Add New Line Item</h3>
         <form method="POST" action="{{ url_for('client_settings', account_number=client.account_number) }}">
-            <label>Item Name:</label>
-            <input type="text" name="line_item_name" required>
-            <label>Item Type:</label>
-            <select name="line_item_type" onchange="toggleLineItemFields(this.value)">
-                <option value="recurring" selected>Recurring Monthly</option>
-                <option value="one_off">One-Off Charge</option>
-                <option value="yearly">Recurring Yearly</option>
-            </select>
-
-            <div id="recurring_fields">
-                <label>Monthly Fee:</label>
-                <input type="number" name="line_item_recurring_fee" step="0.01">
+             <div class="form-row">
+                <div>
+                    <label for="line_item_name">Item Name:</label>
+                    <input type="text" id="line_item_name" name="line_item_name" required>
+                </div>
+                <div id="recurring_fields">
+                    <label for="line_item_recurring_fee">Monthly Fee:</label>
+                    <input type="number" id="line_item_recurring_fee" name="line_item_recurring_fee" step="0.01">
+                </div>
+            </div>
+            <div>
+                <label for="line_item_type">Item Type:</label>
+                <select id="line_item_type" name="line_item_type" onchange="toggleLineItemFields(this.value)">
+                    <option value="recurring" selected>Recurring Monthly</option>
+                    <option value="one_off">One-Off Charge</option>
+                    <option value="yearly">Recurring Yearly</option>
+                </select>
             </div>
 
             <div id="one_off_fields" style="display:none;">
-                <label>One-Off Fee:</label>
-                <input type="number" name="line_item_one_off_fee" step="0.01">
-                <label>Billing Month:</label>
-                <select name="line_item_one_off_month">
+                <label for="line_item_one_off_fee">One-Off Fee:</label>
+                <input type="number" id="line_item_one_off_fee" name="line_item_one_off_fee" step="0.01">
+                <label for="line_item_one_off_month">Billing Month:</label>
+                <select id="line_item_one_off_month" name="line_item_one_off_month">
                     {% for month in month_options %}
                         <option value="{{ month.value }}">{{ month.name }}</option>
                     {% endfor %}
@@ -264,14 +360,14 @@
             </div>
 
             <div id="yearly_fields" style="display:none;">
-                <label>Yearly Fee:</label>
-                <input type="number" name="line_item_yearly_fee" step="0.01">
-                <label>Billing Month:</label>
-                <select name="line_item_yearly_month">
+                <label for="line_item_yearly_fee">Yearly Fee:</label>
+                <input type="number" id="line_item_yearly_fee" name="line_item_yearly_fee" step="0.01">
+                <label for="line_item_yearly_month">Billing Month:</label>
+                <select id="line_item_yearly_month" name="line_item_yearly_month">
                     {% for i in range(1, 13) %}<option value="{{ i }}">{{ i }}</option>{% endfor %}
                 </select>
-                <label>Billing Day:</label>
-                <select name="line_item_yearly_day">
+                <label for="line_item_yearly_day">Billing Day:</label>
+                <select id="line_item_yearly_day" name="line_item_yearly_day">
                     {% for i in range(1, 32) %}<option value="{{ i }}">{{ i }}</option>{% endfor %}
                 </select>
             </div>
@@ -282,6 +378,86 @@
         </form>
     </div>
 
+    <div id="manualAssetModal" class="modal">
+        <div class="modal-content simple-form">
+            <div class="modal-header">
+                <h2 id="manualAssetModalTitle">Edit Manual Asset</h2>
+                <span class="close-button">&times;</span>
+            </div>
+            <form id="manualAssetModalForm" method="POST">
+                <div class="form-row">
+                    <div>
+                        <label for="manualAssetHostname">Hostname:</label>
+                        <input type="text" name="hostname" id="manualAssetHostname" required>
+                    </div>
+                    <div>
+                        <label for="manualAssetCustomCost">Custom Cost:</label>
+                        <input type="number" name="custom_cost" id="manualAssetCustomCost" step="0.01">
+                    </div>
+                </div>
+                <div>
+                    <label for="manualAssetBillingType">Billing Type:</label>
+                    <select name="billing_type" id="manualAssetBillingType">
+                        <option value="Workstation">Workstation</option>
+                        <option value="Server">Server</option>
+                        <option value="VM">VM</option>
+                        <option value="No Charge">No Charge</option>
+                        <option value="Custom">Custom</option>
+                    </select>
+                </div>
+                <div class="button-container">
+                    <button type="submit">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="manualUserModal" class="modal">
+        <div class="modal-content simple-form">
+            <div class="modal-header">
+                <h2 id="manualUserModalTitle">Edit Manual User</h2>
+                <span class="close-button">&times;</span>
+            </div>
+            <form id="manualUserModalForm" method="POST">
+                 <div class="form-row">
+                    <div>
+                        <label for="manualUserFullName">Full Name:</label>
+                        <input type="text" name="full_name" id="manualUserFullName" required>
+                    </div>
+                    <div>
+                        <label for="manualUserCustomCost">Custom Cost:</label>
+                        <input type="number" name="custom_cost" id="manualUserCustomCost" step="0.01">
+                    </div>
+                </div>
+                <div>
+                    <label for="manualUserBillingType">Billing Type:</label>
+                    <select name="billing_type" id="manualUserBillingType">
+                        <option value="Paid">Paid</option>
+                        <option value="No Charge">No Charge</option>
+                        <option value="Custom">Custom</option>
+                    </select>
+                </div>
+                <div class="button-container">
+                    <button type="submit">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="lineItemModal" class="modal">
+        <div class="modal-content simple-form">
+            <div class="modal-header">
+                <h2 id="lineItemModalTitle">Edit Line Item</h2>
+                <span class="close-button">&times;</span>
+            </div>
+            <form id="lineItemModalForm" method="POST">
+                </form>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
 <script>
 function toggleLineItemFields(itemType) {
     document.getElementById('recurring_fields').style.display = 'none';
@@ -298,5 +474,125 @@ function toggleLineItemFields(itemType) {
 }
 // Initialize the view
 toggleLineItemFields('recurring');
+
+document.addEventListener('DOMContentLoaded', function() {
+    const manualAssetModal = document.getElementById('manualAssetModal');
+    const manualUserModal = document.getElementById('manualUserModal');
+    const lineItemModal = document.getElementById('lineItemModal');
+    const closeButtons = document.querySelectorAll('.close-button');
+
+    function closeModal() {
+        manualAssetModal.style.display = 'none';
+        manualUserModal.style.display = 'none';
+        lineItemModal.style.display = 'none';
+    }
+
+    closeButtons.forEach(button => {
+        button.onclick = closeModal;
+    });
+
+    window.onclick = (event) => {
+        if (event.target == manualAssetModal || event.target == manualUserModal || event.target == lineItemModal) {
+            closeModal();
+        }
+    }
+
+    document.querySelectorAll('.edit-manual-asset').forEach(button => {
+        button.addEventListener('click', function() {
+            const assetId = this.dataset.assetId;
+            document.getElementById('manualAssetModalForm').action = `/client/{{ client.account_number }}/edit_manual_asset/${assetId}`;
+            document.getElementById('manualAssetHostname').value = this.dataset.hostname;
+            document.getElementById('manualAssetBillingType').value = this.dataset.billingType;
+            document.getElementById('manualAssetCustomCost').value = this.dataset.customCost;
+            manualAssetModal.style.display = 'block';
+        });
+    });
+
+    document.querySelectorAll('.edit-manual-user').forEach(button => {
+        button.addEventListener('click', function() {
+            const userId = this.dataset.userId;
+            document.getElementById('manualUserModalForm').action = `/client/{{ client.account_number }}/edit_manual_user/${userId}`;
+            document.getElementById('manualUserFullName').value = this.dataset.fullName;
+            document.getElementById('manualUserBillingType').value = this.dataset.billingType;
+            document.getElementById('manualUserCustomCost').value = this.dataset.customCost;
+            manualUserModal.style.display = 'block';
+        });
+    });
+
+    document.querySelectorAll('.edit-line-item').forEach(button => {
+        button.addEventListener('click', function(event) {
+            event.preventDefault(); // Prevent the default link behavior
+            const itemId = this.dataset.itemId;
+            const form = document.getElementById('lineItemModalForm');
+            form.action = `/client/{{ client.account_number }}/edit_line_item/${itemId}`;
+
+            // Determine item type
+            let itemType = 'recurring';
+            if (this.dataset.oneOffFee) {
+                itemType = 'one_off';
+            } else if (this.dataset.yearlyFee) {
+                itemType = 'yearly';
+            }
+
+            // Populate the modal form dynamically
+            let formContent = `
+                <label for="modal_line_item_name">Item Name:</label>
+                <input type="text" id="modal_line_item_name" name="line_item_name" value="${this.dataset.name}" required>
+
+                <label for="modal_line_item_type">Item Type:</label>
+                <select id="modal_line_item_type" name="line_item_type">
+                    <option value="recurring" ${itemType === 'recurring' ? 'selected' : ''}>Recurring Monthly</option>
+                    <option value="one_off" ${itemType === 'one_off' ? 'selected' : ''}>One-Off Charge</option>
+                    <option value="yearly" ${itemType === 'yearly' ? 'selected' : ''}>Recurring Yearly</option>
+                </select>
+
+                <div id="modal_recurring_fields" style="display: ${itemType === 'recurring' ? 'block' : 'none'};">
+                    <label>Monthly Fee:</label>
+                    <input type="number" name="line_item_recurring_fee" step="0.01" value="${this.dataset.monthlyFee || ''}">
+                </div>
+
+                <div id="modal_one_off_fields" style="display: ${itemType === 'one_off' ? 'block' : 'none'};">
+                    <label>One-Off Fee:</label>
+                    <input type="number" name="line_item_one_off_fee" step="0.01" value="${this.dataset.oneOffFee || ''}">
+                    <label>Billing Month:</label>
+                    <select name="line_item_one_off_month">
+                        {% for month in month_options %}
+                            <option value="{{ month.value }}" ${this.dataset.oneOffYear && this.dataset.oneOffMonth && '{{ month.value }}' === `${this.dataset.oneOffYear}-${this.dataset.oneOffMonth.padStart(2, '0')}` ? 'selected' : ''}>
+                                {{ month.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div id="modal_yearly_fields" style="display: ${itemType === 'yearly' ? 'block' : 'none'};">
+                    <label>Yearly Fee:</label>
+                    <input type="number" name="line_item_yearly_fee" step="0.01" value="${this.dataset.yearlyFee || ''}">
+                    <label>Billing Month:</label>
+                    <select name="line_item_yearly_month">
+                        ${[...Array(12).keys()].map(i => `<option value="${i+1}" ${this.dataset.yearlyBillMonth == i+1 ? 'selected' : ''}>${i+1}</option>`).join('')}
+                    </select>
+                    <label>Billing Day:</label>
+                    <select name="line_item_yearly_day">
+                        ${[...Array(31).keys()].map(i => `<option value="${i+1}" ${this.dataset.yearlyBillDay == i+1 ? 'selected' : ''}>${i+1}</option>`).join('')}
+                    </select>
+                </div>
+
+                <div class="button-container">
+                    <button type="submit">Save Changes</button>
+                </div>
+            `;
+            form.innerHTML = formContent;
+
+            // Add event listener for the new select dropdown
+            form.querySelector('#modal_line_item_type').addEventListener('change', function() {
+                document.getElementById('modal_recurring_fields').style.display = this.value === 'recurring' ? 'block' : 'none';
+                document.getElementById('modal_one_off_fields').style.display = this.value === 'one_off' ? 'block' : 'none';
+                document.getElementById('modal_yearly_fields').style.display = this.value === 'yearly' ? 'block' : 'none';
+            });
+
+            lineItemModal.style.display = 'block';
+        });
+    });
+});
 </script>
 {% endblock %}

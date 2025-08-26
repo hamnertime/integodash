@@ -17,6 +17,10 @@
         margin-bottom: 25px;
         color: var(--header-text-color);
     }
+    .login-container p {
+        margin-bottom: 20px;
+        color: var(--text-color-secondary);
+    }
     .login-container input[type="password"] {
         width: calc(100% - 20px);
         padding: 12px;
@@ -48,7 +52,7 @@
 {% block content %}
 <div class="login-container">
     <h1>Unlock Database</h1>
-    <p style="margin-bottom: 20px; color: #555;">Enter the master password to access the dashboard and start the background services.</p>
+    <p>Enter the master password to access the dashboard and start the background services.</p>
     <form method="POST" action="{{ url_for('login') }}">
         <input type="password" name="password" placeholder="Master Password" required>
         <button type="submit">Unlock</button>
