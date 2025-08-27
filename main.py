@@ -490,6 +490,7 @@ def upload_file(account_number):
         flash('No file part', 'error')
         return redirect(url_for('client_billing_details', account_number=account_number))
     file = request.files['file']
+    category = request.form.get('category')
     if file.filename == '':
         flash('No selected file', 'error')
         return redirect(url_for('client_billing_details', account_number=account_number))
@@ -502,7 +503,7 @@ def upload_file(account_number):
         file_path = os.path.join(client_upload_dir, stored_filename)
         file.save(file_path)
         file_size = os.path.getsize(file_path)
-        log_and_execute("INSERT INTO client_attachments (company_account_number, original_filename, stored_filename, uploaded_at, file_size) VALUES (?, ?, ?, ?, ?)", (account_number, original_filename, stored_filename, datetime.now(timezone.utc).isoformat(), file_size))
+        log_and_execute("INSERT INTO client_attachments (company_account_number, original_filename, stored_filename, uploaded_at, file_size, category) VALUES (?, ?, ?, ?, ?, ?)", (account_number, original_filename, stored_filename, datetime.now(timezone.utc).isoformat(), file_size, category))
         flash('File uploaded successfully!', 'success')
     else:
         flash('File type not allowed.', 'error')
@@ -533,6 +534,18 @@ def delete_attachment(account_number, attachment_id):
         flash("Attachment deleted successfully.", 'success')
     else:
         flash("Attachment not found.", 'error')
+    return redirect(url_for('client_billing_details', account_number=account_number))
+
+@app.route('/client/<account_number>/edit_attachment/<int:attachment_id>', methods=['POST'])
+def edit_attachment(account_number, attachment_id):
+    original_filename = request.form.get('original_filename')
+    category = request.form.get('category')
+    if original_filename:
+        log_and_execute("UPDATE client_attachments SET original_filename = ?, category = ? WHERE id = ? AND company_account_number = ?",
+                       [original_filename, category, attachment_id, account_number])
+        flash('Attachment updated successfully.', 'success')
+    else:
+        flash('Filename cannot be empty.', 'error')
     return redirect(url_for('client_billing_details', account_number=account_number))
 
 @app.route('/settings', methods=['GET', 'POST'])

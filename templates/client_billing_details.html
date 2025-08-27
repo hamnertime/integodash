@@ -1,4 +1,3 @@
-<!-- hamnertime/integodash/integodash-76ac7162b1c717651e4becef3e50446477f85a63/templates/client_billing_details.html -->
 {% extends "layout.html" %}
 {% block title %}{{ client.name }}{% endblock %}
 
@@ -30,10 +29,6 @@
                 <p><strong>Domains:</strong> {{ client.domains or 'N/A' }}</p>
                 <p><strong>Business Type:</strong> {{ client.business_type or 'N/A' }}</p>
                 <p><strong>Description:</strong> {{ client.description or 'N/A' }}</p>
-                <p><strong>Client Start Date:</strong> {{ client.client_start_date or 'N/A' }}</p>
-                <p><strong>Contract Term:</strong> {{ client.contract_term_length }}</p>
-                <p><strong>Contract Start Date:</strong> {{ client.contract_start_date or 'N/A' }}</p>
-                <p><strong class="{% if contract_expired %}text-danger{% endif %}">Contract End Date:</strong> <span class="{% if contract_expired %}text-danger{% endif %}">{{ contract_end_date }}</span></p>
             </div>
             <div class="form-section">
                 <h2>Locations</h2>
@@ -52,69 +47,78 @@
                 {% endfor %}
             </div>
         </div>
-        <div class="form-section">
-            <h2>Billing Receipt for {{ selected_billing_period }}</h2>
-            <table class="receipt-table">
+        <div class="right-column">
+            <div class="form-section">
+                <h2>Contract Details</h2>
+                <p><strong>Client Start Date:</strong> {{ client.client_start_date or 'N/A' }}</p>
+                <p><strong>Contract Term:</strong> {{ client.contract_term_length }}</p>
+                <p><strong>Contract Start Date:</strong> {{ client.contract_start_date or 'N/A' }}</p>
+                <p><strong class="{% if contract_expired %}text-danger{% endif %}">Contract End Date:</strong> <span class="{% if contract_expired %}text-danger{% endif %}">{{ contract_end_date }}</span></p>
+            </div>
+            <div class="form-section">
+                <h2>Billing Receipt for {{ selected_billing_period }}</h2>
+                <table class="receipt-table">
 
-                <tr>
-                    <td class="label"><strong>User Charges ({{ receipt_data.billed_users|length }})</strong></td>
-                    <td class="value"><strong>${{ "%.2f"|format(receipt_data.total_user_charges) }}</strong></td>
-                </tr>
-                <tr><td colspan="2" style="padding-left: 40px;">
-                    <details>
-                        <summary>View Details</summary>
-                        <table style="width:100%; border:none; box-shadow:none; margin-top: -10px;">
-                        {% for user in receipt_data.billed_users %}
-                        <tr class="itemized-detail"><td class="label" style="border:none;">{{ user.name }} ({{ user.type }})</td><td class="value" style="border:none;">${{ "%.2f"|format(user.cost) }}</td></tr>
-                        {% endfor %}
-                        </table>
-                    </details>
-                </td></tr>
+                    <tr>
+                        <td class="label"><strong>User Charges ({{ receipt_data.billed_users|length }})</strong></td>
+                        <td class="value"><strong>${{ "%.2f"|format(receipt_data.total_user_charges) }}</strong></td>
+                    </tr>
+                    <tr><td colspan="2" style="padding-left: 40px;">
+                        <details>
+                            <summary>View Details</summary>
+                            <table style="width:100%; border:none; box-shadow:none; margin-top: -10px;">
+                            {% for user in receipt_data.billed_users %}
+                            <tr class="itemized-detail"><td class="label" style="border:none;">{{ user.name }} ({{ user.type }})</td><td class="value" style="border:none;">${{ "%.2f"|format(user.cost) }}</td></tr>
+                            {% endfor %}
+                            </table>
+                        </details>
+                    </td></tr>
 
-                <tr>
-                    <td class="label"><strong>Asset Charges ({{ receipt_data.billed_assets|length }})</strong></td>
-                    <td class="value"><strong>${{ "%.2f"|format(receipt_data.total_asset_charges) }}</strong></td>
-                </tr>
-                <tr><td colspan="2" style="padding-left: 40px;">
-                    <details>
-                         <summary>View Details</summary>
-                         <table style="width:100%; border:none; box-shadow:none; margin-top: -10px;">
-                         {% for asset in receipt_data.billed_assets %}
-                         <tr class="itemized-detail"><td class="label" style="border:none;">{{ asset.name }} ({{ asset.type }})</td><td class="value" style="border:none;">${{ "%.2f"|format(asset.cost) }}</td></tr>
-                         {% endfor %}
-                         </table>
-                    </details>
-                </td></tr>
+                    <tr>
+                        <td class="label"><strong>Asset Charges ({{ receipt_data.billed_assets|length }})</strong></td>
+                        <td class="value"><strong>${{ "%.2f"|format(receipt_data.total_asset_charges) }}</strong></td>
+                    </tr>
+                    <tr><td colspan="2" style="padding-left: 40px;">
+                        <details>
+                             <summary>View Details</summary>
+                             <table style="width:100%; border:none; box-shadow:none; margin-top: -10px;">
+                             {% for asset in receipt_data.billed_assets %}
+                             <tr class="itemized-detail"><td class="label" style="border:none;">{{ asset.name }} ({{ asset.type }})</td><td class="value" style="border:none;">${{ "%.2f"|format(asset.cost) }}</td></tr>
+                             {% endfor %}
+                             </table>
+                        </details>
+                    </td></tr>
 
-                <tr>
-                    <td class="label"><strong>Custom Line Items ({{ receipt_data.billed_line_items|length }})</strong></td>
-                    <td class="value"><strong>${{ "%.2f"|format(receipt_data.total_line_item_charges) }}</strong></td>
-                </tr>
-                <tr><td colspan="2" style="padding-left: 40px;">
-                    <details>
-                         <summary>View Details</summary>
-                         <table style="width:100%; border:none; box-shadow:none; margin-top: -10px;">
-                         {% for item in receipt_data.billed_line_items %}
-                         <tr class="itemized-detail"><td class="label" style="border:none;">{{ item.name }} ({{ item.type }})</td><td class="value" style="border:none;">${{ "%.2f"|format(item.cost) }}</td></tr>
-                         {% endfor %}
-                         </table>
-                    </details>
-                </td></tr>
+                    <tr>
+                        <td class="label"><strong>Custom Line Items ({{ receipt_data.billed_line_items|length }})</strong></td>
+                        <td class="value"><strong>${{ "%.2f"|format(receipt_data.total_line_item_charges) }}</strong></td>
+                    </tr>
+                    <tr><td colspan="2" style="padding-left: 40px;">
+                        <details>
+                             <summary>View Details</summary>
+                             <table style="width:100%; border:none; box-shadow:none; margin-top: -10px;">
+                             {% for item in receipt_data.billed_line_items %}
+                             <tr class="itemized-detail"><td class="label" style="border:none;">{{ item.name }} ({{ item.type }})</td><td class="value" style="border:none;">${{ "%.2f"|format(item.cost) }}</td></tr>
+                             {% endfor %}
+                             </table>
+                        </details>
+                    </td></tr>
 
-                <tr><td class="label" style="padding-top:10px;"><strong>Ticket Charges</strong></td><td class="value" style="padding-top:10px;"><strong>${{ "%.2f"|format(receipt_data.ticket_charge) }}</strong></td></tr>
-                <tr class="itemized-detail"><td class="label">Total Hours This Period ({{ "%.2f"|format(receipt_data.hours_for_billing_period) }} hours)</td><td class="value"></td></tr>
-                <tr class="itemized-detail"><td class="label">Pre-paid Monthly Hours</td><td class="value">-{{ "%.2f"|format(receipt_data.prepaid_hours_monthly) }} hours</td></tr>
-                <tr class="itemized-detail"><td class="label">Pre-paid Yearly Hours (Remaining)</td><td class="value">-{{ "%.2f"|format(remaining_yearly_hours) }} hours</td></tr>
-                <tr class="itemized-detail"><td class="label">Billable Hours ({{ "%.2f"|format(receipt_data.billable_hours) }} hours × ${{ "%.2f"|format(effective_rates.per_hour_ticket_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.ticket_charge) }}</td></tr>
+                    <tr><td class="label" style="padding-top:10px;"><strong>Ticket Charges</strong></td><td class="value" style="padding-top:10px;"><strong>${{ "%.2f"|format(receipt_data.ticket_charge) }}</strong></td></tr>
+                    <tr class="itemized-detail"><td class="label">Total Hours This Period ({{ "%.2f"|format(receipt_data.hours_for_billing_period) }} hours)</td><td class="value"></td></tr>
+                    <tr class="itemized-detail"><td class="label">Pre-paid Monthly Hours</td><td class="value">-{{ "%.2f"|format(receipt_data.prepaid_hours_monthly) }} hours</td></tr>
+                    <tr class="itemized-detail"><td class="label">Pre-paid Yearly Hours (Remaining)</td><td class="value">-{{ "%.2f"|format(remaining_yearly_hours) }} hours</td></tr>
+                    <tr class="itemized-detail"><td class="label">Billable Hours ({{ "%.2f"|format(receipt_data.billable_hours) }} hours × ${{ "%.2f"|format(effective_rates.per_hour_ticket_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.ticket_charge) }}</td></tr>
 
-                <tr><td class="label"><strong>Backup Charge</strong></td><td class="value"><strong>${{ "%.2f"|format(receipt_data.backup_charge) }}</strong></td></tr>
-                <tr class="itemized-detail"><td class="label">Workstation Backup Base Fee ({{ backup_info.backed_up_workstations }} devices × ${{ "%.2f"|format(effective_rates.backup_base_fee_workstation) }})</td><td class="value">${{ "%.2f"|format(receipt_data.backup_base_workstation) }}</td></tr>
-                <tr class="itemized-detail"><td class="label">Server Backup Base Fee ({{ backup_info.backed_up_servers }} devices × ${{ "%.2f"|format(effective_rates.backup_base_fee_server) }})</td><td class="value">${{ "%.2f"|format(receipt_data.backup_base_server) }}</td></tr>
-                <tr class="itemized-detail"><td class="label">Total Included Storage</td><td class="value">{{ "%.2f"|format(receipt_data.total_included_tb) }} TB</td></tr>
-                <tr class="itemized-detail"><td class="label">Total Used Storage</td><td class="value">{{ "%.2f"|format(total_backup_tb) }} TB</td></tr>
-                <tr class="itemized-detail"><td class="label">Storage Overage ({{ "%.2f"|format(receipt_data.overage_tb) }} TB × ${{ "%.2f"|format(effective_rates.backup_per_tb_fee) }})</td><td class="value">${{ "%.2f"|format(receipt_data.overage_charge) }}</td></tr>
-                <tr class="total-row"><td class="label">Estimated Total</td><td class="value">${{ "%.2f"|format(receipt_data.total) }}</td></tr>
-            </table>
+                    <tr><td class="label"><strong>Backup Charge</strong></td><td class="value"><strong>${{ "%.2f"|format(receipt_data.backup_charge) }}</strong></td></tr>
+                    <tr class="itemized-detail"><td class="label">Workstation Backup Base Fee ({{ backup_info.backed_up_workstations }} devices × ${{ "%.2f"|format(effective_rates.backup_base_fee_workstation) }})</td><td class="value">${{ "%.2f"|format(receipt_data.backup_base_workstation) }}</td></tr>
+                    <tr class="itemized-detail"><td class="label">Server Backup Base Fee ({{ backup_info.backed_up_servers }} devices × ${{ "%.2f"|format(effective_rates.backup_base_fee_server) }})</td><td class="value">${{ "%.2f"|format(receipt_data.backup_base_server) }}</td></tr>
+                    <tr class="itemized-detail"><td class="label">Total Included Storage</td><td class="value">{{ "%.2f"|format(receipt_data.total_included_tb) }} TB</td></tr>
+                    <tr class="itemized-detail"><td class="label">Total Used Storage</td><td class="value">{{ "%.2f"|format(total_backup_tb) }} TB</td></tr>
+                    <tr class="itemized-detail"><td class="label">Storage Overage ({{ "%.2f"|format(receipt_data.overage_tb) }} TB × ${{ "%.2f"|format(effective_rates.backup_per_tb_fee) }})</td><td class="value">${{ "%.2f"|format(receipt_data.overage_charge) }}</td></tr>
+                    <tr class="total-row"><td class="label">Estimated Total</td><td class="value">${{ "%.2f"|format(receipt_data.total) }}</td></tr>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -144,20 +148,37 @@
         <h2>Client Attachments</h2>
         <form method="POST" action="{{ url_for('upload_file', account_number=client.account_number) }}" enctype="multipart/form-data">
             <input type="file" name="file" required>
+            <select name="category">
+                <option value="Pictures">Pictures</option>
+                <option value="Logos">Logos</option>
+                <option value="Contracts">Contracts</option>
+                <option value="Other">Other</option>
+            </select>
             <button type="submit">Upload File</button>
         </form>
         <table class="item-table" style="margin-top: 20px;">
-            <thead><tr><th>Filename</th><th>Size</th><th>Uploaded</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Filename</th><th>Category</th><th>Size</th><th>Uploaded</th><th>Actions</th></tr></thead>
             <tbody>
             {% for attachment in attachments %}
                 <tr>
                     <td><a href="{{ url_for('download_file', account_number=client.account_number, filename=attachment.stored_filename) }}">{{ attachment.original_filename }}</a></td>
+                    <td>{{ attachment.category }}</td>
                     <td>{{ attachment.file_size | filesizeformat }}</td>
                     <td>{{ attachment.uploaded_at | humanize }}</td>
-                    <td><a href="{{ url_for('delete_attachment', account_number=client.account_number, attachment_id=attachment.id) }}" onclick="return confirm('Are you sure you want to delete this file?');">Delete</a></td>
+                    <td>
+                        <button type="button" class="icon-button edit edit-attachment"
+                            data-attachment-id="{{ attachment.id }}"
+                            data-original-filename="{{ attachment.original_filename }}"
+                            data-category="{{ attachment.category }}">
+                            <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
+                        </button>
+                        <a href="{{ url_for('delete_attachment', account_number=client.account_number, attachment_id=attachment.id) }}" class="icon-button delete" onclick="return confirm('Are you sure?')">
+                            <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
+                        </a>
+                    </td>
                 </tr>
             {% else %}
-                <tr><td colspan="4">No attachments for this client.</td></tr>
+                <tr><td colspan="5">No attachments for this client.</td></tr>
             {% endfor %}
             </tbody>
         </table>
@@ -172,7 +193,7 @@
                 <tbody>
                     {% for ticket in tickets_for_billing_period %}
                     <tr>
-                        <td><a href="[https://integotecllc.freshservice.com/a/tickets/](https://integotecllc.freshservice.com/a/tickets/){{ ticket.ticket_id }}" target="_blank">#{{ ticket.ticket_id }}</a></td>
+                        <td><a href="https://integotecllc.freshservice.com/a/tickets/{{ ticket.ticket_id }}" target="_blank">#{{ ticket.ticket_id }}</a></td>
                         <td>{{ ticket.subject }}</td>
                         <td>{{ ticket.closed_at | humanize if ticket.closed_at else 'Still Open' }}</td>
                         <td>{{ "%.2f"|format(ticket.total_hours_spent) }}</td>
@@ -228,6 +249,29 @@
             </form>
         </div>
     </div>
+
+    <div id="editAttachmentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Attachment</h2>
+                <span class="close-button">&times;</span>
+            </div>
+            <form id="editAttachmentForm" class="simple-form" method="POST">
+                <label for="modalOriginalFilename">Filename:</label>
+                <input type="text" name="original_filename" id="modalOriginalFilename" required>
+                <label for="modalCategory">Category:</label>
+                <select name="category" id="modalCategory">
+                    <option value="Pictures">Pictures</option>
+                    <option value="Logos">Logos</option>
+                    <option value="Contracts">Contracts</option>
+                    <option value="Other">Other</option>
+                </select>
+                <div style="text-align: right; margin-top: 10px;">
+                    <button type="submit">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
 {% endblock %}
 
 {% block scripts %}
@@ -258,6 +302,36 @@ document.addEventListener('DOMContentLoaded', function() {
     window.onclick = function(event) {
         if (event.target == editNoteModal) {
             editNoteModal.style.display = 'none';
+        }
+    }
+
+    const editAttachmentModal = document.getElementById('editAttachmentModal');
+    const closeAttachmentButton = editAttachmentModal.querySelector('.close-button');
+    const editAttachmentForm = document.getElementById('editAttachmentForm');
+    const modalOriginalFilename = document.getElementById('modalOriginalFilename');
+    const modalCategory = document.getElementById('modalCategory');
+
+    document.querySelectorAll('.edit-attachment').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const attachmentId = this.dataset.attachmentId;
+            const originalFilename = this.dataset.originalFilename;
+            const category = this.dataset.category;
+
+            editAttachmentForm.action = `/client/{{ client.account_number }}/edit_attachment/${attachmentId}`;
+            modalOriginalFilename.value = originalFilename;
+            modalCategory.value = category;
+            editAttachmentModal.style.display = 'block';
+        });
+    });
+
+    closeAttachmentButton.onclick = function() {
+        editAttachmentModal.style.display = 'none';
+    }
+
+    window.onclick = function(event) {
+        if (event.target == editAttachmentModal) {
+            editAttachmentModal.style.display = 'none';
         }
     }
 });
