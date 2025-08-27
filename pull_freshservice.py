@@ -19,7 +19,6 @@ ACCOUNT_NUMBER_FIELD = "account_number"
 PHONE_NUMBER_FIELD = "company_main_number"
 CLIENT_START_DATE_FIELD = "company_start_date"
 BUSINESS_TYPE_FIELD = "profit_or_non_profit"
-BUSINESS_EMAIL_FIELD = "business_email"
 ADDRESS_FIELD = "address"
 
 
@@ -93,7 +92,6 @@ def populate_companies_database(db_connection, companies_data):
     cur = db_connection.cursor()
     companies_to_insert = []
     locations_to_upsert = []
-    email_overrides_to_upsert = []
     start_of_year = date(date.today().year, 1, 1).isoformat()
 
     print("\nProcessing and logging contract details for each company...")
@@ -111,7 +109,6 @@ def populate_companies_database(db_connection, companies_data):
         domains = ', '.join(c.get('domains', []))
         company_owner = c.get('head_name')
         business_type = custom_fields.get(BUSINESS_TYPE_FIELD)
-        business_email = custom_fields.get(BUSINESS_EMAIL_FIELD)
 
 
         log_msg_prefix = f"-> {company_name}:"
@@ -135,12 +132,6 @@ def populate_companies_database(db_connection, companies_data):
                 'account_number': str(account_number),
                 'location_name': 'Main Office',
                 'address': address
-            })
-
-        if business_email:
-            email_overrides_to_upsert.append({
-                'account_number': str(account_number),
-                'email_feature': business_email
             })
 
     if not companies_to_insert: return
@@ -180,22 +171,6 @@ def populate_companies_database(db_connection, companies_data):
                 print(f"  - ⚠️  Skipping location for non-existent company account: {loc['account_number']}", file=sys.stderr)
 
         print(f"Successfully upserted {upsert_count} Main Office locations.")
-
-    if email_overrides_to_upsert:
-        print("\nUpserting Email feature overrides from Freshservice...")
-        override_count = 0
-        for override in email_overrides_to_upsert:
-            cur.execute("SELECT 1 FROM companies WHERE account_number = ?", (override['account_number'],))
-            if cur.fetchone():
-                cur.execute("""
-                    INSERT INTO client_billing_overrides (company_account_number, feature_email, override_feature_email_enabled)
-                    VALUES (?, ?, 1)
-                    ON CONFLICT(company_account_number) DO UPDATE SET
-                        feature_email=excluded.feature_email,
-                        override_feature_email_enabled=1
-                """, (override['account_number'], override['email_feature']))
-                override_count += cur.rowcount
-        print(f"Successfully upserted {override_count} Email feature overrides.")
 
 
 def populate_users_database(db_connection, users_to_insert):

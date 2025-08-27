@@ -16,6 +16,12 @@ def get_billing_data_for_client(account_number, year, month):
 
     client_info = dict(client_info_raw) # Make it a mutable dictionary
 
+    # --- THIS IS THE FIX ---
+    # Default contract term to 'Month to Month' if it's not set
+    if not client_info.get('contract_term_length'):
+        client_info['contract_term_length'] = 'Month to Month'
+    # --- END OF FIX ---
+
     # Sanitize date formats before doing anything else
     for date_field in ['client_start_date', 'contract_start_date']:
         if client_info.get(date_field):
@@ -37,7 +43,12 @@ def get_billing_data_for_client(account_number, year, month):
     asset_overrides = {r['asset_id']: dict(r) for r in query_db("SELECT * FROM asset_billing_overrides ao JOIN assets a ON a.id = ao.asset_id WHERE a.company_account_number = ?", [account_number])}
     user_overrides = {r['user_id']: dict(r) for r in query_db("SELECT * FROM user_billing_overrides uo JOIN users u ON u.id = uo.user_id WHERE u.company_account_number = ?", [account_number])}
 
-    plan_details = query_db("SELECT * FROM billing_plans WHERE billing_plan = ? AND term_length = ?", [client_info['billing_plan'], client_info['contract_term_length']], one=True)
+    # Trim whitespace and handle None values from plan and term before querying
+    billing_plan_name = (client_info.get('billing_plan') or '').strip()
+    contract_term = (client_info.get('contract_term_length') or '').strip()
+
+    plan_details = query_db("SELECT * FROM billing_plans WHERE billing_plan = ? AND term_length = ?", [billing_plan_name, contract_term], one=True)
+
     rate_overrides = query_db("SELECT * FROM client_billing_overrides WHERE company_account_number = ?", [account_number], one=True)
 
     # Fetch tickets for the entire year to calculate yearly totals and monthly breakdowns accurately
@@ -264,7 +275,6 @@ def get_billing_dashboard_data(sort_by='name', sort_order='asc'):
         # Get the full data package for each client for the current month
         data = get_billing_data_for_client(client_row['account_number'], now.year, now.month)
         if not data:
-            # --- THIS IS THE FIX ---
             # If the billing plan isn't configured, we can't calculate a bill.
             # We'll still show the client on the dashboard, but with 0 values for calculated fields.
             client = dict(client_row)
@@ -278,7 +288,6 @@ def get_billing_dashboard_data(sort_by='name', sort_order='asc'):
             client['total_backup_bytes'] = 0
             client['total_bill'] = 0.00
             clients_data.append(client)
-            # --- END OF FIX ---
             continue
 
         client = data['client']
