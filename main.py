@@ -317,7 +317,28 @@ def client_settings(account_number):
                     day = request.form.get('line_item_yearly_day')
                     log_and_execute("INSERT INTO custom_line_items (company_account_number, name, yearly_fee, yearly_bill_month, yearly_bill_day) VALUES (?, ?, ?, ?, ?)", [account_number, name, fee, int(month), int(day)])
                 flash('Custom line item added.', 'success')
+            elif action == 'add_location':
+                location_name = request.form.get('location_name')
+                address = request.form.get('address')
+                if location_name:
+                    log_and_execute("INSERT INTO client_locations (company_account_number, location_name, address) VALUES (?, ?, ?)",
+                                   [account_number, location_name, address])
+                    flash('Location added successfully.', 'success')
+                else:
+                    flash('Location Name is required.', 'error')
             elif action == 'save_overrides':
+                # Update client details
+                phone_number = request.form.get('phone_number')
+                client_start_date = request.form.get('client_start_date')
+                contract_start_date = request.form.get('contract_start_date')
+                domains = request.form.get('domains')
+                company_owner = request.form.get('company_owner')
+                business_type = request.form.get('business_type')
+
+
+                log_and_execute("UPDATE companies SET phone_number = ?, client_start_date = ?, contract_start_date = ?, domains = ?, company_owner = ?, business_type = ? WHERE account_number = ?",
+                               [phone_number, client_start_date, contract_start_date, domains, company_owner, business_type, account_number])
+
                 rate_map = {'puc': 'per_user_cost', 'pwc': 'per_workstation_cost', 'psc': 'per_server_cost', 'pvc': 'per_vm_cost', 'pswitchc': 'per_switch_cost', 'pfirewallc': 'per_firewall_cost', 'phtc': 'per_hour_ticket_cost', 'bbfw': 'backup_base_fee_workstation', 'bbfs': 'backup_base_fee_server', 'bit': 'backup_included_tb', 'bpt': 'backup_per_tb_fee', 'prepaid_hours_monthly': 'prepaid_hours_monthly', 'prepaid_hours_yearly': 'prepaid_hours_yearly'}
 
                 # Dynamically build the feature_map
@@ -376,8 +397,27 @@ def client_settings(account_number):
             log_and_execute("DELETE FROM custom_line_items WHERE id = ?", [request.args.get('delete_line_item')])
             flash('Custom line item deleted.', 'success')
             return redirect(url_for('client_settings', account_number=account_number))
+        if request.args.get('delete_location'):
+            log_and_execute("DELETE FROM client_locations WHERE id = ?", [request.args.get('delete_location')])
+            flash('Location deleted.', 'success')
+            return redirect(url_for('client_settings', account_number=account_number))
 
-        client_info = query_db("SELECT * FROM companies WHERE account_number = ?", [account_number], one=True)
+        client_info_raw = query_db("SELECT * FROM companies WHERE account_number = ?", [account_number], one=True)
+        if not client_info_raw:
+            flash(f"Client {account_number} not found.", 'error')
+            return redirect(url_for('billing_dashboard'))
+
+        client_info = dict(client_info_raw)
+
+        # Sanitize date formats for the settings page input fields
+        for date_field in ['client_start_date', 'contract_start_date']:
+            if client_info.get(date_field):
+                try:
+                    client_info[date_field] = client_info[date_field].split('T')[0]
+                except (ValueError, TypeError, IndexError):
+                    pass # Keep original if format is unexpected
+
+        locations = query_db("SELECT * FROM client_locations WHERE company_account_number = ?", [account_number])
         default_plan = query_db("SELECT * FROM billing_plans WHERE billing_plan = ? AND term_length = ?", [client_info['billing_plan'], client_info['contract_term_length']], one=True)
         overrides_row = query_db("SELECT * FROM client_billing_overrides WHERE company_account_number = ?", [account_number], one=True)
         assets = query_db("SELECT * FROM assets WHERE company_account_number = ?", [account_number])
@@ -390,13 +430,25 @@ def client_settings(account_number):
         today = datetime.now(timezone.utc)
         month_options = [{'value': (today + timedelta(days=31*i)).strftime('%Y-%m'), 'name': (today + timedelta(days=31*i)).strftime('%B %Y')} for i in range(12)]
 
-        return render_template('client_settings.html', client=client_info, defaults=default_plan, overrides=dict(overrides_row) if overrides_row else {}, assets=assets, users=users, manual_assets=manual_assets, manual_users=manual_users, custom_line_items=custom_line_items, asset_overrides=asset_overrides, user_overrides=user_overrides, month_options=month_options, feature_options=feature_options)
+        return render_template('client_settings.html', client=client_info, locations=locations, defaults=default_plan, overrides=dict(overrides_row) if overrides_row else {}, assets=assets, users=users, manual_assets=manual_assets, manual_users=manual_users, custom_line_items=custom_line_items, asset_overrides=asset_overrides, user_overrides=user_overrides, month_options=month_options, feature_options=feature_options)
     except (ValueError, KeyError) as e:
         session.pop('db_password', None)
         session.pop('user_id', None)
         session.pop('username', None)
         flash(f"A database or key error occurred on settings page: {e}. Please log in again.", 'error')
         return redirect(url_for('login'))
+
+@app.route('/client/<account_number>/edit_location/<int:location_id>', methods=['POST'])
+def edit_location(account_number, location_id):
+    location_name = request.form.get('location_name')
+    address = request.form.get('address')
+    if location_name:
+        log_and_execute("UPDATE client_locations SET location_name = ?, address = ? WHERE id = ? AND company_account_number = ?",
+                       [location_name, address, location_id, account_number])
+        flash('Location updated successfully.', 'success')
+    else:
+        flash('Location Name is required.', 'error')
+    return redirect(url_for('client_settings', account_number=account_number))
 
 @app.route('/client/<account_number>/edit_manual_asset/<int:asset_id>', methods=['POST'])
 def edit_manual_asset(account_number, asset_id):
@@ -681,8 +733,12 @@ def edit_feature_type():
 @app.route('/settings/export')
 def export_settings():
     export_data = {
+        'companies': [dict(row) for row in query_db("SELECT * FROM companies")],
+        'client_locations': [dict(row) for row in query_db("SELECT * FROM client_locations")],
         'app_users': [dict(row) for row in query_db("SELECT * FROM app_users")],
         'billing_plans': [dict(row) for row in query_db("SELECT * FROM billing_plans")],
+        'feature_options': [dict(row) for row in query_db("SELECT * FROM feature_options")],
+        'custom_links': [dict(row) for row in query_db("SELECT * FROM custom_links")],
         'client_billing_overrides': [dict(row) for row in query_db("SELECT * FROM client_billing_overrides")],
         'asset_billing_overrides': [dict(row) for row in query_db("SELECT * FROM asset_billing_overrides")],
         'user_billing_overrides': [dict(row) for row in query_db("SELECT * FROM user_billing_overrides")],
@@ -707,7 +763,11 @@ def import_settings():
         return redirect(url_for('billing_settings'))
     try:
         import_data = json.load(file)
-        tables_to_process = ['app_users', 'billing_plans', 'client_billing_overrides', 'asset_billing_overrides', 'user_billing_overrides', 'manual_assets', 'manual_users', 'billing_notes', 'custom_line_items']
+        tables_to_process = [
+            'companies', 'client_locations', 'app_users', 'billing_plans', 'feature_options', 'custom_links',
+            'client_billing_overrides', 'asset_billing_overrides', 'user_billing_overrides',
+            'manual_assets', 'manual_users', 'billing_notes', 'custom_line_items'
+        ]
         for table_name in tables_to_process:
             if table_name in import_data and import_data[table_name]:
                 log_and_execute(f"DELETE FROM {table_name};")

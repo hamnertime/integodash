@@ -6,6 +6,93 @@
 
     <form method="POST" action="{{ url_for('client_settings', account_number=client.account_number) }}">
         <div class="form-section">
+            <h2>Client Details</h2>
+            <div class="form-grid">
+                <label for="phone_number">Phone Number</label>
+                <input type="text" name="phone_number" id="phone_number" value="{{ client.phone_number or '' }}">
+                <div></div>
+                <div></div>
+
+                <label for="client_start_date">Client Start Date</label>
+                <input type="date" name="client_start_date" id="client_start_date" value="{{ client.client_start_date or '' }}">
+                <div></div>
+                <div></div>
+
+                <label for="contract_start_date">Contract Start Date</label>
+                <input type="date" name="contract_start_date" id="contract_start_date" value="{{ client.contract_start_date or '' }}">
+                <div></div>
+                <div></div>
+
+                <label for="domains">Domains</label>
+                <input type="text" name="domains" id="domains" value="{{ client.domains or '' }}">
+                <div></div>
+                <div></div>
+
+                <label for="company_owner">Company Owner</label>
+                <input type="text" name="company_owner" id="company_owner" value="{{ client.company_owner or '' }}">
+                <div></div>
+                <div></div>
+
+                <label for="business_type">Business Type</label>
+                <select name="business_type" id="business_type">
+                    <option value="For Profit" {% if client.business_type == 'For Profit' %}selected{% endif %}>For Profit</option>
+                    <option value="Non-Profit" {% if client.business_type == 'Non-Profit' %}selected{% endif %}>Non-Profit</option>
+                </select>
+                <div></div>
+                <div></div>
+            </div>
+            <div class="button-container">
+                <button type="submit" name="action" value="save_overrides">Save Details</button>
+            </div>
+        </div>
+
+        <div class="form-section simple-form">
+            <h2>Locations</h2>
+            <table class="item-table">
+                <thead>
+                    <tr>
+                        <th>Location Name</th>
+                        <th>Address</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for location in locations %}
+                    <tr>
+                        <td>{{ location.location_name }}</td>
+                        <td>{{ location.address }}</td>
+                        <td>
+                            <button type="button" class="icon-button edit edit-location"
+                                data-location-id="{{ location.id }}"
+                                data-location-name="{{ location.location_name }}"
+                                data-address="{{ location.address }}">
+                                <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
+                            </button>
+                            <a href="{{ url_for('client_settings', account_number=client.account_number, delete_location=location.id) }}" class="icon-button delete" onclick="return confirm('Are you sure?')">
+                                <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <h3 style="margin-top: 20px;">Add New Location</h3>
+            <div class="form-row">
+                <div>
+                    <label for="location_name">Location Name:</label>
+                    <input type="text" id="location_name" name="location_name">
+                </div>
+                <div>
+                    <label for="address">Address:</label>
+                    <input type="text" id="address" name="address">
+                </div>
+            </div>
+            <div class="button-container">
+                <button type="submit" name="action" value="add_location">Add Location</button>
+            </div>
+        </div>
+
+        <div class="form-section">
             <h2>Billing Rate Overrides</h2>
             <div class="form-grid">
                 <div></div> <div class="header default">Default Value</div>
@@ -39,6 +126,9 @@
                 {{ rate_input('prepaid_hours_monthly', 'Pre-paid Hours (Monthly)', 'prepaid_hours_monthly') }}
                 {{ rate_input('prepaid_hours_yearly', 'Pre-paid Hours (Yearly)', 'prepaid_hours_yearly') }}
             </div>
+            <div class="button-container">
+                <button type="submit" name="action" value="save_overrides">Save All Overrides</button>
+            </div>
         </div>
 
         <div class="form-section">
@@ -62,6 +152,9 @@
                     </select>
                     <input type="checkbox" name="override_feature_{{ short_name }}_enabled" {% if overrides and overrides['override_feature_' + short_name + '_enabled'] %}checked{% endif %} title="Enable Override">
                 {% endfor %}
+            </div>
+            <div class="button-container">
+                <button type="submit" name="action" value="save_overrides">Save All Overrides</button>
             </div>
         </div>
 
@@ -115,6 +208,9 @@
                 {% endfor %}
                 </tbody>
              </table>
+             <div class="button-container">
+                <button type="submit" name="action" value="save_overrides">Save All Overrides</button>
+            </div>
         </div>
 
         <div class="form-section">
@@ -164,10 +260,9 @@
                 {% endfor %}
                 </tbody>
              </table>
-        </div>
-
-        <div class="button-container">
-            <button type="submit" name="action" value="save_overrides">Save All Overrides</button>
+             <div class="button-container">
+                <button type="submit" name="action" value="save_overrides">Save All Overrides</button>
+            </div>
         </div>
     </form>
 
@@ -394,6 +489,30 @@
                 </form>
         </div>
     </div>
+
+    <div id="locationModal" class="modal">
+        <div class="modal-content simple-form">
+            <div class="modal-header">
+                <h2 id="locationModalTitle">Edit Location</h2>
+                <span class="close-button">&times;</span>
+            </div>
+            <form id="locationModalForm" method="POST">
+                <div class="form-row">
+                    <div>
+                        <label for="locationName">Location Name:</label>
+                        <input type="text" name="location_name" id="locationName" required>
+                    </div>
+                    <div>
+                        <label for="locationAddress">Address:</label>
+                        <input type="text" name="address" id="locationAddress">
+                    </div>
+                </div>
+                <div class="button-container">
+                    <button type="submit">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
 {% endblock %}
 
 {% block scripts %}
@@ -419,12 +538,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const manualAssetModal = document.getElementById('manualAssetModal');
     const manualUserModal = document.getElementById('manualUserModal');
     const lineItemModal = document.getElementById('lineItemModal');
+    const locationModal = document.getElementById('locationModal');
     const closeButtons = document.querySelectorAll('.close-button');
 
     function closeModal() {
         manualAssetModal.style.display = 'none';
         manualUserModal.style.display = 'none';
         lineItemModal.style.display = 'none';
+        locationModal.style.display = 'none';
     }
 
     closeButtons.forEach(button => {
@@ -432,7 +553,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     window.onclick = (event) => {
-        if (event.target == manualAssetModal || event.target == manualUserModal || event.target == lineItemModal) {
+        if (event.target == manualAssetModal || event.target == manualUserModal || event.target == lineItemModal || event.target == locationModal) {
             closeModal();
         }
     }
@@ -456,6 +577,16 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('manualUserBillingType').value = this.dataset.billingType;
             document.getElementById('manualUserCustomCost').value = this.dataset.customCost;
             manualUserModal.style.display = 'block';
+        });
+    });
+
+    document.querySelectorAll('.edit-location').forEach(button => {
+        button.addEventListener('click', function() {
+            const locationId = this.dataset.locationId;
+            document.getElementById('locationModalForm').action = `/client/{{ client.account_number }}/edit_location/${locationId}`;
+            document.getElementById('locationName').value = this.dataset.locationName;
+            document.getElementById('locationAddress').value = this.dataset.address;
+            locationModal.style.display = 'block';
         });
     });
 

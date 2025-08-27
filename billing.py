@@ -16,7 +16,18 @@ def get_billing_data_for_client(account_number, year, month):
 
     client_info = dict(client_info_raw) # Make it a mutable dictionary
 
+    # Sanitize date formats before doing anything else
+    for date_field in ['client_start_date', 'contract_start_date']:
+        if client_info.get(date_field):
+            try:
+                date_str_only = client_info[date_field].split('T')[0]
+                datetime.fromisoformat(date_str_only) # Validate it's a date
+                client_info[date_field] = date_str_only
+            except (ValueError, TypeError, IndexError):
+                pass # Keep original value if it's not a valid date string
+
     # --- 1. Fetch all raw data from the database ---
+    locations = [dict(r) for r in query_db("SELECT * FROM client_locations WHERE company_account_number = ? ORDER BY location_name", [account_number])]
     assets = [dict(r) for r in query_db("SELECT * FROM assets WHERE company_account_number = ? ORDER BY hostname", [account_number])]
     manual_assets = [dict(r) for r in query_db("SELECT * FROM manual_assets WHERE company_account_number = ? ORDER BY hostname", [account_number])]
     users = [dict(r) for r in query_db("SELECT * FROM users WHERE company_account_number = ? AND status = 'Active' ORDER BY full_name", [account_number])]
@@ -33,12 +44,8 @@ def get_billing_data_for_client(account_number, year, month):
     current_year = datetime.now().year
     all_tickets_this_year = [dict(r) for r in query_db("SELECT * FROM ticket_details WHERE company_account_number = ? AND strftime('%Y', last_updated_at) = ?", [account_number, str(current_year)] )]
 
-    # --- THIS IS THE FIX ---
-    # If the plan doesn't exist in the database, we can't calculate a bill.
-    # Return None to signal the calling route to handle this gracefully.
     if not plan_details:
         return None
-    # --- END OF FIX ---
 
     # --- 2. Determine the Effective Billing Rates ---
     effective_rates = dict(plan_details) if plan_details else {}
@@ -62,17 +69,10 @@ def get_billing_data_for_client(account_number, year, month):
 
     # --- 2a. Calculate Contract End Date ---
     contract_end_date = "N/A"
+    contract_expired = False
     if client_info['contract_start_date'] and client_info['contract_term_length']:
         try:
-            # Extract the date part from the string, which might contain extra text.
-            date_str_full = client_info['contract_start_date'].split()[-1]
-            # Isolate just the date part by splitting at 'T' and taking the first part.
-            date_str_only = date_str_full.split('T')[0]
-            # Clean and parse the extracted date string.
-            start_date = datetime.fromisoformat(date_str_only)
-
-            # Reformat the start date for clean display in the template
-            client_info['contract_start_date'] = start_date.strftime('%Y-%m-%d')
+            start_date = datetime.fromisoformat(client_info['contract_start_date'])
 
             term = client_info['contract_term_length']
             years_to_add = 0
@@ -84,8 +84,10 @@ def get_billing_data_for_client(account_number, year, month):
                 years_to_add = 3
 
             if years_to_add > 0:
-                # Add years and subtract one day to get the end date
-                contract_end_date = (start_date.replace(year=start_date.year + years_to_add) - timedelta(days=1)).strftime('%Y-%m-%d')
+                end_date = start_date.replace(year=start_date.year + years_to_add) - timedelta(days=1)
+                contract_end_date = end_date.strftime('%Y-%m-%d')
+                if datetime.now().date() > end_date.date():
+                    contract_expired = True
             elif term == 'Month to Month':
                 contract_end_date = "Month to Month"
 
@@ -231,6 +233,7 @@ def get_billing_data_for_client(account_number, year, month):
 
     return {
         'client': client_info,
+        'locations': locations,
         'assets': assets, 'manual_assets': manual_assets,
         'users': users, 'manual_users': manual_users,
         'custom_line_items': custom_line_items,
@@ -247,6 +250,7 @@ def get_billing_data_for_client(account_number, year, month):
         'hours_last_month': hours_last_month,
         'support_level_display': support_level_display,
         'contract_end_date': contract_end_date,
+        'contract_expired': contract_expired,
     }
 
 def get_billing_dashboard_data(sort_by='name', sort_order='asc'):

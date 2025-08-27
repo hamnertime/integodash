@@ -107,9 +107,35 @@ def import_data_to_new_db(con, data):
     cur = con.cursor()
     print("\nImporting data into the new database schema...")
 
-    for table_name, rows in data.items():
-        if not rows:
+    # Define the correct order for table imports to respect foreign key constraints
+    table_import_order = [
+        'api_keys',
+        'companies',
+        'app_users',
+        'billing_plans',
+        'feature_options',
+        'custom_links',
+        'scheduler_jobs',
+        'assets',
+        'users',
+        'client_locations',
+        'manual_assets',
+        'manual_users',
+        'custom_line_items',
+        'billing_notes',
+        'client_attachments',
+        'ticket_details',
+        'client_billing_overrides',
+        'asset_billing_overrides',
+        'user_billing_overrides',
+        'audit_log'
+    ]
+
+    for table_name in table_import_order:
+        if table_name not in data or not data[table_name]:
             continue
+
+        rows = data[table_name]
 
         try:
             # Get the columns of the *new* table
@@ -176,7 +202,22 @@ def create_database(new_password, existing_data=None):
             status TEXT,
             contract_term_length TEXT,
             contract_start_date TEXT,
-            support_level TEXT
+            support_level TEXT,
+            phone_number TEXT,
+            client_start_date TEXT,
+            domains TEXT,
+            company_owner TEXT,
+            business_type TEXT
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS client_locations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            company_account_number TEXT NOT NULL,
+            location_name TEXT NOT NULL,
+            address TEXT,
+            FOREIGN KEY (company_account_number) REFERENCES companies (account_number) ON DELETE CASCADE,
+            UNIQUE (company_account_number, location_name)
         )
     """)
     cur.execute("CREATE TABLE IF NOT EXISTS assets (id INTEGER PRIMARY KEY, company_account_number TEXT, datto_uid TEXT UNIQUE, hostname TEXT, friendly_name TEXT, device_type TEXT, billing_type TEXT, status TEXT, date_added TEXT, operating_system TEXT, backup_data_bytes INTEGER, FOREIGN KEY (company_account_number) REFERENCES companies (account_number))")

@@ -18,6 +18,13 @@ FRESHSERVICE_DOMAIN = "integotecllc.freshservice.com"
 ACCOUNT_NUMBER_FIELD = "account_number"
 CONTRACT_TERM_FIELD = "contract_term_length"
 CONTRACT_START_DATE_FIELD = "contract_start_date"
+PHONE_NUMBER_FIELD = "company_main_number"
+CLIENT_START_DATE_FIELD = "company_start_date"
+BUSINESS_TYPE_FIELD = "profit_or_non_profit"
+BUSINESS_EMAIL_FIELD = "business_email"
+ADDRESS_FIELD = "address"
+
+
 COMPANIES_PER_PAGE = 100
 MAX_RETRIES = 3
 
@@ -87,6 +94,8 @@ def get_all_users(base_url, headers):
 def populate_companies_database(db_connection, companies_data):
     cur = db_connection.cursor()
     companies_to_insert = []
+    locations_to_upsert = []
+    email_overrides_to_upsert = []
     start_of_year = date(date.today().year, 1, 1).isoformat()
 
     print("\nProcessing and logging contract details for each company...")
@@ -100,6 +109,14 @@ def populate_companies_database(db_connection, companies_data):
 
         term_length = custom_fields.get(CONTRACT_TERM_FIELD)
         start_date = custom_fields.get(CONTRACT_START_DATE_FIELD)
+        phone_number = custom_fields.get(PHONE_NUMBER_FIELD)
+        address = custom_fields.get(ADDRESS_FIELD)
+        client_start_date = custom_fields.get(CLIENT_START_DATE_FIELD)
+        domains = ', '.join(c.get('domains', []))
+        company_owner = c.get('head_name')
+        business_type = custom_fields.get(BUSINESS_TYPE_FIELD)
+        business_email = custom_fields.get(BUSINESS_EMAIL_FIELD)
+
 
         log_msg_prefix = f"-> {company_name}:"
 
@@ -123,14 +140,32 @@ def populate_companies_database(db_connection, companies_data):
             custom_fields.get('plan_selected', 'Unknown'),
             term_length,
             start_date,
-            custom_fields.get('support_level', 'Billed Hourly')
+            custom_fields.get('support_level', 'Billed Hourly'),
+            phone_number,
+            client_start_date,
+            domains,
+            company_owner,
+            business_type
         ))
+
+        if address:
+            locations_to_upsert.append({
+                'account_number': str(account_number),
+                'location_name': 'Main Office',
+                'address': address
+            })
+
+        if business_email:
+            email_overrides_to_upsert.append({
+                'account_number': str(account_number),
+                'email_feature': business_email
+            })
 
     if not companies_to_insert: return
 
     cur.executemany("""
-        INSERT INTO companies (account_number, name, freshservice_id, contract_type, billing_plan, contract_term_length, contract_start_date, support_level)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO companies (account_number, name, freshservice_id, contract_type, billing_plan, contract_term_length, contract_start_date, support_level, phone_number, client_start_date, domains, company_owner, business_type)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(freshservice_id) DO UPDATE SET
             name=excluded.name,
             account_number=excluded.account_number,
@@ -138,9 +173,49 @@ def populate_companies_database(db_connection, companies_data):
             billing_plan=excluded.billing_plan,
             contract_term_length=excluded.contract_term_length,
             contract_start_date=excluded.contract_start_date,
-            support_level=excluded.support_level
+            support_level=excluded.support_level,
+            phone_number=excluded.phone_number,
+            client_start_date=excluded.client_start_date,
+            domains=excluded.domains,
+            company_owner=excluded.company_owner,
+            business_type=excluded.business_type
     """, companies_to_insert)
     print(f"\nSuccessfully inserted/updated {cur.rowcount} companies in the database.")
+
+    if locations_to_upsert:
+        print("\nUpserting Main Office locations...")
+        upsert_count = 0
+        for loc in locations_to_upsert:
+            # Check if the company exists before trying to insert a location
+            cur.execute("SELECT 1 FROM companies WHERE account_number = ?", (loc['account_number'],))
+            if cur.fetchone():
+                cur.execute("""
+                    INSERT INTO client_locations (company_account_number, location_name, address)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(company_account_number, location_name) DO UPDATE SET
+                        address=excluded.address
+                """, (loc['account_number'], loc['location_name'], loc['address']))
+                upsert_count += cur.rowcount
+            else:
+                print(f"  - ⚠️  Skipping location for non-existent company account: {loc['account_number']}", file=sys.stderr)
+
+        print(f"Successfully upserted {upsert_count} Main Office locations.")
+
+    if email_overrides_to_upsert:
+        print("\nUpserting Email feature overrides from Freshservice...")
+        override_count = 0
+        for override in email_overrides_to_upsert:
+            cur.execute("SELECT 1 FROM companies WHERE account_number = ?", (override['account_number'],))
+            if cur.fetchone():
+                cur.execute("""
+                    INSERT INTO client_billing_overrides (company_account_number, feature_email, override_feature_email_enabled)
+                    VALUES (?, ?, 1)
+                    ON CONFLICT(company_account_number) DO UPDATE SET
+                        feature_email=excluded.feature_email,
+                        override_feature_email_enabled=1
+                """, (override['account_number'], override['email_feature']))
+                override_count += cur.rowcount
+        print(f"Successfully upserted {override_count} Email feature overrides.")
 
 
 def populate_users_database(db_connection, users_to_insert):
