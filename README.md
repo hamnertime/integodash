@@ -11,6 +11,7 @@ Built with a focus on security and automation, Integodash uses a fully encrypted
 - **Secure Credential Storage**: All API keys and sensitive data are stored in a fully-encrypted SQLCipher database file.
 - **Web-Based UI Unlock**: The master password for the database is entered through a secure login page. No environment variables or plain text tokens are needed for day-to-day operation.
 - **SSL Encryption**: All web traffic between your browser and the server is encrypted using a self-generated SSL certificate.
+- **Dark/Light Theme Toggle**: User-selectable interface theme.
 - **Automated Background Syncing**: A built-in scheduler automatically runs data sync jobs in the background after the first successful login.
 - **Configurable Scheduler**: Enable, disable, and change the schedule for each sync job directly from the web UI.
 - **Billing Overview Dashboard**: A high-level view of client billing metrics based on users, devices, and contract types.
