@@ -71,19 +71,19 @@ These credentials will be stored securely inside the encrypted database.
 
 Here is a breakdown of the Python files in this project and their functions:
 
-* main.py: The main Flask application file. It contains all the web routes, handles user sessions, and serves the HTML templates.  
-* billing.py: Contains all the core logic for calculating client bills. It fetches data from the database, applies overrides, and calculates totals for users, assets, tickets, and backups.  
-* database.py: Manages the connection to the encrypted SQLCipher database. It includes helper functions for querying and writing data, as well as logging all database transactions for auditing purposes.  
-* init\_db.py: A one-time setup script that creates the encrypted database, builds the schema, and prompts the user for their API keys. It can also be used to migrate data from an older version of the database.  
-* scheduler.py: A simple script that is called by the background scheduler to run the data sync jobs as separate processes. It handles logging the output and status of each job back to the database.  
-* generate\_cert.py: A utility script to generate the self-signed SSL certificate (cert.pem) and private key (key.pem) required to run the web server over HTTPS.  
-* pull\_freshservice.py: A data sync script that connects to the Freshservice API to pull in all company and user information and stores it in the local database.  
-* pull\_datto.py: A data sync script that connects to the Datto RMM API to pull in all client site and device (asset) information.  
-* pull\_ticket\_details.py: A data sync script that fetches all closed tickets from Freshservice and calculates the total time spent on each, which is then used for billing calculations.  
-* set\_account\_numbers.py: A utility script that can be run to automatically assign a unique account number to any company in Freshservice that is missing one.  
-* push\_account\_nums\_to\_datto.py: A utility script that matches clients between Freshservice and Datto RMM and pushes the Freshservice account number to a custom field in Datto RMM for cross-platform linking.  
-* dump\_settings.py: A developer utility to export the default billing plans from the database into a Python-friendly format that can be used in init\_db.py.  
-* debug\_freshservice\_client.py: A command-line tool for developers to quickly fetch and view the raw JSON data for a specific client from the Freshservice API.
+* **main.py**: The main Flask application file. It contains all the web routes, handles user sessions, and serves the HTML templates.  
+* **billing.py**: Contains all the core logic for calculating client bills. It fetches data from the database, applies overrides, and calculates totals for users, assets, tickets, and backups.  
+* **database.py**: Manages the connection to the encrypted SQLCipher database. It includes helper functions for querying and writing data, as well as logging all database transactions for auditing purposes.  
+* **init\_db.py**: A one-time setup script that creates the encrypted database, builds the schema, and prompts the user for their API keys. It can also be used to migrate data from an older version of the database.  
+* **scheduler.py**: A simple script that is called by the background scheduler to run the data sync jobs as separate processes. It handles logging the output and status of each job back to the database.  
+* **generate\_cert.py**: A utility script to generate the self-signed SSL certificate (cert.pem) and private key (key.pem) required to run the web server over HTTPS.  
+* **pull\_freshservice.py**: A data sync script that connects to the Freshservice API to pull in all company and user information and stores it in the local database.  
+* **pull\_datto.py**: A data sync script that connects to the Datto RMM API to pull in all client site and device (asset) information.  
+* **pull\_ticket\_details.py**: A data sync script that fetches all closed tickets from Freshservice and calculates the total time spent on each, which is then used for billing calculations.  
+* **set\_account\_numbers.py**: A utility script that can be run to automatically assign a unique account number to any company in Freshservice that is missing one.  
+* **push\_account\_nums\_to\_datto.py**: A utility script that matches clients between Freshservice and Datto RMM and pushes the Freshservice account number to a custom field in Datto RMM for cross-platform linking.  
+* **dump\_settings.py**: A developer utility to export the default billing plans from the database into a Python-friendly format that can be used in init\_db.py.  
+* **debug\_freshservice\_client.py**: A command-line tool for developers to quickly fetch and view the raw JSON data for a specific client from the Freshservice API.
 
 ## **Usage**
 
