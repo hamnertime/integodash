@@ -56,12 +56,12 @@ default_plans_data = [
 ]
 
 default_features = [
-    ('Antivirus', 'Datto EDR'), ('Antivirus', 'SentinelOne'), ('Antivirus', 'Not Included'),
-    ('SOC', 'RocketCyber'), ('SOC', 'Not Included'),
-    ('Email', 'Google Workspace'), ('Email', 'Microsoft 365'), ('Email', 'Other Business Email'), ('Email', 'No Business Email'),
-    ('Phone', 'Zoom'), ('Phone', 'DFN'), ('Phone', 'Spectrum'), ('Phone', 'RingCentral'), ('Phone', 'Personal Cell'), ('Phone', 'No Business Phone'),
-    ('SAT', 'BSN'), ('SAT', 'Not Included'),
-    ('Password Manager', 'Keeper'), ('Password Manager', 'Not Included'),
+    ('Antivirus', 'Not Included'), ('Antivirus', 'Datto EDR'), ('Antivirus', 'SentinelOne'),
+    ('SOC', 'Not Included'), ('SOC', 'RocketCyber'),
+    ('Email', 'No Business Email'), ('Email', 'Google Workspace'), ('Email', 'Microsoft 365'), ('Email', 'Other Business Email'),
+    ('Phone', 'No Business Phone'), ('Phone', 'Zoom'), ('Phone', 'DFN'), ('Phone', 'Spectrum'), ('Phone', 'RingCentral'), ('Phone', 'Personal Cell'),
+    ('SAT', 'Not Included'), ('SAT', 'BSN'),
+    ('Password Manager', 'Not Included'), ('Password Manager', 'Keeper'),
 ]
 
 def export_data_from_old_db(password):
