@@ -1,4 +1,4 @@
-# hamnertime/integodash/integodash-fda17dde7f19ded546de5dbffc8ee99ff55ec5f3/main.py
+# hamnertime/integodash/integodash-76ac7162b1c717651e4becef3e50446477f85a63/main.py
 import os
 import sys
 import time
@@ -167,8 +167,8 @@ def billing_dashboard():
         flash(f"An error occurred on the dashboard: {e}. Please log in again.", 'error')
         return redirect(url_for('login'))
 
-@app.route('/client/<account_number>/breakdown', methods=['GET', 'POST'])
-def client_breakdown(account_number):
+@app.route('/client/<account_number>/details', methods=['GET', 'POST'])
+def client_billing_details(account_number):
     try:
         if request.method == 'POST':
             action = request.form.get('action')
@@ -180,12 +180,12 @@ def client_breakdown(account_number):
                     flash('Note added successfully.', 'success')
                 else:
                     flash('Note content cannot be empty.', 'error')
-            return redirect(url_for('client_breakdown', account_number=account_number))
+            return redirect(url_for('client_billing_details', account_number=account_number))
 
         if request.args.get('delete_note'):
             log_and_execute("DELETE FROM billing_notes WHERE id = ?", [request.args.get('delete_note')])
             flash('Note deleted.', 'success')
-            return redirect(url_for('client_breakdown', account_number=account_number))
+            return redirect(url_for('client_billing_details', account_number=account_number))
 
         today = datetime.now(timezone.utc)
         first_day_of_current_month = today.replace(day=1)
@@ -213,7 +213,7 @@ def client_breakdown(account_number):
         selected_billing_period = datetime(year, month, 1).strftime('%B %Y')
 
         return render_template(
-            'client_breakdown.html',
+            'client_billing_details.html',
             **breakdown_data,
             selected_year=year,
             selected_month=month,
@@ -226,7 +226,7 @@ def client_breakdown(account_number):
         session.pop('db_password', None)
         session.pop('user_id', None)
         session.pop('username', None)
-        flash(f"An error occurred on breakdown page: {e}. Please log in again.", 'error')
+        flash(f"An error occurred on details page: {e}. Please log in again.", 'error')
         return redirect(url_for('login'))
 
 @app.route('/client/<account_number>/note/<int:note_id>/edit', methods=['GET', 'POST'])
@@ -234,7 +234,7 @@ def edit_note(account_number, note_id):
     note = query_db("SELECT * FROM billing_notes WHERE id = ? AND company_account_number = ?", [note_id, account_number], one=True)
     if not note:
         flash("Note not found.", "error")
-        return redirect(url_for('client_breakdown', account_number=account_number))
+        return redirect(url_for('client_billing_details', account_number=account_number))
     if request.method == 'POST':
         new_content = request.form.get('note_content')
         if new_content:
@@ -242,10 +242,10 @@ def edit_note(account_number, note_id):
             flash("Note updated successfully.", "success")
         else:
             flash("Note content cannot be empty.", "error")
-        return redirect(url_for('client_breakdown', account_number=account_number))
+        return redirect(url_for('client_billing_details', account_number=account_number))
     # This part is no longer needed as we are using a modal
     flash("This action should be performed via the modal.", "error")
-    return redirect(url_for('client_breakdown', account_number=account_number))
+    return redirect(url_for('client_billing_details', account_number=account_number))
 
 @app.route('/client/<account_number>/edit_line_item/<int:item_id>', methods=['GET', 'POST'])
 def edit_line_item(account_number, item_id):
@@ -488,11 +488,11 @@ def edit_manual_user(account_number, user_id):
 def upload_file(account_number):
     if 'file' not in request.files:
         flash('No file part', 'error')
-        return redirect(url_for('client_breakdown', account_number=account_number))
+        return redirect(url_for('client_billing_details', account_number=account_number))
     file = request.files['file']
     if file.filename == '':
         flash('No selected file', 'error')
-        return redirect(url_for('client_breakdown', account_number=account_number))
+        return redirect(url_for('client_billing_details', account_number=account_number))
     if file and allowed_file(file.filename):
         original_filename = secure_filename(file.filename)
         stored_filename = f"{uuid.uuid4().hex}_{original_filename}"
@@ -506,7 +506,7 @@ def upload_file(account_number):
         flash('File uploaded successfully!', 'success')
     else:
         flash('File type not allowed.', 'error')
-    return redirect(url_for('client_breakdown', account_number=account_number))
+    return redirect(url_for('client_billing_details', account_number=account_number))
 
 @app.route('/uploads/<account_number>/<filename>')
 def download_file(account_number, filename):
@@ -533,7 +533,7 @@ def delete_attachment(account_number, attachment_id):
         flash("Attachment deleted successfully.", 'success')
     else:
         flash("Attachment not found.", 'error')
-    return redirect(url_for('client_breakdown', account_number=account_number))
+    return redirect(url_for('client_billing_details', account_number=account_number))
 
 @app.route('/settings', methods=['GET', 'POST'])
 def billing_settings():

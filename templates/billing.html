@@ -1,3 +1,4 @@
+<!-- hamnertime/integodash/integodash-76ac7162b1c717651e4becef3e50446477f85a63/templates/billing.html -->
 {% extends "layout.html" %}
 {% block title %}Billing Dashboard{% endblock %}
 
@@ -53,7 +54,7 @@
         {% if clients %}
             {% for client in clients %}
             <tr>
-                <td><strong><a href="{{ url_for('client_breakdown', account_number=client.account_number) }}">{{ client.name }}</a></strong></td>
+                <td><strong><a href="{{ url_for('client_billing_details', account_number=client.account_number) }}">{{ client.name }}</a></strong></td>
                 <td>{{ client['billing_plan'] }}</td>
                 <td>{{ client['workstations'] }}</td>
                 <td>{{ client['servers'] }}</td>

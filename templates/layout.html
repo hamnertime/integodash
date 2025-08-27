@@ -11,9 +11,9 @@
     <nav class="navbar">
         <div class="logo">Integodash</div>
         <div class="nav-links">
-            <a href="{{ url_for('billing_dashboard') }}" class="{{ 'active' if request.endpoint == 'billing_dashboard' else '' }}">Overview</a>
+            <a href="{{ url_for('billing_dashboard') }}" class="{{ 'active' if request.endpoint == 'billing_dashboard' else '' }}">Billing Overview</a>
             {% if client and client.account_number %}
-                <a href="{{ url_for('client_breakdown', account_number=client.account_number) }}" class="{{ 'active' if request.endpoint == 'client_breakdown' else '' }}">Client Details</a>
+                <a href="{{ url_for('client_billing_details', account_number=client.account_number) }}" class="{{ 'active' if request.endpoint == 'client_billing_details' else '' }}">Client Billing Details</a>
                 <a href="{{ url_for('client_settings', account_number=client.account_number) }}" class="{{ 'active' if request.endpoint == 'client_settings' else '' }}">Client Overrides</a>
             {% endif %}
             {% for link in custom_links %}
