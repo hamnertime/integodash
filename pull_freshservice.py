@@ -16,8 +16,6 @@ except ImportError:
 DB_FILE = "brainhair.db"
 FRESHSERVICE_DOMAIN = "integotecllc.freshservice.com"
 ACCOUNT_NUMBER_FIELD = "account_number"
-CONTRACT_TERM_FIELD = "contract_term_length"
-CONTRACT_START_DATE_FIELD = "contract_start_date"
 PHONE_NUMBER_FIELD = "company_main_number"
 CLIENT_START_DATE_FIELD = "company_start_date"
 BUSINESS_TYPE_FIELD = "profit_or_non_profit"
@@ -107,8 +105,6 @@ def populate_companies_database(db_connection, companies_data):
         if not account_number:
             continue
 
-        term_length = custom_fields.get(CONTRACT_TERM_FIELD)
-        start_date = custom_fields.get(CONTRACT_START_DATE_FIELD)
         phone_number = custom_fields.get(PHONE_NUMBER_FIELD)
         address = custom_fields.get(ADDRESS_FIELD)
         client_start_date = custom_fields.get(CLIENT_START_DATE_FIELD)
@@ -120,26 +116,12 @@ def populate_companies_database(db_connection, companies_data):
 
         log_msg_prefix = f"-> {company_name}:"
 
-        if not term_length:
-            print(f"{log_msg_prefix} No contract term found. Defaulting to '1-Year'.")
-            term_length = '1-Year'
-        else:
-            print(f"{log_msg_prefix} Found contract term: '{term_length}'.")
-
-        if not start_date:
-            print(f"{log_msg_prefix} No start date found. Defaulting to '{start_of_year}'.")
-            start_date = start_of_year
-        else:
-             print(f"{log_msg_prefix} Found start date: '{start_date}'.")
-
         companies_to_insert.append((
             str(account_number),
             c.get('name'),
             c.get('id'),
             custom_fields.get('type_of_client', 'Unknown'),
             custom_fields.get('plan_selected', 'Unknown'),
-            term_length,
-            start_date,
             custom_fields.get('support_level', 'Billed Hourly'),
             phone_number,
             client_start_date,
@@ -164,15 +146,13 @@ def populate_companies_database(db_connection, companies_data):
     if not companies_to_insert: return
 
     cur.executemany("""
-        INSERT INTO companies (account_number, name, freshservice_id, contract_type, billing_plan, contract_term_length, contract_start_date, support_level, phone_number, client_start_date, domains, company_owner, business_type)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO companies (account_number, name, freshservice_id, contract_type, billing_plan, support_level, phone_number, client_start_date, domains, company_owner, business_type)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(freshservice_id) DO UPDATE SET
             name=excluded.name,
             account_number=excluded.account_number,
             contract_type=excluded.contract_type,
             billing_plan=excluded.billing_plan,
-            contract_term_length=excluded.contract_term_length,
-            contract_start_date=excluded.contract_start_date,
             support_level=excluded.support_level,
             phone_number=excluded.phone_number,
             client_start_date=excluded.client_start_date,

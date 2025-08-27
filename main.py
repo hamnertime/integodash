@@ -331,13 +331,15 @@ def client_settings(account_number):
                 phone_number = request.form.get('phone_number')
                 client_start_date = request.form.get('client_start_date')
                 contract_start_date = request.form.get('contract_start_date')
+                contract_term_length = request.form.get('contract_term_length')
                 domains = request.form.get('domains')
                 company_owner = request.form.get('company_owner')
                 business_type = request.form.get('business_type')
+                description = request.form.get('description')
 
 
-                log_and_execute("UPDATE companies SET phone_number = ?, client_start_date = ?, contract_start_date = ?, domains = ?, company_owner = ?, business_type = ? WHERE account_number = ?",
-                               [phone_number, client_start_date, contract_start_date, domains, company_owner, business_type, account_number])
+                log_and_execute("UPDATE companies SET phone_number = ?, client_start_date = ?, contract_start_date = ?, contract_term_length = ?, domains = ?, company_owner = ?, business_type = ?, description = ? WHERE account_number = ?",
+                               [phone_number, client_start_date, contract_start_date, contract_term_length, domains, company_owner, business_type, description, account_number])
 
                 rate_map = {'puc': 'per_user_cost', 'pwc': 'per_workstation_cost', 'psc': 'per_server_cost', 'pvc': 'per_vm_cost', 'pswitchc': 'per_switch_cost', 'pfirewallc': 'per_firewall_cost', 'phtc': 'per_hour_ticket_cost', 'bbfw': 'backup_base_fee_workstation', 'bbfs': 'backup_base_fee_server', 'bit': 'backup_included_tb', 'bpt': 'backup_per_tb_fee', 'prepaid_hours_monthly': 'prepaid_hours_monthly', 'prepaid_hours_yearly': 'prepaid_hours_yearly'}
 

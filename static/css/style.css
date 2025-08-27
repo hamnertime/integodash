@@ -179,7 +179,19 @@ color: var(--text-color);
 .form-section { background-color: var(--card-bg); padding: 25px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 30px; }
 .form-grid { display: grid; grid-template-columns: auto 1fr 1fr auto; gap: 15px 20px; align-items: center; }
 .form-grid label { font-weight: bold; text-align: right; }
-.form-grid input[type="number"], .form-grid input[type="text"], .form-grid input[type="date"], .form-grid select { width: 100%; padding: 8px; border: 1px solid var(--input-border); border-radius: 4px; box-sizing: border-box; background-color: var(--input-bg); color: var(--text-color); }
+.form-grid input[type="number"], .form-grid input[type="text"], .form-grid input[type="date"], .form-grid select, .form-grid textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--input-border);
+    border-radius: 4px;
+    box-sizing: border-box;
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    font-family: inherit;
+}
+.form-grid textarea {
+    grid-column: 2 / span 3;
+}
 .form-grid .header { font-weight: bold; color: var(--text-color); text-align: center;}
 .form-grid .header.default { grid-column: 2; }
 .form-grid .header.override { grid-column: 3; }

@@ -23,6 +23,16 @@
                 <div></div>
                 <div></div>
 
+                <label for="contract_term_length">Contract Term</label>
+                <select name="contract_term_length" id="contract_term_length">
+                    <option value="Month to Month" {% if client.contract_term_length == 'Month to Month' %}selected{% endif %}>Month to Month</option>
+                    <option value="1-Year" {% if client.contract_term_length == '1-Year' %}selected{% endif %}>1-Year</option>
+                    <option value="2-Year" {% if client.contract_term_length == '2-Year' %}selected{% endif %}>2-Year</option>
+                    <option value="3-Year" {% if client.contract_term_length == '3-Year' %}selected{% endif %}>3-Year</option>
+                </select>
+                <div></div>
+                <div></div>
+
                 <label for="domains">Domains</label>
                 <input type="text" name="domains" id="domains" value="{{ client.domains or '' }}">
                 <div></div>
@@ -40,6 +50,9 @@
                 </select>
                 <div></div>
                 <div></div>
+
+                <label for="description">Description</label>
+                <textarea name="description" id="description" rows="4">{{ client.description or '' }}</textarea>
             </div>
             <div class="button-container">
                 <button type="submit" name="action" value="save_overrides">Save Details</button>

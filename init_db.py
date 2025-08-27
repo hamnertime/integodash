@@ -207,7 +207,8 @@ def create_database(new_password, existing_data=None):
             client_start_date TEXT,
             domains TEXT,
             company_owner TEXT,
-            business_type TEXT
+            business_type TEXT,
+            description TEXT
         )
     """)
     cur.execute("""
