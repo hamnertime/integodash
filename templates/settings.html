@@ -44,7 +44,7 @@
                         <form action="{{ url_for('run_now', job_id=job.id) }}" method="post" style="display:inline-block; margin-right: 10px;">
                             <button type="submit">Run Now</button>
                         </form>
-                        <a class="button view-log" data-job-id="{{ job.id }}" data-job-name="{{ job.job_name }}">View Log</a>
+                        <button class="view-log" data-job-id="{{ job.id }}" data-job-name="{{ job.job_name }}">View Log</button>
                     </td>
                 </tr>
                 {% endfor %}
@@ -115,7 +115,7 @@
                             <th>Per Server ($)</th><th>Per VM ($)</th><th>Per Switch ($)</th><th>Per Firewall ($)</th>
                             <th>Per Hour Ticket Cost ($)</th><th>Backup Base (Workstation) ($)</th><th>Backup Base (Server) ($)</th>
                             <th>Backup Included (TB)</th><th>Backup per TB ($)</th>
-                            <th>Antivirus</th><th>SOC</th><th>SAT</th>
+                            <th>Antivirus</th><th>SOC</th><th>SAT</th><th>Password Manager</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -152,6 +152,13 @@
                                 <select name="feature_training_{{ plan.id }}">
                                     {% for option in feature_options.SAT %}
                                     <option value="{{ option.option_name }}" {% if plan.feature_training == option.option_name %}selected{% endif %}>{{ option.option_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <select name="feature_password_manager_{{ plan.id }}">
+                                    {% for option in feature_options['Password Manager'] %}
+                                    <option value="{{ option.option_name }}" {% if plan.feature_password_manager == option.option_name %}selected{% endif %}>{{ option.option_name }}</option>
                                     {% endfor %}
                                 </select>
                             </td>

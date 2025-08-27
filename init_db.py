@@ -1,3 +1,4 @@
+# hamnertime/integodash/integodash-71c90473f7da520b05162ec5b56e06c6ecca1f9b/init_db.py
 import sys
 import os
 import getpass
@@ -283,7 +284,7 @@ def create_database(new_password, existing_data=None):
             ('email', 'Google Workspace'), ('email', 'Microsoft 365'), ('email', 'Other Business Email'), ('email', 'No Business Email'),
             ('phone', 'Zoom'), ('phone', 'DFN'), ('phone', 'Spectrum'), ('phone', 'RingCentral'), ('phone', 'Personal Cell'), ('phone', 'No Business Phone'),
             ('SAT', 'BSN'), ('SAT', 'Not Included'),
-            ('password_manager', 'Keeper'), ('password_manager', 'Not Included'),
+            ('Password Manager', 'Keeper'), ('Password Manager', 'Not Included'),
         ]
         cur.executemany("INSERT INTO feature_options (feature_type, option_name) VALUES (?, ?)", default_features)
 

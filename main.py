@@ -1,3 +1,4 @@
+# hamnertime/integodash/integodash-71c90473f7da520b05162ec5b56e06c6ecca1f9b/main.py
 import os
 import sys
 import time
@@ -379,7 +380,7 @@ def client_settings(account_number):
 
         feature_options_raw = query_db("SELECT * FROM feature_options ORDER BY feature_type, option_name")
         feature_options = {
-            'antivirus': [], 'SOC': [], 'email': [], 'phone': [], 'SAT': [], 'password_manager': []
+            'antivirus': [], 'SOC': [], 'email': [], 'phone': [], 'SAT': [], 'Password Manager': []
         }
         for option in feature_options_raw:
             if option['feature_type'] in feature_options:
@@ -505,7 +506,7 @@ def billing_settings():
 
     feature_options_raw = query_db("SELECT * FROM feature_options ORDER BY feature_type, option_name")
     feature_options = {
-        'antivirus': [], 'SOC': [], 'email': [], 'phone': [], 'SAT': [], 'password_manager': []
+        'antivirus': [], 'SOC': [], 'email': [], 'phone': [], 'SAT': [], 'Password Manager': []
     }
     for option in feature_options_raw:
         if option['feature_type'] in feature_options:
