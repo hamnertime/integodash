@@ -235,7 +235,12 @@ def create_database(new_password, existing_data=None):
 
     for feature_type in default_feature_types:
         column_name = 'feature_' + re.sub(r'[^a-zA-Z0-9_]', '', feature_type.lower().replace(' ', '_'))
-        billing_plans_sql += f"        {column_name} TEXT DEFAULT 'Not Included',\n"
+        default_value = "'Not Included'"
+        if feature_type == 'Email':
+            default_value = "'No Business Email'"
+        elif feature_type == 'Phone':
+            default_value = "'No Business Phone'"
+        billing_plans_sql += f"        {column_name} TEXT DEFAULT {default_value},\n"
         client_overrides_sql += f"        {column_name} TEXT,\n"
         client_overrides_sql += f"        override_{column_name}_enabled BOOLEAN DEFAULT 0,\n"
 
@@ -265,14 +270,19 @@ def create_database(new_password, existing_data=None):
     if existing_data:
         # If we are migrating, import the old data
         import_data_to_new_db(con, existing_data)
-        # --- THIS IS THE FIX ---
+        # After importing, ensure all default features exist.
+        # This handles cases where new features were added in an update.
+        print("\nVerifying and inserting missing default feature options...")
+        cur = con.cursor()
+        cur.executemany("INSERT OR IGNORE INTO feature_options (feature_type, option_name) VALUES (?, ?)", default_features)
+        con.commit()
+        print("Default features are up to date.")
         # If api_keys were not in the export for some reason, we still need to ask for them.
         if 'api_keys' not in existing_data or not existing_data['api_keys']:
              print("\nCould not find existing API keys. Please enter them now.")
              get_and_set_api_keys(cur)
         else:
             print("\nSuccessfully imported existing API keys.")
-        # --- END OF FIX ---
 
     else:
         # If this is a fresh install, populate with defaults
@@ -293,8 +303,12 @@ def create_database(new_password, existing_data=None):
         print("Populating default feature options...")
         cur.executemany("INSERT INTO feature_options (feature_type, option_name) VALUES (?, ?)", default_features)
 
-        print("Adding default application user...")
-        cur.execute("INSERT INTO app_users (username) VALUES ('Admin')")
+        print("Adding default application users...")
+        default_users = [
+            'Admin', 'David Hamner', 'Jamie Lowe', 'Jesse Bassett', 'Matt Carter',
+            'Omar Flores-Lozano', 'Tasha Carter', 'Troy Pound'
+        ]
+        cur.executemany("INSERT INTO app_users (username) VALUES (?)", [(user,) for user in default_users])
 
         # This is a fresh install, so we must get the API keys
         get_and_set_api_keys(cur)
