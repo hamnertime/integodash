@@ -30,12 +30,11 @@
             </div>
             <div class="form-section">
                 <h2>Client Features</h2>
-                <p><strong>Antivirus:</strong> {{ effective_rates.feature_antivirus }}</p>
-                <p><strong>Email:</strong> {{ effective_rates.feature_email }}</p>
-                <p><strong>Phone System:</strong> {{ effective_rates.feature_phone }}</p>
-                <p><strong>SOC:</strong> {{ effective_rates.feature_soc }}</p>
-                <p><strong>SAT:</strong> {{ effective_rates.feature_training }}</p>
-                <p><strong>Password Manager:</strong> {{ effective_rates.feature_password_manager }}</p>
+                {% for feature_type, feature_value in effective_rates.items() %}
+                    {% if feature_type.startswith('feature_') %}
+                        <p><strong>{{ feature_type.replace('feature_', '').replace('_', ' ')|title }}:</strong> {{ feature_value }}</p>
+                    {% endif %}
+                {% endfor %}
             </div>
         </div>
         <div class="form-section">

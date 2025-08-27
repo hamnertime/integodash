@@ -4,6 +4,7 @@ import os
 import getpass
 import time
 import shutil
+import re
 
 # This is provided by the sqlcipher3-wheels package
 try:
@@ -48,6 +49,19 @@ default_plans_data = [
     ('Pro Services', '2-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 120.00, 25.00, 50.00, 1.0, 15.00),
     ('Pro Services', '3-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 120.00, 25.00, 50.00, 1.0, 15.00),
     ('Pro Services', 'Month to Month', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 120.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Network', '1-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 120.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Network', '2-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 120.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Network', '3-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 120.00, 25.00, 50.00, 1.0, 15.00),
+    ('MSP Network', 'Month to Month', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 120.00, 25.00, 50.00, 1.0, 15.00),
+]
+
+default_features = [
+    ('Antivirus', 'Datto EDR'), ('Antivirus', 'SentinelOne'), ('Antivirus', 'Not Included'),
+    ('SOC', 'RocketCyber'), ('SOC', 'Not Included'),
+    ('Email', 'Google Workspace'), ('Email', 'Microsoft 365'), ('Email', 'Other Business Email'), ('Email', 'No Business Email'),
+    ('Phone', 'Zoom'), ('Phone', 'DFN'), ('Phone', 'Spectrum'), ('Phone', 'RingCentral'), ('Phone', 'Personal Cell'), ('Phone', 'No Business Phone'),
+    ('SAT', 'BSN'), ('SAT', 'Not Included'),
+    ('Password Manager', 'Keeper'), ('Password Manager', 'Not Included'),
 ]
 
 def export_data_from_old_db(password):
@@ -179,7 +193,9 @@ def create_database(new_password, existing_data=None):
             FOREIGN KEY (company_account_number) REFERENCES companies (account_number)
         )
     """)
-    cur.execute("""
+
+    # Dynamically build the CREATE TABLE statements for billing_plans and client_billing_overrides
+    billing_plans_sql = """
         CREATE TABLE IF NOT EXISTS billing_plans (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             billing_plan TEXT,
@@ -195,16 +211,8 @@ def create_database(new_password, existing_data=None):
             backup_base_fee_server REAL DEFAULT 50,
             backup_included_tb REAL DEFAULT 1,
             backup_per_tb_fee REAL DEFAULT 15,
-            feature_antivirus TEXT DEFAULT 'Not Included',
-            feature_soc TEXT DEFAULT 'Not Included',
-            feature_training TEXT DEFAULT 'Not Included',
-            feature_email TEXT DEFAULT 'No Business Email',
-            feature_phone TEXT DEFAULT 'No Business Phone',
-            feature_password_manager TEXT DEFAULT 'Not Included',
-            UNIQUE (billing_plan, term_length)
-        )
-    """)
-    cur.execute("""
+    """
+    client_overrides_sql = """
         CREATE TABLE IF NOT EXISTS client_billing_overrides (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             company_account_number TEXT UNIQUE,
@@ -221,17 +229,22 @@ def create_database(new_password, existing_data=None):
             override_bit_enabled BOOLEAN DEFAULT 0, override_bpt_enabled BOOLEAN DEFAULT 0,
             override_prepaid_hours_monthly_enabled BOOLEAN DEFAULT 0,
             override_prepaid_hours_yearly_enabled BOOLEAN DEFAULT 0,
-            feature_antivirus TEXT, feature_soc TEXT, feature_training TEXT,
-            feature_phone TEXT, feature_email TEXT, feature_password_manager TEXT,
-            override_feature_antivirus_enabled BOOLEAN DEFAULT 0,
-            override_feature_soc_enabled BOOLEAN DEFAULT 0,
-            override_feature_training_enabled BOOLEAN DEFAULT 0,
-            override_feature_phone_enabled BOOLEAN DEFAULT 0,
-            override_feature_email_enabled BOOLEAN DEFAULT 0,
-            override_feature_password_manager_enabled BOOLEAN DEFAULT 0,
-            FOREIGN KEY (company_account_number) REFERENCES companies (account_number)
-        )
-    """)
+    """
+
+    default_feature_types = sorted(list(set([f[0] for f in default_features])))
+
+    for feature_type in default_feature_types:
+        column_name = 'feature_' + re.sub(r'[^a-zA-Z0-9_]', '', feature_type.lower().replace(' ', '_'))
+        billing_plans_sql += f"        {column_name} TEXT DEFAULT 'Not Included',\n"
+        client_overrides_sql += f"        {column_name} TEXT,\n"
+        client_overrides_sql += f"        override_{column_name}_enabled BOOLEAN DEFAULT 0,\n"
+
+    billing_plans_sql += "        UNIQUE (billing_plan, term_length)\n    )"
+    client_overrides_sql = client_overrides_sql.rstrip(',\n') + "\n, FOREIGN KEY (company_account_number) REFERENCES companies (account_number)\n    )"
+
+    cur.execute(billing_plans_sql)
+    cur.execute(client_overrides_sql)
+
     cur.execute("CREATE TABLE IF NOT EXISTS asset_billing_overrides (id INTEGER PRIMARY KEY AUTOINCREMENT, asset_id INTEGER UNIQUE, billing_type TEXT, custom_cost REAL, FOREIGN KEY (asset_id) REFERENCES assets (id) ON DELETE CASCADE)")
     cur.execute("CREATE TABLE IF NOT EXISTS user_billing_overrides (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER UNIQUE, billing_type TEXT, custom_cost REAL, FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE)")
     cur.execute("CREATE TABLE IF NOT EXISTS manual_assets (id INTEGER PRIMARY KEY AUTOINCREMENT, company_account_number TEXT NOT NULL, hostname TEXT NOT NULL, device_type TEXT, billing_type TEXT, custom_cost REAL, FOREIGN KEY (company_account_number) REFERENCES companies (account_number) ON DELETE CASCADE)")
@@ -278,14 +291,6 @@ def create_database(new_password, existing_data=None):
         cur.executemany("INSERT INTO billing_plans (billing_plan, term_length, per_user_cost, per_server_cost, per_workstation_cost, per_vm_cost, per_switch_cost, per_firewall_cost, per_hour_ticket_cost, backup_base_fee_workstation, backup_base_fee_server, backup_included_tb, backup_per_tb_fee) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", default_plans_data)
 
         print("Populating default feature options...")
-        default_features = [
-            ('antivirus', 'Datto EDR'), ('antivirus', 'SentinelOne'), ('antivirus', 'Not Included'),
-            ('SOC', 'RocketCyber'), ('SOC', 'Not Included'),
-            ('email', 'Google Workspace'), ('email', 'Microsoft 365'), ('email', 'Other Business Email'), ('email', 'No Business Email'),
-            ('phone', 'Zoom'), ('phone', 'DFN'), ('phone', 'Spectrum'), ('phone', 'RingCentral'), ('phone', 'Personal Cell'), ('phone', 'No Business Phone'),
-            ('SAT', 'BSN'), ('SAT', 'Not Included'),
-            ('Password Manager', 'Keeper'), ('Password Manager', 'Not Included'),
-        ]
         cur.executemany("INSERT INTO feature_options (feature_type, option_name) VALUES (?, ?)", default_features)
 
         print("Adding default application user...")

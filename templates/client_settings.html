@@ -49,8 +49,10 @@
                 <div class="header override">Override Value</div>
                 <div class="header">Enable</div>
 
-                {% macro feature_input(name, label, short_name, options) %}
-                    <label>{{ label }}</label>
+                {% for feature_type, options in feature_options.items() %}
+                    {% set name = 'feature_' + feature_type.lower().replace(' ', '_') %}
+                    {% set short_name = feature_type.lower().replace(' ', '_') %}
+                    <label>{{ feature_type }}</label>
                     <input type="text" value="{{ defaults[name] if defaults else 'Not Included' }}" disabled>
                     <select name="{{ name }}">
                         <option value="">-- No Override --</option>
@@ -59,14 +61,7 @@
                         {% endfor %}
                     </select>
                     <input type="checkbox" name="override_feature_{{ short_name }}_enabled" {% if overrides and overrides['override_feature_' + short_name + '_enabled'] %}checked{% endif %} title="Enable Override">
-                {% endmacro %}
-
-                {{ feature_input('feature_antivirus', 'Antivirus', 'antivirus', feature_options.antivirus) }}
-                {{ feature_input('feature_email', 'Email', 'email', feature_options.email) }}
-                {{ feature_input('feature_phone', 'Phone System', 'phone', feature_options.phone) }}
-                {{ feature_input('feature_soc', 'SOC', 'soc', feature_options.SOC) }}
-                {{ feature_input('feature_training', 'SAT', 'training', feature_options.SAT) }}
-                {{ feature_input('feature_password_manager', 'Password Manager', 'password_manager', feature_options['Password Manager']) }}
+                {% endfor %}
             </div>
         </div>
 

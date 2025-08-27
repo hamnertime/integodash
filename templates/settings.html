@@ -115,7 +115,9 @@
                             <th>Per Server ($)</th><th>Per VM ($)</th><th>Per Switch ($)</th><th>Per Firewall ($)</th>
                             <th>Per Hour Ticket Cost ($)</th><th>Backup Base (Workstation) ($)</th><th>Backup Base (Server) ($)</th>
                             <th>Backup Included (TB)</th><th>Backup per TB ($)</th>
-                            <th>Antivirus</th><th>SOC</th><th>SAT</th><th>Password Manager</th>
+                            {% for feature_type in feature_types %}
+                                <th>{{ feature_type }}</th>
+                            {% endfor %}
                         </tr>
                     </thead>
                     <tbody>
@@ -134,34 +136,15 @@
                             <td><input type="number" step="0.01" name="backup_base_fee_server_{{ plan.id }}" value="{{ '%.2f'|format(plan.backup_base_fee_server) }}"></td>
                             <td><input type="number" step="0.01" name="backup_included_tb_{{ plan.id }}" value="{{ '%.2f'|format(plan.backup_included_tb) }}"></td>
                             <td><input type="number" step="0.01" name="backup_per_tb_fee_{{ plan.id }}" value="{{ '%.2f'|format(plan.backup_per_tb_fee) }}"></td>
+                            {% for feature_type in feature_types %}
                             <td>
-                                <select name="feature_antivirus_{{ plan.id }}">
-                                    {% for option in feature_options.antivirus %}
-                                    <option value="{{ option.option_name }}" {% if plan.feature_antivirus == option.option_name %}selected{% endif %}>{{ option.option_name }}</option>
+                                <select name="feature_{{ feature_type.lower().replace(' ', '_') }}_{{ plan.id }}">
+                                    {% for option in feature_options[feature_type] %}
+                                    <option value="{{ option.option_name }}" {% if plan['feature_' + feature_type.lower().replace(' ', '_')] == option.option_name %}selected{% endif %}>{{ option.option_name }}</option>
                                     {% endfor %}
                                 </select>
                             </td>
-                            <td>
-                                 <select name="feature_soc_{{ plan.id }}">
-                                    {% for option in feature_options.SOC %}
-                                    <option value="{{ option.option_name }}" {% if plan.feature_soc == option.option_name %}selected{% endif %}>{{ option.option_name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </td>
-                            <td>
-                                <select name="feature_training_{{ plan.id }}">
-                                    {% for option in feature_options.SAT %}
-                                    <option value="{{ option.option_name }}" {% if plan.feature_training == option.option_name %}selected{% endif %}>{{ option.option_name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </td>
-                            <td>
-                                <select name="feature_password_manager_{{ plan.id }}">
-                                    {% for option in feature_options['Password Manager'] %}
-                                    <option value="{{ option.option_name }}" {% if plan.feature_password_manager == option.option_name %}selected{% endif %}>{{ option.option_name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </td>
+                            {% endfor %}
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -172,7 +155,7 @@
     </div>
 
     <div class="form-section">
-        <h2>Custom Links</h2>
+        <h2>Add Custom Links</h2>
         <table class="plan-table">
             <thead>
                 <tr>
@@ -211,13 +194,34 @@
     </div>
 
     <div class="form-section">
+        <h2>Add New Feature Category</h2>
+        <form method="POST" action="{{ url_for('add_feature_type') }}" class="add-plan-form full-width">
+            <input type="text" name="feature_type" placeholder="New Feature Category Name" required>
+            <button type="submit">Add Category</button>
+        </form>
+    </div>
+
+    <div class="form-section">
         <h2>Feature Options Management</h2>
         <div class="feature-options-grid">
             {% for feature_type, options in feature_options.items() %}
             <div class="feature-type-card">
                 <h4>
-                    <span>{{ feature_type if feature_type in ['SOC', 'SAT'] else feature_type|capitalize }}</span>
-                    <button class="button add-feature-option" data-feature-type="{{ feature_type }}">Add</button>
+                    <span>{{ feature_type }}</span>
+                    <div>
+                        <button class="icon-button add add-feature-option" data-feature-type="{{ feature_type }}">
+                            <svg viewBox="0 0 24 24"><path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" /></svg>
+                        </button>
+                        <button class="icon-button edit edit-feature-type" data-feature-type="{{ feature_type }}">
+                            <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
+                        </button>
+                        <form action="{{ url_for('delete_feature_type') }}" method="POST" onsubmit="return confirm('Are you sure?')" style="display:inline;">
+                            <input type="hidden" name="feature_type" value="{{ feature_type }}">
+                            <button type="submit" class="icon-button delete">
+                                <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
+                            </button>
+                        </form>
+                    </div>
                 </h4>
                 <table class="plan-table">
                     <tbody>
@@ -270,6 +274,23 @@
         </div>
     </div>
 
+    <div id="featureTypeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="featureTypeModalTitle"></h2>
+                <span class="close-button">&times;</span>
+            </div>
+            <form id="featureTypeModalForm" method="POST">
+                <input type="hidden" name="original_feature_type" id="originalFeatureType">
+                <label for="newFeatureType">Category Name:</label>
+                <input type="text" name="new_feature_type" id="newFeatureType" required style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--input-border); background-color: var(--input-bg); color: var(--text-color);">
+                <div style="text-align: right; margin-top: 20px;">
+                    <button type="submit" class="button">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div id="linkModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -313,6 +334,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     const logModal = document.getElementById('logModal');
     const featureModal = document.getElementById('featureModal');
+    const featureTypeModal = document.getElementById('featureTypeModal');
     const linkModal = document.getElementById('linkModal');
     const userModal = document.getElementById('userModal');
     const logContent = document.getElementById('log-content');
@@ -323,6 +345,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function closeModal() {
         logModal.style.display = 'none';
         featureModal.style.display = 'none';
+        featureTypeModal.style.display = 'none';
         linkModal.style.display = 'none';
         userModal.style.display = 'none';
     }
@@ -332,7 +355,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     window.onclick = (event) => {
-        if (event.target == logModal || event.target == featureModal || event.target == linkModal || event.target == userModal) {
+        if (event.target == logModal || event.target == featureModal || event.target == featureTypeModal || event.target == linkModal || event.target == userModal) {
             closeModal();
         }
     }
@@ -371,6 +394,17 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('featureModalForm').action = `/settings/features/edit/${optionId}`;
             document.getElementById('featureModalName').value = optionName;
             featureModal.style.display = 'block';
+        });
+    });
+
+    document.querySelectorAll('.edit-feature-type').forEach(button => {
+        button.addEventListener('click', function() {
+            const featureType = this.dataset.featureType;
+            document.getElementById('featureTypeModalTitle').textContent = `Edit Category: ${featureType}`;
+            document.getElementById('featureTypeModalForm').action = "{{ url_for('edit_feature_type') }}";
+            document.getElementById('originalFeatureType').value = featureType;
+            document.getElementById('newFeatureType').value = featureType;
+            featureTypeModal.style.display = 'block';
         });
     });
 

@@ -10,13 +10,14 @@ import zipfile
 from datetime import datetime, timedelta, timezone
 from flask import Flask, render_template, g, request, redirect, url_for, flash, session, jsonify, Response, send_from_directory
 from apscheduler.schedulers.background import BackgroundScheduler
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from werkzeug.utils import secure_filename
 import markdown
 import bleach
+import re
 
 # Local module imports
-from database import init_app_db, get_db, query_db, log_and_execute, log_read_action, log_page_view
+from database import init_app_db, get_db, query_db, log_and_execute, log_read_action, log_page_view, get_db_connection
 from scheduler import run_job
 from billing import get_billing_dashboard_data, get_client_breakdown_data
 
@@ -284,6 +285,11 @@ def edit_line_item(account_number, item_id):
 @app.route('/client/<account_number>/settings', methods=['GET', 'POST'])
 def client_settings(account_number):
     try:
+        feature_options_raw = query_db("SELECT * FROM feature_options ORDER BY feature_type, option_name")
+        feature_options = defaultdict(list)
+        for option in feature_options_raw:
+            feature_options[option['feature_type']].append(dict(option))
+
         if request.method == 'POST':
             action = request.form.get('action')
             if action == 'add_manual_asset':
@@ -313,7 +319,13 @@ def client_settings(account_number):
                 flash('Custom line item added.', 'success')
             elif action == 'save_overrides':
                 rate_map = {'puc': 'per_user_cost', 'pwc': 'per_workstation_cost', 'psc': 'per_server_cost', 'pvc': 'per_vm_cost', 'pswitchc': 'per_switch_cost', 'pfirewallc': 'per_firewall_cost', 'phtc': 'per_hour_ticket_cost', 'bbfw': 'backup_base_fee_workstation', 'bbfs': 'backup_base_fee_server', 'bit': 'backup_included_tb', 'bpt': 'backup_per_tb_fee', 'prepaid_hours_monthly': 'prepaid_hours_monthly', 'prepaid_hours_yearly': 'prepaid_hours_yearly'}
-                feature_map = {'antivirus': 'feature_antivirus', 'soc': 'feature_soc', 'training': 'feature_training', 'phone': 'feature_phone', 'email': 'feature_email', 'password_manager': 'feature_password_manager'}
+
+                # Dynamically build the feature_map
+                feature_map = {}
+                for feature_type in feature_options.keys():
+                    short_name = feature_type.lower().replace(' ', '_')
+                    feature_map[short_name] = f'feature_{short_name}'
+
                 columns_to_update, values_to_update = ['company_account_number'], [account_number]
 
                 for short_name, full_name in rate_map.items():
@@ -377,14 +389,6 @@ def client_settings(account_number):
         user_overrides = {r['user_id']: dict(r) for r in query_db("SELECT * FROM user_billing_overrides uo JOIN users u ON u.id = uo.user_id WHERE u.company_account_number = ?", [account_number])}
         today = datetime.now(timezone.utc)
         month_options = [{'value': (today + timedelta(days=31*i)).strftime('%Y-%m'), 'name': (today + timedelta(days=31*i)).strftime('%B %Y')} for i in range(12)]
-
-        feature_options_raw = query_db("SELECT * FROM feature_options ORDER BY feature_type, option_name")
-        feature_options = {
-            'antivirus': [], 'SOC': [], 'email': [], 'phone': [], 'SAT': [], 'Password Manager': []
-        }
-        for option in feature_options_raw:
-            if option['feature_type'] in feature_options:
-                feature_options[option['feature_type']].append(dict(option))
 
         return render_template('client_settings.html', client=client_info, defaults=default_plan, overrides=dict(overrides_row) if overrides_row else {}, assets=assets, users=users, manual_assets=manual_assets, manual_users=manual_users, custom_line_items=custom_line_items, asset_overrides=asset_overrides, user_overrides=user_overrides, month_options=month_options, feature_options=feature_options)
     except (ValueError, KeyError) as e:
@@ -505,19 +509,20 @@ def billing_settings():
     custom_links = query_db("SELECT * FROM custom_links ORDER BY link_order")
 
     feature_options_raw = query_db("SELECT * FROM feature_options ORDER BY feature_type, option_name")
-    feature_options = {
-        'antivirus': [], 'SOC': [], 'email': [], 'phone': [], 'SAT': [], 'Password Manager': []
-    }
+    feature_options = defaultdict(list)
+    feature_types = []
     for option in feature_options_raw:
-        if option['feature_type'] in feature_options:
-            feature_options[option['feature_type']].append(dict(option))
+        feature_options[option['feature_type']].append(dict(option))
+        if option['feature_type'] not in feature_types:
+            feature_types.append(option['feature_type'])
 
     return render_template('settings.html',
         grouped_plans=grouped_plans,
         scheduler_jobs=scheduler_jobs,
         app_users=app_users,
         custom_links=custom_links,
-        feature_options=feature_options
+        feature_options=feature_options,
+        feature_types=feature_types
     )
 
 @app.route('/settings/audit_log')
@@ -591,6 +596,10 @@ def delete_link(link_id):
     flash("Link deleted successfully.", "success")
     return redirect(url_for('billing_settings'))
 
+def sanitize_column_name(name):
+    """Sanitizes a string to be a valid SQL column name."""
+    return 'feature_' + re.sub(r'[^a-zA-Z0-9_]', '', name.lower().replace(' ', '_'))
+
 @app.route('/settings/features/add', methods=['POST'])
 def add_feature_option():
     feature_type = request.form.get('feature_type')
@@ -620,6 +629,53 @@ def edit_feature_option(option_id):
             flash(f"Could not update option: {e}", "error")
     else:
         flash("Option name cannot be empty.", "error")
+    return redirect(url_for('billing_settings'))
+
+@app.route('/settings/features/type/add', methods=['POST'])
+def add_feature_type():
+    feature_type = request.form.get('feature_type')
+    if feature_type:
+        column_name = sanitize_column_name(feature_type)
+        try:
+            with get_db_connection(session['db_password']) as con:
+                con.execute(f"ALTER TABLE billing_plans ADD COLUMN {column_name} TEXT DEFAULT 'Not Included'")
+                con.execute(f"ALTER TABLE client_billing_overrides ADD COLUMN {column_name} TEXT")
+                con.execute(f"ALTER TABLE client_billing_overrides ADD COLUMN override_{column_name}_enabled BOOLEAN DEFAULT 0")
+                con.commit()
+            log_and_execute("INSERT INTO feature_options (feature_type, option_name) VALUES (?, ?)", (feature_type, 'Not Included'))
+            flash("Feature category added.", "success")
+        except Exception as e:
+            flash(f"Could not add feature category: {e}", "error")
+    return redirect(url_for('billing_settings'))
+
+@app.route('/settings/features/type/delete', methods=['POST'])
+def delete_feature_type():
+    feature_type = request.form.get('feature_type')
+    if feature_type:
+        # Note: This does not remove the columns from the database tables,
+        # as this is not supported by SQLite's ALTER TABLE command.
+        # The columns will be ignored by the application logic.
+        log_and_execute("DELETE FROM feature_options WHERE feature_type = ?", (feature_type,))
+        flash("Feature category deleted. Note: The corresponding columns are not removed from the database, but will be ignored.", "success")
+    return redirect(url_for('billing_settings'))
+
+@app.route('/settings/features/type/edit', methods=['POST'])
+def edit_feature_type():
+    original_feature_type = request.form.get('original_feature_type')
+    new_feature_type = request.form.get('new_feature_type')
+    if original_feature_type and new_feature_type:
+        original_column_name = sanitize_column_name(original_feature_type)
+        new_column_name = sanitize_column_name(new_feature_type)
+        try:
+            with get_db_connection(session['db_password']) as con:
+                con.execute(f"ALTER TABLE billing_plans RENAME COLUMN {original_column_name} TO {new_column_name}")
+                con.execute(f"ALTER TABLE client_billing_overrides RENAME COLUMN {original_column_name} TO {new_column_name}")
+                con.execute(f"ALTER TABLE client_billing_overrides RENAME COLUMN override_{original_column_name}_enabled TO override_{new_column_name}_enabled")
+                con.commit()
+            log_and_execute("UPDATE feature_options SET feature_type = ? WHERE feature_type = ?", (new_feature_type, original_feature_type))
+            flash("Feature category updated.", "success")
+        except Exception as e:
+            flash(f"Could not update feature category: {e}", "error")
     return redirect(url_for('billing_settings'))
 
 @app.route('/settings/export')
@@ -677,16 +733,20 @@ def billing_settings_action():
         flash(f"Billing plan '{plan_name}' and all its terms have been deleted.", 'success')
     elif form_action == 'save':
         plan_ids = request.form.getlist('plan_ids')
+        feature_options_raw = query_db("SELECT DISTINCT feature_type FROM feature_options")
+        feature_types = [row['feature_type'] for row in feature_options_raw]
+
         for plan_id in plan_ids:
             form = request.form
-            log_and_execute("""
+
+            # Base update statement
+            sql = """
                 UPDATE billing_plans SET
                     per_user_cost = ?, per_workstation_cost = ?, per_server_cost = ?, per_vm_cost = ?,
                     per_switch_cost = ?, per_firewall_cost = ?, per_hour_ticket_cost = ?, backup_base_fee_workstation = ?,
                     backup_base_fee_server = ?, backup_included_tb = ?, backup_per_tb_fee = ?,
-                    feature_antivirus = ?, feature_soc = ?, feature_training = ?, feature_password_manager = ?
-                WHERE id = ?
-            """, (
+            """
+            params = [
                 float(form.get(f'per_user_cost_{plan_id}', 0)),
                 float(form.get(f'per_workstation_cost_{plan_id}', 0)),
                 float(form.get(f'per_server_cost_{plan_id}', 0)),
@@ -698,12 +758,19 @@ def billing_settings_action():
                 float(form.get(f'backup_base_fee_server_{plan_id}', 0)),
                 float(form.get(f'backup_included_tb_{plan_id}', 0)),
                 float(form.get(f'backup_per_tb_fee_{plan_id}', 0)),
-                form.get(f'feature_antivirus_{plan_id}'),
-                form.get(f'feature_soc_{plan_id}'),
-                form.get(f'feature_training_{plan_id}'),
-                form.get(f'feature_password_manager_{plan_id}'),
-                plan_id
-            ))
+            ]
+
+            # Dynamically add feature updates
+            for feature_type in feature_types:
+                column_name = 'feature_' + feature_type.lower().replace(' ', '_')
+                sql += f"{column_name} = ?, "
+                params.append(form.get(f'{column_name}_{plan_id}'))
+
+            sql = sql.rstrip(', ') + " WHERE id = ?"
+            params.append(plan_id)
+
+            log_and_execute(sql, tuple(params))
+
         flash(f"Default plan '{plan_name}' updated successfully!", 'success')
     return redirect(url_for('billing_settings'))
 
