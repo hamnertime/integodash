@@ -54,6 +54,11 @@
                 <p><strong>Contract Term:</strong> {{ client.contract_term_length }}</p>
                 <p><strong>Contract Start Date:</strong> {{ client.contract_start_date or 'N/A' }}</p>
                 <p><strong class="{% if contract_expired %}text-danger{% endif %}">Contract End Date:</strong> <span class="{% if contract_expired %}text-danger{% endif %}">{{ contract_end_date }}</span></p>
+                {% for attachment in attachments %}
+                    {% if attachment.category == 'Contracts' %}
+                        <p><strong>Contract:</strong> <a href="#" class="preview-attachment" data-url="{{ url_for('download_file', account_number=client.account_number, filename=attachment.stored_filename) }}" data-filename="{{ attachment.original_filename }}">{{ attachment.original_filename }}</a></p>
+                    {% endif %}
+                {% endfor %}
             </div>
             <div class="form-section">
                 <h2>Billing Receipt for {{ selected_billing_period }}</h2>
@@ -161,11 +166,14 @@
             <tbody>
             {% for attachment in attachments %}
                 <tr>
-                    <td><a href="{{ url_for('download_file', account_number=client.account_number, filename=attachment.stored_filename) }}">{{ attachment.original_filename }}</a></td>
+                    <td><a href="#" class="preview-attachment" data-url="{{ url_for('download_file', account_number=client.account_number, filename=attachment.stored_filename) }}" data-filename="{{ attachment.original_filename }}">{{ attachment.original_filename }}</a></td>
                     <td>{{ attachment.category }}</td>
                     <td>{{ attachment.file_size | filesizeformat }}</td>
                     <td>{{ attachment.uploaded_at | humanize }}</td>
                     <td>
+                        <a href="{{ url_for('download_file', account_number=client.account_number, filename=attachment.stored_filename) }}" class="icon-button download" title="Download">
+                            <svg viewBox="0 0 24 24"><path d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z" /></svg>
+                        </a>
                         <button type="button" class="icon-button edit edit-attachment"
                             data-attachment-id="{{ attachment.id }}"
                             data-original-filename="{{ attachment.original_filename }}"
@@ -272,6 +280,16 @@
             </form>
         </div>
     </div>
+
+    <div id="attachmentPreviewModal" class="modal">
+        <div class="modal-content preview">
+            <div class="modal-header">
+                <h2 id="previewModalTitle"></h2>
+                <span class="close-button">&times;</span>
+            </div>
+            <div id="previewModalContent"></div>
+        </div>
+    </div>
 {% endblock %}
 
 {% block scripts %}
@@ -332,6 +350,68 @@ document.addEventListener('DOMContentLoaded', function() {
     window.onclick = function(event) {
         if (event.target == editAttachmentModal) {
             editAttachmentModal.style.display = 'none';
+        }
+    }
+
+    const attachmentPreviewModal = document.getElementById('attachmentPreviewModal');
+    const previewModalTitle = document.getElementById('previewModalTitle');
+    const previewModalContent = document.getElementById('previewModalContent');
+    const closePreviewButton = attachmentPreviewModal.querySelector('.close-button');
+
+    document.querySelectorAll('.preview-attachment').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const url = this.dataset.url;
+            const filename = this.dataset.filename;
+            const fileExtension = filename.split('.').pop().toLowerCase();
+            const imageExtensions = ['png', 'jpg', 'jpeg', 'gif'];
+
+            previewModalTitle.textContent = filename;
+            previewModalContent.innerHTML = '';
+
+            if (imageExtensions.includes(fileExtension)) {
+                const img = document.createElement('img');
+                img.src = url;
+                img.style.maxWidth = '100%';
+                img.style.maxHeight = '80vh';
+                previewModalContent.appendChild(img);
+            } else if (fileExtension === 'txt') {
+                fetch(url)
+                    .then(response => response.text())
+                    .then(text => {
+                        const pre = document.createElement('pre');
+                        pre.textContent = text;
+                        previewModalContent.appendChild(pre);
+                    });
+            } else if (fileExtension === 'pdf') {
+                fetch(url)
+                    .then(response => response.blob())
+                    .then(blob => {
+                        const objectUrl = URL.createObjectURL(blob);
+                        const iframe = document.createElement('iframe');
+                        iframe.src = objectUrl;
+                        iframe.style.width = '100%';
+                        iframe.style.height = '80vh';
+                        iframe.frameborder = "0";
+                        previewModalContent.appendChild(iframe);
+                    });
+            } else {
+                // Fallback for other file types to open in a new tab
+                window.open(url, '_blank');
+                return; // Don't show the modal
+            }
+
+            attachmentPreviewModal.style.display = 'block';
+        });
+    });
+
+    closePreviewButton.onclick = function() {
+        attachmentPreviewModal.style.display = 'none';
+    }
+
+    window.onclick = function(event) {
+        if (event.target == attachmentPreviewModal) {
+            attachmentPreviewModal.style.display = 'none';
         }
     }
 });

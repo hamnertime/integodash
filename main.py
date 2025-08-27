@@ -712,7 +712,8 @@ def add_feature_type():
             log_and_execute("INSERT INTO feature_options (feature_type, option_name) VALUES (?, ?)", (feature_type, 'Not Included'))
             flash("Feature category added.", "success")
         except Exception as e:
-            flash(f"Could not add feature category: {e}", "error")
+            print(f"ERROR adding feature type '{feature_type}': {e}", file=sys.stderr)
+            flash(f"Could not add feature category '{feature_type}': {e}", "error")
     return redirect(url_for('billing_settings'))
 
 @app.route('/settings/features/type/delete', methods=['POST'])
@@ -837,7 +838,7 @@ def billing_settings_action():
 
             # Dynamically add feature updates
             for feature_type in feature_types:
-                column_name = 'feature_' + feature_type.lower().replace(' ', '_')
+                column_name = sanitize_column_name(feature_type)
                 sql += f"{column_name} = ?, "
                 params.append(form.get(f'{column_name}_{plan_id}'))
 
