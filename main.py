@@ -17,7 +17,7 @@ import bleach
 import re
 
 # Local module imports
-from database import init_app_db, get_db, query_db, log_and_execute, log_read_action, log_page_view, get_db_connection
+from database import init_app_db, get_db, query_db, log_and_execute, log_read_action, log_page_view, get_db_connection, set_master_password, get_master_password
 from scheduler import run_job
 from billing import get_billing_dashboard_data, get_client_breakdown_data
 
@@ -75,7 +75,7 @@ def to_markdown(text):
 # --- Context Processors ---
 @app.context_processor
 def inject_custom_links():
-    if 'db_password' in session and 'user_id' in session:
+    if get_master_password() and 'user_id' in session:
         try:
             links = query_db("SELECT * FROM custom_links ORDER BY link_order")
             return dict(custom_links=links)
@@ -86,14 +86,14 @@ def inject_custom_links():
 # --- Web Application Routes ---
 @app.before_request
 def require_login():
-    if 'db_password' not in session and request.endpoint not in ['login', 'static', 'get_notes_partial', 'get_attachments_partial']:
+    if get_master_password() is None and request.endpoint not in ['login', 'static']:
         return redirect(url_for('login'))
-    if 'user_id' not in session and request.endpoint not in ['login', 'select_user', 'static', 'get_notes_partial', 'get_attachments_partial']:
+    if 'user_id' not in session and request.endpoint not in ['login', 'select_user', 'static']:
         return redirect(url_for('select_user'))
 
 @app.after_request
 def log_request(response):
-    if 'db_password' in session and 'user_id' in session:
+    if get_master_password() and 'user_id' in session:
         try:
             # Avoid logging the partial fetch requests to keep the audit log clean
             if request.endpoint not in ['get_notes_partial', 'get_attachments_partial']:
@@ -109,15 +109,14 @@ def login():
     if request.method == 'POST':
         password_attempt = request.form.get('password')
         try:
-            from database import get_db_connection
             with get_db_connection(password_attempt) as con:
+                set_master_password(password_attempt)
                 if not scheduler.running:
                     print("--- First successful login. Starting background scheduler. ---")
                     jobs = con.execute("SELECT id, script_path, interval_minutes FROM scheduler_jobs WHERE enabled = 1").fetchall()
                     for job in jobs:
-                        scheduler.add_job(run_job, 'interval', minutes=job['interval_minutes'], args=[job['id'], job['script_path'], password_attempt], id=str(job['id']), next_run_time=datetime.now() + timedelta(seconds=10))
+                        scheduler.add_job(run_job, 'interval', minutes=job['interval_minutes'], args=[job['id'], job['script_path'], get_master_password()], id=str(job['id']), next_run_time=datetime.now() + timedelta(seconds=10))
                     scheduler.start()
-            session['db_password'] = password_attempt
             flash('Database unlocked successfully!', 'success')
             return redirect(url_for('select_user'))
         except (ValueError, Exception):
@@ -126,7 +125,7 @@ def login():
 
 @app.route('/select_user', methods=['GET', 'POST'])
 def select_user():
-    if 'db_password' not in session:
+    if get_master_password() is None:
         return redirect(url_for('login'))
 
     if request.method == 'POST':
@@ -141,6 +140,7 @@ def select_user():
 
     users = query_db("SELECT * FROM app_users ORDER BY username")
     return render_template('user_selection.html', users=users)
+# ... (the rest of the main.py file remains the same)
 
 @app.route('/logout')
 def logout():
