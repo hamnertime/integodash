@@ -153,11 +153,11 @@
         <table class="item-table" style="margin-top: 20px;">
             <thead>
                 <tr>
-                    <th><a href="#" class="sort-link" data-sort="original_filename">Filename<span class="sort-arrow"></span></a></th>
+                    <th class="filename-column"><a href="#" class="sort-link" data-sort="original_filename">Filename<span class="sort-arrow"></span></a></th>
                     <th><a href="#" class="sort-link" data-sort="category">Category<span class="sort-arrow"></span></a></th>
                     <th><a href="#" class="sort-link" data-sort="file_size">Size<span class="sort-arrow"></span></a></th>
                     <th><a href="#" class="sort-link" data-sort="uploaded_at">Uploaded<span class="sort-arrow"></span></a></th>
-                    <th>Actions</th>
+                    <th class="actions-column">Actions</th>
                 </tr>
             </thead>
             <tbody id="attachment-table-body">
@@ -167,19 +167,21 @@
                     <td data-sort-value="{{ attachment.category }}">{{ attachment.category }}</td>
                     <td data-sort-value="{{ attachment.file_size }}">{{ attachment.file_size | filesizeformat }}</td>
                     <td data-sort-value="{{ attachment.uploaded_at }}">{{ attachment.uploaded_at | humanize }}</td>
-                    <td>
-                        <a href="{{ url_for('download_file', account_number=client.account_number, filename=attachment.stored_filename) }}" class="icon-button download" title="Download">
-                            <svg viewBox="0 0 24 24"><path d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z" /></svg>
-                        </a>
-                        <button type="button" class="icon-button edit edit-attachment"
-                            data-attachment-id="{{ attachment.id }}"
-                            data-original-filename="{{ attachment.original_filename }}"
-                            data-category="{{ attachment.category }}">
-                            <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
-                        </button>
-                        <a href="{{ url_for('delete_attachment', account_number=client.account_number, attachment_id=attachment.id) }}" class="icon-button delete" onclick="return confirm('Are you sure?')">
-                            <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
-                        </a>
+                    <td class="actions-column">
+                        <div class="action-buttons">
+                            <a href="{{ url_for('download_file', account_number=client.account_number, filename=attachment.stored_filename) }}" class="icon-button download" title="Download">
+                                <svg viewBox="0 0 24 24"><path d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z" /></svg>
+                            </a>
+                            <button type="button" class="icon-button edit edit-attachment"
+                                data-attachment-id="{{ attachment.id }}"
+                                data-original-filename="{{ attachment.original_filename }}"
+                                data-category="{{ attachment.category }}">
+                                <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
+                            </button>
+                            <a href="{{ url_for('delete_attachment', account_number=client.account_number, attachment_id=attachment.id) }}" class="icon-button delete" onclick="return confirm('Are you sure?')">
+                                <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
+                            </a>
+                        </div>
                     </td>
                 </tr>
             {% else %}
@@ -348,11 +350,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const editNoteForm = document.getElementById('editNoteForm');
         const modalNoteContent = document.getElementById('modalNoteContent');
 
-        document.addEventListener('click', function(e) {
-            if (e.target.classList.contains('edit-note')) {
+        notesSection.addEventListener('click', function(e) {
+            const editButton = e.target.closest('.edit-note');
+            if (editButton) {
                 e.preventDefault();
-                const noteId = e.target.dataset.noteId;
-                const noteContent = e.target.dataset.noteContent;
+                const noteId = editButton.dataset.noteId;
+                const noteContent = editButton.dataset.noteContent;
 
                 editNoteForm.action = `/client/{{ client.account_number }}/note/${noteId}/edit`;
                 modalNoteContent.value = noteContent;
