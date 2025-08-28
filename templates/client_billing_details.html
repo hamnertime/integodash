@@ -131,64 +131,8 @@
         {% include 'partials/notes_section.html' %}
     </div>
 
-    <div class="form-section">
-        <h2>Client Attachments</h2>
-        <div class="attachment-controls">
-            <form method="POST" action="{{ url_for('upload_file', account_number=client.account_number) }}" enctype="multipart/form-data" class="upload-form">
-                <input type="file" name="file" id="file-upload" required>
-                <label for="file-upload" class="file-upload-label">Browse...</label>
-                <span id="file-name-display">No file selected</span>
-                <select name="category">
-                    <option value="Pictures">Pictures</option>
-                    <option value="Logos">Logos</option>
-                    <option value="Contracts">Contracts</option>
-                    <option value="Other">Other</option>
-                </select>
-                <button type="submit" class="button">Upload File</button>
-            </form>
-            <div class="search-attachments">
-                <input type="text" id="attachment-search" placeholder="Search attachments..." value="{{ search_query }}">
-            </div>
-        </div>
-        <table class="item-table" style="margin-top: 20px;">
-            <thead>
-                <tr>
-                    <th class="filename-column"><a href="#" class="sort-link" data-sort="original_filename">Filename<span class="sort-arrow"></span></a></th>
-                    <th><a href="#" class="sort-link" data-sort="category">Category<span class="sort-arrow"></span></a></th>
-                    <th><a href="#" class="sort-link" data-sort="file_size">Size<span class="sort-arrow"></span></a></th>
-                    <th><a href="#" class="sort-link" data-sort="uploaded_at">Uploaded<span class="sort-arrow"></span></a></th>
-                    <th class="actions-column">Actions</th>
-                </tr>
-            </thead>
-            <tbody id="attachment-table-body">
-            {% for attachment in attachments %}
-                <tr>
-                    <td data-sort-value="{{ attachment.original_filename }}"><a href="#" class="preview-attachment" data-url="{{ url_for('download_file', account_number=client.account_number, filename=attachment.stored_filename) }}" data-filename="{{ attachment.original_filename }}">{{ attachment.original_filename }}</a></td>
-                    <td data-sort-value="{{ attachment.category }}">{{ attachment.category }}</td>
-                    <td data-sort-value="{{ attachment.file_size }}">{{ attachment.file_size | filesizeformat }}</td>
-                    <td data-sort-value="{{ attachment.uploaded_at }}">{{ attachment.uploaded_at | humanize }}</td>
-                    <td class="actions-column">
-                        <div class="action-buttons">
-                            <a href="{{ url_for('download_file', account_number=client.account_number, filename=attachment.stored_filename) }}" class="icon-button download" title="Download">
-                                <svg viewBox="0 0 24 24"><path d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z" /></svg>
-                            </a>
-                            <button type="button" class="icon-button edit edit-attachment"
-                                data-attachment-id="{{ attachment.id }}"
-                                data-original-filename="{{ attachment.original_filename }}"
-                                data-category="{{ attachment.category }}">
-                                <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
-                            </button>
-                            <a href="{{ url_for('delete_attachment', account_number=client.account_number, attachment_id=attachment.id) }}" class="icon-button delete" onclick="return confirm('Are you sure?')">
-                                <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
-                            </a>
-                        </div>
-                    </td>
-                </tr>
-            {% else %}
-                <tr><td colspan="5">No attachments for this client.</td></tr>
-            {% endfor %}
-            </tbody>
-        </table>
+    <div id="attachments-section">
+        {% include 'partials/attachments_section.html' %}
     </div>
 
     <div class="form-section">
@@ -296,6 +240,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const notesSection = document.getElementById('notes-section');
+    const attachmentsSection = document.getElementById('attachments-section');
 
     const fetchNotes = async (url) => {
         try {
@@ -325,6 +270,37 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (error) {
             console.error('Failed to fetch notes:', error);
             notesSection.innerHTML = '<p class="flash-error">Error loading notes. Please try refreshing the page.</p>';
+        }
+    };
+
+    const fetchAttachments = async (url) => {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            const html = await response.text();
+            const searchInput = attachmentsSection.querySelector('#attachment-search');
+            const currentSearchValue = searchInput ? searchInput.value : '';
+            const cursorPosition = searchInput ? searchInput.selectionStart : 0;
+            const searchInputIsFocused = (document.activeElement === searchInput);
+
+            attachmentsSection.innerHTML = html;
+
+            const newSearchInput = attachmentsSection.querySelector('#attachment-search');
+            if (newSearchInput) {
+                newSearchInput.value = currentSearchValue;
+                if (searchInputIsFocused) {
+                    newSearchInput.focus();
+                    newSearchInput.setSelectionRange(cursorPosition, cursorPosition);
+                }
+            }
+            const newUrl = new URL(url);
+            newUrl.pathname = newUrl.pathname.replace('/attachments', '/details');
+            window.history.pushState({}, '', newUrl);
+        } catch (error) {
+            console.error('Failed to fetch attachments:', error);
+            attachmentsSection.innerHTML = '<p class="flash-error">Error loading attachments. Please try refreshing the page.</p>';
         }
     };
 
@@ -364,6 +340,38 @@ document.addEventListener('DOMContentLoaded', function() {
             url.searchParams.set('search_notes', searchQuery);
             url.searchParams.set('page', 1);
             fetchNotes(url.toString());
+        }
+    });
+
+    attachmentsSection.addEventListener('click', function(event) {
+        const target = event.target.closest('a');
+        if (target && (target.closest('.pagination') || target.classList.contains('sort-link'))) {
+            event.preventDefault();
+            const url = new URL(target.href);
+            url.pathname = url.pathname.replace('/details', '/attachments');
+            fetchAttachments(url.toString());
+        }
+    });
+
+    attachmentsSection.addEventListener('change', function(event) {
+        if (event.target.id === 'attachment_per_page') {
+            const form = event.target.closest('form');
+            const url = new URL(form.action);
+            url.pathname = url.pathname.replace('/details', '/attachments');
+            const params = new URLSearchParams(new FormData(form));
+             url.search = params.toString();
+            fetchAttachments(url.toString());
+        }
+    });
+
+    attachmentsSection.addEventListener('input', function(event) {
+        if (event.target.id === 'attachment-search') {
+            const searchQuery = event.target.value;
+            const url = new URL(window.location.href);
+            url.pathname = url.pathname.replace('/details', '/attachments');
+            url.searchParams.set('search', searchQuery);
+            url.searchParams.set('attachment_page', 1);
+            fetchAttachments(url.toString());
         }
     });
 
@@ -499,27 +507,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 fileNameDisplay.textContent = this.files[0].name;
             } else {
                 fileNameDisplay.textContent = 'No file selected';
-            }
-        });
-    }
-
-    const attachmentSearch = document.getElementById('attachment-search');
-    if(attachmentSearch) {
-        attachmentSearch.addEventListener('input', function() {
-            const searchQuery = this.value.toLowerCase();
-            const tableBody = document.getElementById('attachment-table-body');
-            const rows = tableBody.getElementsByTagName('tr');
-            for (let i = 0; i < rows.length; i++) {
-                const cells = rows[i].getElementsByTagName('td');
-                let rowVisible = false;
-                if (cells.length > 0) {
-                    const filename = cells[0].textContent.toLowerCase();
-                    const category = cells[1].textContent.toLowerCase();
-                    if (filename.includes(searchQuery) || category.includes(searchQuery)) {
-                        rowVisible = true;
-                    }
-                }
-                rows[i].style.display = rowVisible ? '' : 'none';
             }
         });
     }

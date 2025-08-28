@@ -86,9 +86,9 @@ def inject_custom_links():
 # --- Web Application Routes ---
 @app.before_request
 def require_login():
-    if 'db_password' not in session and request.endpoint not in ['login', 'static', 'get_notes_partial']:
+    if 'db_password' not in session and request.endpoint not in ['login', 'static', 'get_notes_partial', 'get_attachments_partial']:
         return redirect(url_for('login'))
-    if 'user_id' not in session and request.endpoint not in ['login', 'select_user', 'static', 'get_notes_partial']:
+    if 'user_id' not in session and request.endpoint not in ['login', 'select_user', 'static', 'get_notes_partial', 'get_attachments_partial']:
         return redirect(url_for('select_user'))
 
 @app.after_request
@@ -96,7 +96,7 @@ def log_request(response):
     if 'db_password' in session and 'user_id' in session:
         try:
             # Avoid logging the partial fetch requests to keep the audit log clean
-            if request.endpoint not in ['get_notes_partial']:
+            if request.endpoint not in ['get_notes_partial', 'get_attachments_partial']:
                 log_page_view(response)
         except Exception as e:
             # This might fail if the DB password is wrong, etc.
@@ -182,12 +182,10 @@ def get_notes_partial(account_number):
         params.append(f'%{search_query}%')
 
     notes_count_query = f"SELECT COUNT(*) as count {base_query}"
-    notes_query = f"SELECT * {base_query} ORDER BY created_at DESC LIMIT ? OFFSET ?"
-
     notes_count = query_db(notes_count_query, params, one=True)['count']
     total_pages = (notes_count + per_page - 1) // per_page
     offset = (page - 1) * per_page
-    notes = query_db(notes_query, params + [per_page, offset])
+    notes = query_db(f"SELECT * {base_query} ORDER BY created_at DESC LIMIT ? OFFSET ?", params + [per_page, offset])
 
     client = query_db("SELECT account_number, name FROM companies WHERE account_number = ?", [account_number], one=True)
 
@@ -200,6 +198,55 @@ def get_notes_partial(account_number):
         selected_year=request.args.get('year'),
         selected_month=request.args.get('month'),
         search_query=search_query
+    )
+
+@app.route('/client/<account_number>/attachments')
+def get_attachments_partial(account_number):
+    """Renders just the attachments section for AJAX updates."""
+    sort_by = request.args.get('sort_by', 'uploaded_at')
+    sort_order = request.args.get('sort_order', 'desc')
+    search_query = request.args.get('search', '')
+    attachment_page = request.args.get('attachment_page', 1, type=int)
+    attachment_per_page = request.args.get('attachment_per_page', 10, type=int)
+
+    base_query = "FROM client_attachments WHERE company_account_number = ?"
+    params = [account_number]
+
+    if search_query:
+        base_query += " AND (original_filename LIKE ? OR category LIKE ?)"
+        params.extend([f'%{search_query}%', f'%{search_query}%'])
+
+    # Validate sort_by to prevent SQL injection
+    allowed_sort_columns = ['original_filename', 'category', 'file_size', 'uploaded_at']
+    if sort_by not in allowed_sort_columns:
+        sort_by = 'uploaded_at'
+
+    # Validate sort_order
+    if sort_order not in ['asc', 'desc']:
+        sort_order = 'desc'
+
+    attachments_count_query = f"SELECT COUNT(*) as count {base_query}"
+    attachments_count = query_db(attachments_count_query, params, one=True)['count']
+    attachment_total_pages = (attachments_count + attachment_per_page - 1) // attachment_per_page
+    offset = (attachment_page - 1) * attachment_per_page
+
+    attachments_query = f"SELECT * {base_query} ORDER BY {sort_by} {sort_order} LIMIT ? OFFSET ?"
+    attachments = query_db(attachments_query, params + [attachment_per_page, offset])
+
+    client = query_db("SELECT account_number FROM companies WHERE account_number = ?", [account_number], one=True)
+
+    return render_template('partials/attachments_section.html',
+        client=client,
+        attachments=attachments,
+        attachment_page=attachment_page,
+        attachment_per_page=attachment_per_page,
+        attachment_total_pages=attachment_total_pages,
+        attachments_count=attachments_count,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        search_query=search_query,
+        selected_year=request.args.get('year'),
+        selected_month=request.args.get('month')
     )
 
 @app.route('/client/<account_number>/details', methods=['GET', 'POST'])
@@ -256,17 +303,19 @@ def client_billing_details(account_number):
         notes = query_db(f"SELECT * {notes_base_query} ORDER BY created_at DESC LIMIT ? OFFSET ?", notes_params + [per_page, offset])
 
 
-        # Attachment sorting and searching
+        # Attachment sorting, searching, and pagination
         sort_by = request.args.get('sort_by', 'uploaded_at')
         sort_order = request.args.get('sort_order', 'desc')
         search_query = request.args.get('search', '')
+        attachment_page = request.args.get('attachment_page', 1, type=int)
+        attachment_per_page = request.args.get('attachment_per_page', 10, type=int)
 
-        query = "SELECT * FROM client_attachments WHERE company_account_number = ?"
-        params = [account_number]
+        attachments_base_query = "FROM client_attachments WHERE company_account_number = ?"
+        attachments_params = [account_number]
 
         if search_query:
-            query += " AND (original_filename LIKE ? OR category LIKE ?)"
-            params.extend([f'%{search_query}%', f'%{search_query}%'])
+            attachments_base_query += " AND (original_filename LIKE ? OR category LIKE ?)"
+            attachments_params.extend([f'%{search_query}%', f'%{search_query}%'])
 
         # Validate sort_by to prevent SQL injection
         allowed_sort_columns = ['original_filename', 'category', 'file_size', 'uploaded_at']
@@ -277,8 +326,13 @@ def client_billing_details(account_number):
         if sort_order not in ['asc', 'desc']:
             sort_order = 'desc'
 
-        query += f" ORDER BY {sort_by} {sort_order}"
-        attachments = query_db(query, params)
+        attachments_count_query = f"SELECT COUNT(*) as count {attachments_base_query}"
+        attachments_count = query_db(attachments_count_query, attachments_params, one=True)['count']
+        attachment_total_pages = (attachments_count + attachment_per_page - 1) // attachment_per_page
+        offset = (attachment_page - 1) * attachment_per_page
+
+        attachments_query = f"SELECT * {attachments_base_query} ORDER BY {sort_by} {sort_order} LIMIT ? OFFSET ?"
+        attachments = query_db(attachments_query, attachments_params + [attachment_per_page, offset])
 
 
         month_options = []
@@ -299,6 +353,10 @@ def client_billing_details(account_number):
             total_pages=total_pages,
             notes_count=notes_count,
             attachments=attachments,
+            attachment_page=attachment_page,
+            attachment_per_page=attachment_per_page,
+            attachment_total_pages=attachment_total_pages,
+            attachments_count=attachments_count,
             sort_by=sort_by,
             sort_order=sort_order,
             search_query=search_query,
