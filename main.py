@@ -287,52 +287,22 @@ def client_billing_details(account_number):
             return redirect(url_for('billing_dashboard'))
 
         # --- PAGINATION AND SEARCH LOGIC FOR NOTES (Initial Load) ---
-        page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 10, type=int)
-        search_notes_query = request.args.get('search_notes', '')
-
-        notes_base_query = "FROM billing_notes WHERE company_account_number = ?"
-        notes_params = [account_number]
-        if search_notes_query:
-            notes_base_query += " AND note_content LIKE ?"
-            notes_params.append(f'%{search_notes_query}%')
-
-        notes_count = query_db(f"SELECT COUNT(*) as count {notes_base_query}", notes_params, one=True)['count']
+        page = 1
+        per_page = 10
+        search_notes_query = ''
+        notes_count = query_db("SELECT COUNT(*) as count FROM billing_notes WHERE company_account_number = ?", [account_number], one=True)['count']
         total_pages = (notes_count + per_page - 1) // per_page
-        offset = (page - 1) * per_page
-        notes = query_db(f"SELECT * {notes_base_query} ORDER BY created_at DESC LIMIT ? OFFSET ?", notes_params + [per_page, offset])
-
+        notes = []
 
         # Attachment sorting, searching, and pagination
-        sort_by = request.args.get('sort_by', 'uploaded_at')
-        sort_order = request.args.get('sort_order', 'desc')
-        search_query = request.args.get('search', '')
-        attachment_page = request.args.get('attachment_page', 1, type=int)
-        attachment_per_page = request.args.get('attachment_per_page', 10, type=int)
-
-        attachments_base_query = "FROM client_attachments WHERE company_account_number = ?"
-        attachments_params = [account_number]
-
-        if search_query:
-            attachments_base_query += " AND (original_filename LIKE ? OR category LIKE ?)"
-            attachments_params.extend([f'%{search_query}%', f'%{search_query}%'])
-
-        # Validate sort_by to prevent SQL injection
-        allowed_sort_columns = ['original_filename', 'category', 'file_size', 'uploaded_at']
-        if sort_by not in allowed_sort_columns:
-            sort_by = 'uploaded_at'
-
-        # Validate sort_order
-        if sort_order not in ['asc', 'desc']:
-            sort_order = 'desc'
-
-        attachments_count_query = f"SELECT COUNT(*) as count {attachments_base_query}"
-        attachments_count = query_db(attachments_count_query, attachments_params, one=True)['count']
+        sort_by = 'uploaded_at'
+        sort_order = 'desc'
+        search_query = ''
+        attachment_page = 1
+        attachment_per_page = 10
+        attachments_count = query_db("SELECT COUNT(*) as count FROM client_attachments WHERE company_account_number = ?", [account_number], one=True)['count']
         attachment_total_pages = (attachments_count + attachment_per_page - 1) // attachment_per_page
-        offset = (attachment_page - 1) * attachment_per_page
-
-        attachments_query = f"SELECT * {attachments_base_query} ORDER BY {sort_by} {sort_order} LIMIT ? OFFSET ?"
-        attachments = query_db(attachments_query, attachments_params + [attachment_per_page, offset])
+        all_attachments = query_db("SELECT * FROM client_attachments WHERE company_account_number = ?", [account_number])
 
 
         month_options = []
@@ -351,16 +321,14 @@ def client_billing_details(account_number):
             page=page,
             per_page=per_page,
             total_pages=total_pages,
-            notes_count=notes_count,
-            attachments=attachments,
+            search_notes_query=search_notes_query,
+            attachments=all_attachments,
             attachment_page=attachment_page,
             attachment_per_page=attachment_per_page,
             attachment_total_pages=attachment_total_pages,
-            attachments_count=attachments_count,
             sort_by=sort_by,
             sort_order=sort_order,
-            search_query=search_query,
-            search_notes_query=search_notes_query
+            search_query=search_query
         )
     except (ValueError, KeyError) as e:
         session.pop('db_password', None)

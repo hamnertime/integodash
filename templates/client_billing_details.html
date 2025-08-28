@@ -242,12 +242,28 @@ document.addEventListener('DOMContentLoaded', function() {
     const notesSection = document.getElementById('notes-section');
     const attachmentsSection = document.getElementById('attachments-section');
 
-    const fetchNotes = async (url) => {
+    let notesState = {
+        page: 1,
+        per_page: 10,
+        search_query: ''
+    };
+
+    let attachmentsState = {
+        page: 1,
+        per_page: 10,
+        search_query: '',
+        sort_by: 'uploaded_at',
+        sort_order: 'desc'
+    };
+
+    const fetchNotes = async () => {
+        const url = new URL(`${window.location.origin}/client/{{ client.account_number }}/notes`);
+        url.searchParams.set('page', notesState.page);
+        url.searchParams.set('per_page', notesState.per_page);
+        url.searchParams.set('search_notes', notesState.search_query);
         try {
             const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
+            if (!response.ok) throw new Error('Network response was not ok');
             const html = await response.text();
             const searchInput = notesSection.querySelector('#notes-search');
             const currentSearchValue = searchInput ? searchInput.value : '';
@@ -264,21 +280,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     newSearchInput.setSelectionRange(cursorPosition, cursorPosition);
                 }
             }
-            const newUrl = new URL(url);
-            newUrl.pathname = newUrl.pathname.replace('/notes', '/details');
-            window.history.pushState({}, '', newUrl);
         } catch (error) {
             console.error('Failed to fetch notes:', error);
             notesSection.innerHTML = '<p class="flash-error">Error loading notes. Please try refreshing the page.</p>';
         }
     };
 
-    const fetchAttachments = async (url) => {
+    const fetchAttachments = async () => {
+        const url = new URL(`${window.location.origin}/client/{{ client.account_number }}/attachments`);
+        url.searchParams.set('attachment_page', attachmentsState.page);
+        url.searchParams.set('attachment_per_page', attachmentsState.per_page);
+        url.searchParams.set('search', attachmentsState.search_query);
+        url.searchParams.set('sort_by', attachmentsState.sort_by);
+        url.searchParams.set('sort_order', attachmentsState.sort_order);
         try {
             const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
+            if (!response.ok) throw new Error('Network response was not ok');
             const html = await response.text();
             const searchInput = attachmentsSection.querySelector('#attachment-search');
             const currentSearchValue = searchInput ? searchInput.value : '';
@@ -295,9 +312,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     newSearchInput.setSelectionRange(cursorPosition, cursorPosition);
                 }
             }
-            const newUrl = new URL(url);
-            newUrl.pathname = newUrl.pathname.replace('/attachments', '/details');
-            window.history.pushState({}, '', newUrl);
         } catch (error) {
             console.error('Failed to fetch attachments:', error);
             attachmentsSection.innerHTML = '<p class="flash-error">Error loading attachments. Please try refreshing the page.</p>';
@@ -309,74 +323,68 @@ document.addEventListener('DOMContentLoaded', function() {
         if (target && target.closest('.pagination')) {
             event.preventDefault();
             const url = new URL(target.href);
-            url.pathname = url.pathname.replace('/details', '/notes');
-            fetchNotes(url.toString());
+            notesState.page = new URLSearchParams(url.search).get('page');
+            fetchNotes();
         }
     });
 
     notesSection.addEventListener('change', function(event) {
         if (event.target.id === 'per_page') {
-            const form = event.target.closest('form');
-            const url = new URL(form.action);
-            url.pathname = url.pathname.replace('/details', '/notes');
-            const params = new URLSearchParams(new FormData(form));
-            const mainParams = new URLSearchParams(window.location.search);
-            if(mainParams.has('year')) {
-                params.set('year', mainParams.get('year'));
-            }
-            if(mainParams.has('month')) {
-                params.set('month', mainParams.get('month'));
-            }
-            url.search = params.toString();
-            fetchNotes(url.toString());
+            notesState.per_page = event.target.value;
+            notesState.page = 1;
+            fetchNotes();
         }
     });
 
     notesSection.addEventListener('input', function(event) {
         if (event.target.id === 'notes-search') {
-            const searchQuery = event.target.value;
-            const url = new URL(window.location.href);
-            url.pathname = url.pathname.replace('/details', '/notes');
-            url.searchParams.set('search_notes', searchQuery);
-            url.searchParams.set('page', 1);
-            fetchNotes(url.toString());
+            notesState.search_query = event.target.value;
+            notesState.page = 1;
+            fetchNotes();
         }
     });
 
     attachmentsSection.addEventListener('click', function(event) {
         const target = event.target.closest('a');
-        if (target && (target.closest('.pagination') || target.classList.contains('sort-link'))) {
+        if (target && target.classList.contains('sort-link')) {
+            event.preventDefault();
+            const column = target.dataset.sort;
+            if (attachmentsState.sort_by === column) {
+                attachmentsState.sort_order = attachmentsState.sort_order === 'asc' ? 'desc' : 'asc';
+            } else {
+                attachmentsState.sort_by = column;
+                attachmentsState.sort_order = 'asc';
+            }
+            fetchAttachments();
+        } else if (target && target.closest('.pagination')) {
             event.preventDefault();
             const url = new URL(target.href);
-            url.pathname = url.pathname.replace('/details', '/attachments');
-            fetchAttachments(url.toString());
+            attachmentsState.page = new URLSearchParams(url.search).get('attachment_page');
+            fetchAttachments();
         }
     });
 
     attachmentsSection.addEventListener('change', function(event) {
         if (event.target.id === 'attachment_per_page') {
-            const form = event.target.closest('form');
-            const url = new URL(form.action);
-            url.pathname = url.pathname.replace('/details', '/attachments');
-            const params = new URLSearchParams(new FormData(form));
-             url.search = params.toString();
-            fetchAttachments(url.toString());
+            attachmentsState.per_page = event.target.value;
+            attachmentsState.page = 1;
+            fetchAttachments();
         }
     });
 
     attachmentsSection.addEventListener('input', function(event) {
         if (event.target.id === 'attachment-search') {
-            const searchQuery = event.target.value;
-            const url = new URL(window.location.href);
-            url.pathname = url.pathname.replace('/details', '/attachments');
-            url.searchParams.set('search', searchQuery);
-            url.searchParams.set('attachment_page', 1);
-            fetchAttachments(url.toString());
+            attachmentsState.search_query = event.target.value;
+            attachmentsState.page = 1;
+            fetchAttachments();
         }
     });
 
+    // Initial load
+    fetchNotes();
+    fetchAttachments();
 
-    // The rest of your existing JavaScript for modals, attachments, etc.
+    // The rest of your existing JavaScript for modals
     const editNoteModal = document.getElementById('editNoteModal');
     if (editNoteModal) {
         const closeButton = editNoteModal.querySelector('.close-button');
@@ -413,18 +421,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const modalOriginalFilename = document.getElementById('modalOriginalFilename');
     const modalCategory = document.getElementById('modalCategory');
 
-    document.querySelectorAll('.edit-attachment').forEach(button => {
-        button.addEventListener('click', function(e) {
+    attachmentsSection.addEventListener('click', function(e) {
+        const editButton = e.target.closest('.edit-attachment');
+        if (editButton) {
             e.preventDefault();
-            const attachmentId = this.dataset.attachmentId;
-            const originalFilename = this.dataset.originalFilename;
-            const category = this.dataset.category;
+            const attachmentId = editButton.dataset.attachmentId;
+            const originalFilename = editButton.dataset.originalFilename;
+            const category = editButton.dataset.category;
 
             editAttachmentForm.action = `/client/{{ client.account_number }}/edit_attachment/${attachmentId}`;
             modalOriginalFilename.value = originalFilename;
             modalCategory.value = category;
             editAttachmentModal.style.display = 'block';
-        });
+        }
     });
 
     closeAttachmentButton.onclick = function() {
@@ -442,11 +451,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const previewModalContent = document.getElementById('previewModalContent');
     const closePreviewButton = attachmentPreviewModal.querySelector('.close-button');
 
-    document.querySelectorAll('.preview-attachment').forEach(link => {
-        link.addEventListener('click', function(e) {
+    attachmentsSection.addEventListener('click', function(e) {
+        const previewLink = e.target.closest('.preview-attachment');
+        if (previewLink) {
             e.preventDefault();
-            const url = this.dataset.url;
-            const filename = this.dataset.filename;
+            const url = previewLink.dataset.url;
+            const filename = previewLink.dataset.filename;
             const fileExtension = filename.split('.').pop().toLowerCase();
             const imageExtensions = ['png', 'jpg', 'jpeg', 'gif'];
 
@@ -480,13 +490,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         previewModalContent.appendChild(iframe);
                     });
             } else {
-                // Fallback for other file types to open in a new tab
                 window.open(url, '_blank');
-                return; // Don't show the modal
+                return;
             }
 
             attachmentPreviewModal.style.display = 'block';
-        });
+        }
     });
 
     closePreviewButton.onclick = function() {
@@ -499,82 +508,16 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    const fileUpload = document.getElementById('file-upload');
-    const fileNameDisplay = document.getElementById('file-name-display');
-    if (fileUpload) {
-        fileUpload.addEventListener('change', function() {
-            if (this.files.length > 0) {
-                fileNameDisplay.textContent = this.files[0].name;
+    attachmentsSection.addEventListener('change', function(event) {
+        if (event.target.id === 'file-upload') {
+            const fileNameDisplay = document.getElementById('file-name-display');
+            if (event.target.files.length > 0) {
+                fileNameDisplay.textContent = event.target.files[0].name;
             } else {
                 fileNameDisplay.textContent = 'No file selected';
             }
-        });
-    }
-
-    let currentSort = { column: 'uploaded_at', order: 'desc' };
-
-    document.querySelectorAll('.sort-link').forEach(link => {
-        link.addEventListener('click', function(e) {
-            e.preventDefault();
-            const column = this.dataset.sort;
-            let order = 'asc';
-            if (currentSort.column === column && currentSort.order === 'asc') {
-                order = 'desc';
-            }
-            currentSort = { column, order };
-            sortTable(column, order);
-            updateSortArrows();
-        });
+        }
     });
-
-    function sortTable(column, order) {
-        const tableBody = document.getElementById('attachment-table-body');
-        const rows = Array.from(tableBody.getElementsByTagName('tr'));
-
-        rows.sort((a, b) => {
-            const aCell = a.querySelector(`td[data-sort-value]`);
-            const bCell = b.querySelector(`td[data-sort-value]`);
-
-            const aVal = a.cells[getColumnIndex(column)].dataset.sortValue;
-            const bVal = b.cells[getColumnIndex(column)].dataset.sortValue;
-
-            const isNumeric = !isNaN(parseFloat(aVal)) && isFinite(aVal);
-
-            let comparison = 0;
-            if (isNumeric) {
-                comparison = parseFloat(aVal) - parseFloat(bVal);
-            } else {
-                comparison = aVal.localeCompare(bVal);
-            }
-
-            return order === 'asc' ? comparison : -comparison;
-        });
-
-        rows.forEach(row => tableBody.appendChild(row));
-    }
-
-    function getColumnIndex(columnName) {
-        const headers = document.querySelectorAll('.item-table th');
-        for (let i = 0; i < headers.length; i++) {
-            const link = headers[i].querySelector('.sort-link');
-            if (link && link.dataset.sort === columnName) {
-                return i;
-            }
-        }
-        return 0;
-    }
-
-    function updateSortArrows() {
-        document.querySelectorAll('.sort-arrow').forEach(arrow => {
-            arrow.textContent = '';
-        });
-        const activeLink = document.querySelector(`.sort-link[data-sort="${currentSort.column}"]`);
-        if (activeLink) {
-            const arrow = activeLink.querySelector('.sort-arrow');
-            arrow.textContent = currentSort.order === 'asc' ? '▲' : '▼';
-        }
-    }
-    updateSortArrows();
 });
 </script>
 {% endblock %}
