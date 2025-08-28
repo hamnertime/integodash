@@ -304,7 +304,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error('Network response was not ok');
             }
             const html = await response.text();
+            const searchInput = notesSection.querySelector('#notes-search');
+            const currentSearchValue = searchInput ? searchInput.value : '';
+            const cursorPosition = searchInput ? searchInput.selectionStart : 0;
+            const searchInputIsFocused = (document.activeElement === searchInput);
+
             notesSection.innerHTML = html;
+
+            const newSearchInput = notesSection.querySelector('#notes-search');
+            if (newSearchInput) {
+                newSearchInput.value = currentSearchValue;
+                if (searchInputIsFocused) {
+                    newSearchInput.focus();
+                    newSearchInput.setSelectionRange(cursorPosition, cursorPosition);
+                }
+            }
             const newUrl = new URL(url);
             newUrl.pathname = newUrl.pathname.replace('/notes', '/details');
             window.history.pushState({}, '', newUrl);
@@ -330,7 +344,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const url = new URL(form.action);
             url.pathname = url.pathname.replace('/details', '/notes');
             const params = new URLSearchParams(new FormData(form));
-            // carry over the year and month from the main page selector
             const mainParams = new URLSearchParams(window.location.search);
             if(mainParams.has('year')) {
                 params.set('year', mainParams.get('year'));
@@ -342,6 +355,18 @@ document.addEventListener('DOMContentLoaded', function() {
             fetchNotes(url.toString());
         }
     });
+
+    notesSection.addEventListener('input', function(event) {
+        if (event.target.id === 'notes-search') {
+            const searchQuery = event.target.value;
+            const url = new URL(window.location.href);
+            url.pathname = url.pathname.replace('/details', '/notes');
+            url.searchParams.set('search_notes', searchQuery);
+            url.searchParams.set('page', 1);
+            fetchNotes(url.toString());
+        }
+    });
+
 
     // The rest of your existing JavaScript for modals, attachments, etc.
     const editNoteModal = document.getElementById('editNoteModal');

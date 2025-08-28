@@ -1,4 +1,4 @@
-# hamnertime/integodash/integodash-76ac7162b1c717651e4becef3e50446477f85a63/main.py
+# hamnertime/integodash/integodash-da8c97dfedb79ff8b1c5a3267951a55358e6f2a9/main.py
 import os
 import sys
 import time
@@ -172,10 +172,23 @@ def get_notes_partial(account_number):
     """Renders just the notes section for AJAX updates."""
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 10, type=int)
-    offset = (page - 1) * per_page
-    notes_count = query_db("SELECT COUNT(*) as count FROM billing_notes WHERE company_account_number = ?", [account_number], one=True)['count']
+    search_query = request.args.get('search_notes', '')
+
+    base_query = "FROM billing_notes WHERE company_account_number = ?"
+    params = [account_number]
+
+    if search_query:
+        base_query += " AND note_content LIKE ?"
+        params.append(f'%{search_query}%')
+
+    notes_count_query = f"SELECT COUNT(*) as count {base_query}"
+    notes_query = f"SELECT * {base_query} ORDER BY created_at DESC LIMIT ? OFFSET ?"
+
+    notes_count = query_db(notes_count_query, params, one=True)['count']
     total_pages = (notes_count + per_page - 1) // per_page
-    notes = query_db("SELECT * FROM billing_notes WHERE company_account_number = ? ORDER BY created_at DESC LIMIT ? OFFSET ?", [account_number, per_page, offset])
+    offset = (page - 1) * per_page
+    notes = query_db(notes_query, params + [per_page, offset])
+
     client = query_db("SELECT account_number, name FROM companies WHERE account_number = ?", [account_number], one=True)
 
     return render_template('partials/notes_section.html',
@@ -185,7 +198,8 @@ def get_notes_partial(account_number):
         per_page=per_page,
         total_pages=total_pages,
         selected_year=request.args.get('year'),
-        selected_month=request.args.get('month')
+        selected_month=request.args.get('month'),
+        search_query=search_query
     )
 
 @app.route('/client/<account_number>/details', methods=['GET', 'POST'])
@@ -225,14 +239,22 @@ def client_billing_details(account_number):
             flash(f"Client {account_number} not found.", 'error')
             return redirect(url_for('billing_dashboard'))
 
-        # --- PAGINATION LOGIC FOR NOTES (Initial Load) ---
+        # --- PAGINATION AND SEARCH LOGIC FOR NOTES (Initial Load) ---
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 10, type=int)
-        notes_count = query_db("SELECT COUNT(*) as count FROM billing_notes WHERE company_account_number = ?", [account_number], one=True)['count']
+        search_notes_query = request.args.get('search_notes', '')
+
+        notes_base_query = "FROM billing_notes WHERE company_account_number = ?"
+        notes_params = [account_number]
+        if search_notes_query:
+            notes_base_query += " AND note_content LIKE ?"
+            notes_params.append(f'%{search_notes_query}%')
+
+        notes_count = query_db(f"SELECT COUNT(*) as count {notes_base_query}", notes_params, one=True)['count']
         total_pages = (notes_count + per_page - 1) // per_page
         offset = (page - 1) * per_page
+        notes = query_db(f"SELECT * {notes_base_query} ORDER BY created_at DESC LIMIT ? OFFSET ?", notes_params + [per_page, offset])
 
-        notes = query_db("SELECT * FROM billing_notes WHERE company_account_number = ? ORDER BY created_at DESC LIMIT ? OFFSET ?", [account_number, per_page, offset])
 
         # Attachment sorting and searching
         sort_by = request.args.get('sort_by', 'uploaded_at')
@@ -279,7 +301,8 @@ def client_billing_details(account_number):
             attachments=attachments,
             sort_by=sort_by,
             sort_order=sort_order,
-            search_query=search_query
+            search_query=search_query,
+            search_notes_query=search_notes_query
         )
     except (ValueError, KeyError) as e:
         session.pop('db_password', None)

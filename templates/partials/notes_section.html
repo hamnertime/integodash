@@ -1,10 +1,13 @@
-<h2>Billing Notes</h2>
+<h2>Client Notes</h2>
 <form method="POST" action="{{ url_for('client_billing_details', account_number=client.account_number) }}">
      <textarea name="note_content" rows="3" placeholder="Add a new billing note..." style="width: 100%; padding: 8px; border: 1px solid var(--input-border); border-radius: 4px; box-sizing: border-box; background-color: var(--input-bg); color: var(--text-color);"></textarea>
      <div style="text-align: right; margin-top: 10px;">
          <button type="submit" name="action" value="add_note">Add Note</button>
      </div>
 </form>
+<div class="search-attachments" style="margin-top: 15px;">
+    <input type="text" id="notes-search" placeholder="Search notes..." value="{{ search_query }}">
+</div>
 <hr style="margin: 20px 0;">
 {% for note in notes %}
     <div class="note">
