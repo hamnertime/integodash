@@ -86,16 +86,18 @@ def inject_custom_links():
 # --- Web Application Routes ---
 @app.before_request
 def require_login():
-    if 'db_password' not in session and request.endpoint not in ['login', 'static']:
+    if 'db_password' not in session and request.endpoint not in ['login', 'static', 'get_notes_partial']:
         return redirect(url_for('login'))
-    if 'user_id' not in session and request.endpoint not in ['login', 'select_user', 'static']:
+    if 'user_id' not in session and request.endpoint not in ['login', 'select_user', 'static', 'get_notes_partial']:
         return redirect(url_for('select_user'))
 
 @app.after_request
 def log_request(response):
     if 'db_password' in session and 'user_id' in session:
         try:
-            log_page_view(response)
+            # Avoid logging the partial fetch requests to keep the audit log clean
+            if request.endpoint not in ['get_notes_partial']:
+                log_page_view(response)
         except Exception as e:
             # This might fail if the DB password is wrong, etc.
             # Don't crash the whole app if logging fails.
@@ -165,6 +167,27 @@ def billing_dashboard():
         flash(f"An error occurred on the dashboard: {e}. Please log in again.", 'error')
         return redirect(url_for('login'))
 
+@app.route('/client/<account_number>/notes')
+def get_notes_partial(account_number):
+    """Renders just the notes section for AJAX updates."""
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+    offset = (page - 1) * per_page
+    notes_count = query_db("SELECT COUNT(*) as count FROM billing_notes WHERE company_account_number = ?", [account_number], one=True)['count']
+    total_pages = (notes_count + per_page - 1) // per_page
+    notes = query_db("SELECT * FROM billing_notes WHERE company_account_number = ? ORDER BY created_at DESC LIMIT ? OFFSET ?", [account_number, per_page, offset])
+    client = query_db("SELECT account_number, name FROM companies WHERE account_number = ?", [account_number], one=True)
+
+    return render_template('partials/notes_section.html',
+        client=client,
+        notes=notes,
+        page=page,
+        per_page=per_page,
+        total_pages=total_pages,
+        selected_year=request.args.get('year'),
+        selected_month=request.args.get('month')
+    )
+
 @app.route('/client/<account_number>/details', methods=['GET', 'POST'])
 def client_billing_details(account_number):
     try:
@@ -202,7 +225,14 @@ def client_billing_details(account_number):
             flash(f"Client {account_number} not found.", 'error')
             return redirect(url_for('billing_dashboard'))
 
-        notes = query_db("SELECT * FROM billing_notes WHERE company_account_number = ? ORDER BY created_at DESC", [account_number])
+        # --- PAGINATION LOGIC FOR NOTES (Initial Load) ---
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 10, type=int)
+        notes_count = query_db("SELECT COUNT(*) as count FROM billing_notes WHERE company_account_number = ?", [account_number], one=True)['count']
+        total_pages = (notes_count + per_page - 1) // per_page
+        offset = (page - 1) * per_page
+
+        notes = query_db("SELECT * FROM billing_notes WHERE company_account_number = ? ORDER BY created_at DESC LIMIT ? OFFSET ?", [account_number, per_page, offset])
 
         # Attachment sorting and searching
         sort_by = request.args.get('sort_by', 'uploaded_at')
@@ -242,6 +272,10 @@ def client_billing_details(account_number):
             month_options=month_options,
             selected_billing_period=selected_billing_period,
             notes=notes,
+            page=page,
+            per_page=per_page,
+            total_pages=total_pages,
+            notes_count=notes_count,
             attachments=attachments,
             sort_by=sort_by,
             sort_order=sort_order,
