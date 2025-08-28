@@ -146,7 +146,7 @@ th { background-color: var(--table-header-bg); font-weight: 600; }
 details summary { cursor: pointer; font-weight: bold; margin-bottom: 10px; list-style: revert; font-size:0.9em; color:var(--text-color); }
 .note { border-left: 4px solid var(--primary-color); padding-left: 15px; margin-bottom: 15px; }
 .note-meta { font-size: 0.8em; color: var(--text-color-secondary); }
-.form-section .note-meta a { color: var(--text-color-secondary); text-decoration: underline; }
+.form-section .note-meta a { color: var(--text-color-secondary); text-decoration: none; }
 .form-section .note-meta a:hover { color: var(--primary-color); }
 .button, button { padding: 10px 20px; background-color: var(--primary-color); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1em; text-decoration: none; display: inline-block; }
 table a { color: inherit; text-decoration: none; }
@@ -236,9 +236,10 @@ font-family: 'Courier New', Courier, monospace;
 .item-table a { color: inherit; text-decoration: none; }
 .item-table a:hover { color: var(--primary-color); text-decoration: underline; }
 .button-container { text-align: right; margin-top: 20px; }
-.button, button { padding: 12px 25px; background-color: var(--primary-color); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1.1em; text-decoration: none; display: inline-block; }
+.button, button { padding: 10px 20px; background-color: var(--primary-color); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 1em; text-decoration: none; display: inline-block; }
 .icon-button { background: none; border: none; cursor: pointer; padding: 5px; vertical-align: middle; }
 .icon-button svg { width: 20px; height: 20px; }
+.note-meta .icon-button svg { width: 16px; height: 16px; vertical-align: text-bottom; }
 .icon-button.edit svg { fill: var(--primary-color); }
 .icon-button.delete svg { fill: #dc3545; }
 .icon-button.add svg { fill: #28a745; }
@@ -297,13 +298,13 @@ font-family: 'Courier New', Courier, monospace;
 }
 .login-container button {
     width: 100%;
-    padding: 12px;
+    padding: 10px 20px;
     background-color: var(--primary-color);
     color: white;
     border: none;
     border-radius: 5px;
     cursor: pointer;
-    font-size: 1.1em;
+    font-size: 1em;
     font-weight: 500;
     transition: background-color 0.2s;
 }
@@ -423,13 +424,13 @@ font-family: 'Courier New', Courier, monospace;
 }
 .selection-container button {
     width: 100%;
-    padding: 12px;
+    padding: 10px 20px;
     background-color: var(--primary-color);
     color: white;
     border: none;
     border-radius: 5px;
     cursor: pointer;
-    font-size: 1.1em;
+    font-size: 1em;
     font-weight: 500;
     transition: background-color 0.2s;
 }

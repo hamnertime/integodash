@@ -139,9 +139,13 @@
         {% for note in notes %}
             <div class="note">
                 <div>{{ note.note_content | markdown | safe }}</div>
-                <p class="note-meta">Added on {{ note.created_at | humanize }} |
-                   <a href="#" class="edit-note" data-note-id="{{ note.id }}" data-note-content="{{ note.note_content }}">Edit</a> |
-                   <a href="{{ url_for('client_billing_details', account_number=client.account_number, delete_note=note.id) }}" onclick="return confirm('Are you sure you want to delete this note?');">Delete</a>
+                <p class="note-meta">Added on {{ note.created_at | humanize }}
+                   <button type="button" class="icon-button edit edit-note" data-note-id="{{ note.id }}" data-note-content="{{ note.note_content }}">
+                        <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
+                   </button>
+                   <a href="{{ url_for('client_billing_details', account_number=client.account_number, delete_note=note.id) }}" class="icon-button delete" onclick="return confirm('Are you sure you want to delete this note?');">
+                        <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
+                   </a>
                 </p>
             </div>
         {% else %}
