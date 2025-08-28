@@ -10,7 +10,7 @@
     --table-border-color: #ced4da;
     --table-header-bg: #e9ecef;
     --table-row-hover-bg: #e2e6ea;
-    --input-bg: #ffffff;
+    --input-bg: #f0f0f0;
     --input-border: #ced4da;
 }
 
@@ -120,6 +120,14 @@ input:checked + .slider:before {
 .billing-controls { display: flex; justify-content: space-between; align-items: center; background-color: var(--card-bg); padding: 15px; border-radius: 8px; margin-bottom: 20px; }
 .billing-controls .export-section { margin-bottom: 0; padding: 0; background-color: transparent; text-align: left; }
 .billing-controls .search-clients input { padding: 10px; border-radius: 5px; border: 1px solid var(--input-border); background-color: var(--input-bg); color: var(--text-color); width: 250px; }
+.billing-controls select, .billing-controls input[type="number"] {
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid var(--input-border);
+    background-color: var(--input-bg);
+    color: var(--text-color);
+}
+
 
 /* client_breakdown.html */
 h1 { text-align: center; margin-bottom: 30px; border-bottom: 2px solid var(--primary-color); padding-bottom: 10px; }
@@ -154,7 +162,7 @@ details summary { cursor: pointer; font-weight: bold; margin-bottom: 10px; list-
     margin-top: 10px;
 }
 .note-actions .icon-button {
-    margin-left: 5px;
+    margin-left: 1px;
 }
 .form-section .note-meta a { color: var(--text-color-secondary); text-decoration: none; }
 .form-section .note-meta a:hover { color: var(--primary-color); }
