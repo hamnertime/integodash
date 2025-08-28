@@ -5,64 +5,51 @@
 {% block content %}
 <h1>Client Billing Overview</h1>
 
-<div class="export-section">
-    <form action="{{ url_for('export_all_bills_zip') }}" method="POST">
-        <strong>Export All Invoices for:</strong>
-        <select name="month">
-            {% for month in month_options %}
-                <option value="{{ month.value }}">{{ month.name }}</option>
-            {% endfor %}
-        </select>
-        <input type="number" name="year" value="{{ current_year }}" style="width: 80px;">
-        <button type="submit" class="button">Download ZIP</button>
-    </form>
+<div class="billing-controls">
+    <div class="export-section">
+        <form action="{{ url_for('export_all_bills_zip') }}" method="POST">
+            <strong>Export All Invoices for:</strong>
+            <select name="month">
+                {% for month in month_options %}
+                    <option value="{{ month.value }}">{{ month.name }}</option>
+                {% endfor %}
+            </select>
+            <input type="number" name="year" value="{{ current_year }}" style="width: 80px;">
+            <button type="submit" class="button">Download ZIP</button>
+        </form>
+    </div>
+    <div class="search-clients">
+        <input type="text" id="client-search" placeholder="Search clients...">
+    </div>
 </div>
 
 <table class="client-table">
     <thead>
         <tr>
-            <th><a href="{{ url_for('billing_dashboard', sort_by='name', sort_order='desc' if sort_by == 'name' and sort_order == 'asc' else 'asc') }}">
-                Company Name<span class="sort-arrow">{% if sort_by == 'name' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
-            </a></th>
-            <th><a href="{{ url_for('billing_dashboard', sort_by='billing_plan', sort_order='desc' if sort_by == 'billing_plan' and sort_order == 'asc' else 'asc') }}">
-                Billing Plan<span class="sort-arrow">{% if sort_by == 'billing_plan' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
-            </a></th>
-            <th><a href="{{ url_for('billing_dashboard', sort_by='workstations', sort_order='desc' if sort_by == 'workstations' and sort_order == 'asc' else 'asc') }}">
-                Workstations<span class="sort-arrow">{% if sort_by == 'workstations' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
-            </a></th>
-            <th><a href="{{ url_for('billing_dashboard', sort_by='servers', sort_order='desc' if sort_by == 'servers' and sort_order == 'asc' else 'asc') }}">
-                Servers<span class="sort-arrow">{% if sort_by == 'servers' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
-            </a></th>
-            <th><a href="{{ url_for('billing_dashboard', sort_by='vms', sort_order='desc' if sort_by == 'vms' and sort_order == 'asc' else 'asc') }}">
-                VMs<span class="sort-arrow">{% if sort_by == 'vms' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
-            </a></th>
-            <th><a href="{{ url_for('billing_dashboard', sort_by='regular_users', sort_order='desc' if sort_by == 'regular_users' and sort_order == 'asc' else 'asc') }}">
-                Regular Users<span class="sort-arrow">{% if sort_by == 'regular_users' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
-            </a></th>
-            <th><a href="{{ url_for('billing_dashboard', sort_by='backup', sort_order='desc' if sort_by == 'backup' and sort_order == 'asc' else 'asc') }}">
-                Backup (TB)<span class="sort-arrow">{% if sort_by == 'backup' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
-            </a></th>
-            <th><a href="{{ url_for('billing_dashboard', sort_by='hours', sort_order='desc' if sort_by == 'hours' and sort_order == 'asc' else 'asc') }}">
-                Hours (This Year)<span class="sort-arrow">{% if sort_by == 'hours' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
-            </a></th>
-            <th><a href="{{ url_for('billing_dashboard', sort_by='bill', sort_order='desc' if sort_by == 'bill' and sort_order == 'asc' else 'asc') }}">
-                Calculated Bill<span class="sort-arrow">{% if sort_by == 'bill' %}{% if sort_order == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</span>
-            </a></th>
+            <th><a href="#" class="sort-link" data-sort="name">Company Name<span class="sort-arrow"></span></a></th>
+            <th><a href="#" class="sort-link" data-sort="billing_plan">Billing Plan<span class="sort-arrow"></span></a></th>
+            <th><a href="#" class="sort-link" data-sort="workstations">Workstations<span class="sort-arrow"></span></a></th>
+            <th><a href="#" class="sort-link" data-sort="servers">Servers<span class="sort-arrow"></span></a></th>
+            <th><a href="#" class="sort-link" data-sort="vms">VMs<span class="sort-arrow"></span></a></th>
+            <th><a href="#" class="sort-link" data-sort="regular_users">Regular Users<span class="sort-arrow"></span></a></th>
+            <th><a href="#" class="sort-link" data-sort="backup">Backup (TB)<span class="sort-arrow"></span></a></th>
+            <th><a href="#" class="sort-link" data-sort="hours">Hours (This Year)<span class="sort-arrow"></span></a></th>
+            <th><a href="#" class="sort-link" data-sort="bill">Calculated Bill<span class="sort-arrow"></span></a></th>
         </tr>
     </thead>
-    <tbody>
+    <tbody id="client-table-body">
         {% if clients %}
             {% for client in clients %}
             <tr>
-                <td><strong><a href="{{ url_for('client_billing_details', account_number=client.account_number) }}">{{ client.name }}</a></strong></td>
-                <td>{{ client['billing_plan'] }}</td>
-                <td>{{ client['workstations'] }}</td>
-                <td>{{ client['servers'] }}</td>
-                <td>{{ client['vms'] }}</td>
-                <td>{{ client['regular_users'] }}</td>
-                <td>{{ "%.2f"|format(client['total_backup_bytes'] / 1099511627776.0) }}</td>
-                <td>{{ "%.2f"|format(client['total_hours']) }}</td>
-                <td>${{ "%.2f"|format(client['total_bill']) }}</td>
+                <td data-sort-value="{{ client.name }}"><strong><a href="{{ url_for('client_billing_details', account_number=client.account_number) }}">{{ client.name }}</a></strong></td>
+                <td data-sort-value="{{ client.billing_plan }}">{{ client['billing_plan'] }}</td>
+                <td data-sort-value="{{ client.workstations }}">{{ client['workstations'] }}</td>
+                <td data-sort-value="{{ client.servers }}">{{ client['servers'] }}</td>
+                <td data-sort-value="{{ client.vms }}">{{ client['vms'] }}</td>
+                <td data-sort-value="{{ client.regular_users }}">{{ client['regular_users'] }}</td>
+                <td data-sort-value="{{ client.total_backup_bytes }}">{{ "%.2f"|format(client['total_backup_bytes'] / 1099511627776.0) }}</td>
+                <td data-sort-value="{{ client.total_hours }}">{{ "%.2f"|format(client['total_hours']) }}</td>
+                <td data-sort-value="{{ client.total_bill }}">${{ "%.2f"|format(client['total_bill']) }}</td>
             </tr>
             {% endfor %}
         {% else %}
@@ -72,4 +59,95 @@
         {% endif %}
     </tbody>
 </table>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const clientSearch = document.getElementById('client-search');
+    if(clientSearch) {
+        clientSearch.addEventListener('input', function() {
+            const searchQuery = this.value.toLowerCase();
+            const tableBody = document.getElementById('client-table-body');
+            const rows = tableBody.getElementsByTagName('tr');
+            for (let i = 0; i < rows.length; i++) {
+                const cells = rows[i].getElementsByTagName('td');
+                let rowVisible = false;
+                if (cells.length > 0) {
+                    const clientName = cells[0].textContent.toLowerCase();
+                    const billingPlan = cells[1].textContent.toLowerCase();
+                    if (clientName.includes(searchQuery) || billingPlan.includes(searchQuery)) {
+                        rowVisible = true;
+                    }
+                }
+                rows[i].style.display = rowVisible ? '' : 'none';
+            }
+        });
+    }
+
+    let currentSort = { column: 'name', order: 'asc' };
+
+    document.querySelectorAll('.sort-link').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const column = this.dataset.sort;
+            let order = 'asc';
+            if (currentSort.column === column && currentSort.order === 'asc') {
+                order = 'desc';
+            }
+            currentSort = { column, order };
+            sortTable(column, order);
+            updateSortArrows();
+        });
+    });
+
+    function sortTable(column, order) {
+        const tableBody = document.getElementById('client-table-body');
+        const rows = Array.from(tableBody.getElementsByTagName('tr'));
+
+        rows.sort((a, b) => {
+            const aVal = a.cells[getColumnIndex(column)].dataset.sortValue;
+            const bVal = b.cells[getColumnIndex(column)].dataset.sortValue;
+
+            const isNumeric = !isNaN(parseFloat(aVal)) && isFinite(aVal);
+
+            let comparison = 0;
+            if (isNumeric) {
+                comparison = parseFloat(aVal) - parseFloat(bVal);
+            } else {
+                comparison = aVal.localeCompare(bVal);
+            }
+
+            return order === 'asc' ? comparison : -comparison;
+        });
+
+        rows.forEach(row => tableBody.appendChild(row));
+    }
+
+    function getColumnIndex(columnName) {
+        const headers = document.querySelectorAll('.client-table th');
+        for (let i = 0; i < headers.length; i++) {
+            const link = headers[i].querySelector('.sort-link');
+            if (link && link.dataset.sort === columnName) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    function updateSortArrows() {
+        document.querySelectorAll('.sort-arrow').forEach(arrow => {
+            arrow.textContent = '';
+        });
+        const activeLink = document.querySelector(`.sort-link[data-sort="${currentSort.column}"]`);
+        if (activeLink) {
+            const arrow = activeLink.querySelector('.sort-arrow');
+            arrow.textContent = currentSort.order === 'asc' ? '▲' : '▼';
+        }
+    }
+    sortTable(currentSort.column, currentSort.order);
+    updateSortArrows();
+});
+</script>
 {% endblock %}

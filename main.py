@@ -151,15 +151,13 @@ def logout():
 @app.route('/')
 def billing_dashboard():
     try:
-        sort_by = request.args.get('sort_by', 'name')
-        sort_order = request.args.get('sort_order', 'asc')
-        clients_data = get_billing_dashboard_data(sort_by, sort_order)
+        clients_data = get_billing_dashboard_data()
         today = datetime.now(timezone.utc)
         month_options = []
         for i in range(1, 13):
             month_options.append({'value': i, 'name': datetime(today.year, i, 1).strftime('%B')})
 
-        return render_template('billing.html', clients=clients_data, sort_by=sort_by, sort_order=sort_order, month_options=month_options, current_year=today.year)
+        return render_template('billing.html', clients=clients_data, month_options=month_options, current_year=today.year)
     except (ValueError, KeyError) as e:
         session.pop('db_password', None)
         session.pop('user_id', None)
@@ -205,7 +203,31 @@ def client_billing_details(account_number):
             return redirect(url_for('billing_dashboard'))
 
         notes = query_db("SELECT * FROM billing_notes WHERE company_account_number = ? ORDER BY created_at DESC", [account_number])
-        attachments = query_db("SELECT * FROM client_attachments WHERE company_account_number = ? ORDER BY uploaded_at DESC", [account_number])
+
+        # Attachment sorting and searching
+        sort_by = request.args.get('sort_by', 'uploaded_at')
+        sort_order = request.args.get('sort_order', 'desc')
+        search_query = request.args.get('search', '')
+
+        query = "SELECT * FROM client_attachments WHERE company_account_number = ?"
+        params = [account_number]
+
+        if search_query:
+            query += " AND (original_filename LIKE ? OR category LIKE ?)"
+            params.extend([f'%{search_query}%', f'%{search_query}%'])
+
+        # Validate sort_by to prevent SQL injection
+        allowed_sort_columns = ['original_filename', 'category', 'file_size', 'uploaded_at']
+        if sort_by not in allowed_sort_columns:
+            sort_by = 'uploaded_at'
+
+        # Validate sort_order
+        if sort_order not in ['asc', 'desc']:
+            sort_order = 'desc'
+
+        query += f" ORDER BY {sort_by} {sort_order}"
+        attachments = query_db(query, params)
+
 
         month_options = []
         for i in range(12, 0, -1):
@@ -220,7 +242,10 @@ def client_billing_details(account_number):
             month_options=month_options,
             selected_billing_period=selected_billing_period,
             notes=notes,
-            attachments=attachments
+            attachments=attachments,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            search_query=search_query
         )
     except (ValueError, KeyError) as e:
         session.pop('db_password', None)

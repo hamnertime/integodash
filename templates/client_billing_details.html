@@ -151,25 +151,40 @@
 
     <div class="form-section">
         <h2>Client Attachments</h2>
-        <form method="POST" action="{{ url_for('upload_file', account_number=client.account_number) }}" enctype="multipart/form-data">
-            <input type="file" name="file" required>
-            <select name="category">
-                <option value="Pictures">Pictures</option>
-                <option value="Logos">Logos</option>
-                <option value="Contracts">Contracts</option>
-                <option value="Other">Other</option>
-            </select>
-            <button type="submit">Upload File</button>
-        </form>
+        <div class="attachment-controls">
+            <form method="POST" action="{{ url_for('upload_file', account_number=client.account_number) }}" enctype="multipart/form-data" class="upload-form">
+                <input type="file" name="file" id="file-upload" required>
+                <label for="file-upload" class="file-upload-label">Browse...</label>
+                <span id="file-name-display">No file selected</span>
+                <select name="category">
+                    <option value="Pictures">Pictures</option>
+                    <option value="Logos">Logos</option>
+                    <option value="Contracts">Contracts</option>
+                    <option value="Other">Other</option>
+                </select>
+                <button type="submit" class="button">Upload File</button>
+            </form>
+            <div class="search-attachments">
+                <input type="text" id="attachment-search" placeholder="Search attachments..." value="{{ search_query }}">
+            </div>
+        </div>
         <table class="item-table" style="margin-top: 20px;">
-            <thead><tr><th>Filename</th><th>Category</th><th>Size</th><th>Uploaded</th><th>Actions</th></tr></thead>
-            <tbody>
+            <thead>
+                <tr>
+                    <th><a href="#" class="sort-link" data-sort="original_filename">Filename<span class="sort-arrow"></span></a></th>
+                    <th><a href="#" class="sort-link" data-sort="category">Category<span class="sort-arrow"></span></a></th>
+                    <th><a href="#" class="sort-link" data-sort="file_size">Size<span class="sort-arrow"></span></a></th>
+                    <th><a href="#" class="sort-link" data-sort="uploaded_at">Uploaded<span class="sort-arrow"></span></a></th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="attachment-table-body">
             {% for attachment in attachments %}
                 <tr>
-                    <td><a href="#" class="preview-attachment" data-url="{{ url_for('download_file', account_number=client.account_number, filename=attachment.stored_filename) }}" data-filename="{{ attachment.original_filename }}">{{ attachment.original_filename }}</a></td>
-                    <td>{{ attachment.category }}</td>
-                    <td>{{ attachment.file_size | filesizeformat }}</td>
-                    <td>{{ attachment.uploaded_at | humanize }}</td>
+                    <td data-sort-value="{{ attachment.original_filename }}"><a href="#" class="preview-attachment" data-url="{{ url_for('download_file', account_number=client.account_number, filename=attachment.stored_filename) }}" data-filename="{{ attachment.original_filename }}">{{ attachment.original_filename }}</a></td>
+                    <td data-sort-value="{{ attachment.category }}">{{ attachment.category }}</td>
+                    <td data-sort-value="{{ attachment.file_size }}">{{ attachment.file_size | filesizeformat }}</td>
+                    <td data-sort-value="{{ attachment.uploaded_at }}">{{ attachment.uploaded_at | humanize }}</td>
                     <td>
                         <a href="{{ url_for('download_file', account_number=client.account_number, filename=attachment.stored_filename) }}" class="icon-button download" title="Download">
                             <svg viewBox="0 0 24 24"><path d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z" /></svg>
@@ -414,6 +429,104 @@ document.addEventListener('DOMContentLoaded', function() {
             attachmentPreviewModal.style.display = 'none';
         }
     }
+
+    const fileUpload = document.getElementById('file-upload');
+    const fileNameDisplay = document.getElementById('file-name-display');
+    if (fileUpload) {
+        fileUpload.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                fileNameDisplay.textContent = this.files[0].name;
+            } else {
+                fileNameDisplay.textContent = 'No file selected';
+            }
+        });
+    }
+
+    const attachmentSearch = document.getElementById('attachment-search');
+    if(attachmentSearch) {
+        attachmentSearch.addEventListener('input', function() {
+            const searchQuery = this.value.toLowerCase();
+            const tableBody = document.getElementById('attachment-table-body');
+            const rows = tableBody.getElementsByTagName('tr');
+            for (let i = 0; i < rows.length; i++) {
+                const cells = rows[i].getElementsByTagName('td');
+                let rowVisible = false;
+                if (cells.length > 0) {
+                    const filename = cells[0].textContent.toLowerCase();
+                    const category = cells[1].textContent.toLowerCase();
+                    if (filename.includes(searchQuery) || category.includes(searchQuery)) {
+                        rowVisible = true;
+                    }
+                }
+                rows[i].style.display = rowVisible ? '' : 'none';
+            }
+        });
+    }
+
+    let currentSort = { column: 'uploaded_at', order: 'desc' };
+
+    document.querySelectorAll('.sort-link').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const column = this.dataset.sort;
+            let order = 'asc';
+            if (currentSort.column === column && currentSort.order === 'asc') {
+                order = 'desc';
+            }
+            currentSort = { column, order };
+            sortTable(column, order);
+            updateSortArrows();
+        });
+    });
+
+    function sortTable(column, order) {
+        const tableBody = document.getElementById('attachment-table-body');
+        const rows = Array.from(tableBody.getElementsByTagName('tr'));
+
+        rows.sort((a, b) => {
+            const aCell = a.querySelector(`td[data-sort-value]`);
+            const bCell = b.querySelector(`td[data-sort-value]`);
+
+            const aVal = a.cells[getColumnIndex(column)].dataset.sortValue;
+            const bVal = b.cells[getColumnIndex(column)].dataset.sortValue;
+
+            const isNumeric = !isNaN(parseFloat(aVal)) && isFinite(aVal);
+
+            let comparison = 0;
+            if (isNumeric) {
+                comparison = parseFloat(aVal) - parseFloat(bVal);
+            } else {
+                comparison = aVal.localeCompare(bVal);
+            }
+
+            return order === 'asc' ? comparison : -comparison;
+        });
+
+        rows.forEach(row => tableBody.appendChild(row));
+    }
+
+    function getColumnIndex(columnName) {
+        const headers = document.querySelectorAll('.item-table th');
+        for (let i = 0; i < headers.length; i++) {
+            const link = headers[i].querySelector('.sort-link');
+            if (link && link.dataset.sort === columnName) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    function updateSortArrows() {
+        document.querySelectorAll('.sort-arrow').forEach(arrow => {
+            arrow.textContent = '';
+        });
+        const activeLink = document.querySelector(`.sort-link[data-sort="${currentSort.column}"]`);
+        if (activeLink) {
+            const arrow = activeLink.querySelector('.sort-arrow');
+            arrow.textContent = currentSort.order === 'asc' ? '▲' : '▼';
+        }
+    }
+    updateSortArrows();
 });
 </script>
 {% endblock %}

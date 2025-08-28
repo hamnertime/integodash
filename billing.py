@@ -264,7 +264,7 @@ def get_billing_data_for_client(account_number, year, month):
         'contract_expired': contract_expired,
     }
 
-def get_billing_dashboard_data(sort_by='name', sort_order='asc'):
+def get_billing_dashboard_data():
     """Calculates and returns the data for the main billing dashboard."""
     # Fetch all clients without sorting in the DB
     clients_raw = query_db("SELECT * FROM companies")
@@ -302,26 +302,6 @@ def get_billing_dashboard_data(sort_by='name', sort_order='asc'):
         client['total_backup_bytes'] = data['backup_info']['total_backup_bytes']
         client['total_bill'] = data['receipt_data']['total']
         clients_data.append(client)
-
-    # Perform sorting in Python after all data is calculated
-    # Define a mapping from the URL sort_by parameter to the actual key in our client dictionary
-    sort_map = {
-        'name': 'name',
-        'billing_plan': 'billing_plan',
-        'workstations': 'workstations',
-        'servers': 'servers',
-        'vms': 'vms',
-        'regular_users': 'regular_users',
-        'backup': 'total_backup_bytes',
-        'hours': 'total_hours',
-        'hours_this_month': 'hours_this_month',
-        'hours_last_month': 'hours_last_month',
-        'bill': 'total_bill'
-    }
-    sort_key = sort_map.get(sort_by, 'name')
-
-    # Sort the list of dictionaries
-    clients_data.sort(key=lambda x: (x.get(sort_key) is None, x.get(sort_key, 0)), reverse=(sort_order == 'desc'))
 
     return clients_data
 
