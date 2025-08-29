@@ -570,3 +570,17 @@ margin-top: 20px;
     font-weight: bold;
     animation: pulse-red 2s infinite ease-in-out;
 }
+
+.client-table .icon-button.delete {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+}
+
+.client-table .icon-button.delete svg {
+    width: 18px;
+    height: 18px;
+}

@@ -199,15 +199,47 @@ def billing_dashboard():
         clients_data = get_billing_dashboard_data()
         today = datetime.now(timezone.utc)
         month_options = []
+        billing_plans = query_db("SELECT DISTINCT billing_plan FROM billing_plans ORDER BY billing_plan")
         for i in range(1, 13):
             month_options.append({'value': i, 'name': datetime(today.year, i, 1).strftime('%B')})
 
-        return render_template('clients.html', clients=clients_data, month_options=month_options, current_year=today.year)
+        return render_template('clients.html', clients=clients_data, month_options=month_options, current_year=today.year, billing_plans=billing_plans)
     except (ValueError, KeyError) as e:
         app.config['DB_PASSWORD'] = None
         session.clear()
         flash(f"An error occurred on the dashboard: {e}. Please log in again.", 'error')
         return redirect(url_for('login'))
+
+@app.route('/client/add', methods=['POST'])
+def add_client():
+    account_number = request.form.get('account_number')
+    name = request.form.get('name')
+    billing_plan = request.form.get('billing_plan')
+
+    if not account_number or not name or not billing_plan:
+        flash('Account Number, Name, and Billing Plan are required.', 'error')
+    else:
+        try:
+            log_and_execute(
+                "INSERT INTO companies (account_number, name, billing_plan) VALUES (?, ?, ?)",
+                (account_number, name, billing_plan)
+            )
+            flash(f"Client '{name}' added successfully.", 'success')
+        except Exception as e:
+            flash(f"Error adding client: {e}", "error")
+
+    return redirect(url_for('billing_dashboard'))
+
+
+@app.route('/client/delete/<account_number>', methods=['POST'])
+def delete_client(account_number):
+    try:
+        log_and_execute("DELETE FROM companies WHERE account_number = ?", [account_number])
+        flash('Client deleted successfully.', 'success')
+    except Exception as e:
+        flash(f'Error deleting client: {e}', 'error')
+    return redirect(url_for('billing_dashboard'))
+
 
 @app.route('/contacts')
 def contacts():
