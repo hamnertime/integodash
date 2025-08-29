@@ -121,12 +121,22 @@ document.addEventListener('DOMContentLoaded', function () {
     const defaultLayout = {{ default_layout|tojson|safe }};
 
     if (savedLayout) {
-        // We pass false to load() to avoid loading the saved content, preventing duplicates
-        grid.load(savedLayout, false);
+        // Use true to add/remove widgets to match the saved layout
+        grid.load(savedLayout, true);
     }
 
     grid.on('change', function (event, items) {
-        // We pass false to save() so it doesn't save the dynamic content
+        const layout = grid.save(false);
+        fetch('/save_layout/clients', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({layout: layout}),
+        });
+    });
+
+    grid.on('removed', function(event, items) {
         const layout = grid.save(false);
         fetch('/save_layout/clients', {
             method: 'POST',
@@ -138,8 +148,16 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     document.getElementById('restore-layout-btn').addEventListener('click', function() {
-        if (defaultLayout) {
-            grid.load(defaultLayout, true); // true to update layout and content
+        if (confirm('Are you sure you want to restore the default layout? This will discard your current customizations.')) {
+            fetch('/delete_layout/clients', {
+                method: 'POST'
+            }).then(response => {
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    alert('Failed to restore default layout.');
+                }
+            });
         }
     });
 

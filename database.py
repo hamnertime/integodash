@@ -176,6 +176,13 @@ def save_user_widget_layout(user_id, page_name, layout):
         (user_id, page_name, layout_json)
     )
 
+def delete_user_widget_layout(user_id, page_name):
+    """Deletes the saved widget layout for a specific user and page."""
+    log_and_execute(
+        "DELETE FROM user_widget_layouts WHERE user_id = ? AND page_name = ?",
+        (user_id, page_name)
+    )
+
 def init_app_db(app):
     """Register database functions with the Flask app."""
     app.teardown_appcontext(close_connection)

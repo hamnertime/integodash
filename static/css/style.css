@@ -642,10 +642,6 @@ body.dark-mode .grid-stack-placeholder > .placeholder-content {
     border: 1px dashed var(--primary-color);
 }
 
-body.dark-mode .ui-resizable-handle.ui-resizable-se {
-    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 14" width="14" height="14"><path d="M14 0 L0 14 L14 14 Z" fill="rgba(255,255,255,0.3)"/></svg>');
-}
-
 /* Widget Library */
 #widget-library-list {
 display: flex;

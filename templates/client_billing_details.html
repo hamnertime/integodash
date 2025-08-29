@@ -301,9 +301,28 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    grid.on('removed', function(event, items) {
+        const layout = grid.save(false);
+        fetch('/save_layout/client_details', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({layout: layout}),
+        });
+    });
+
     document.getElementById('restore-layout-btn').addEventListener('click', function() {
-        if (defaultLayout) {
-            grid.load(defaultLayout, true);
+        if (confirm('Are you sure you want to restore the default layout? This will discard your current customizations.')) {
+            fetch('/delete_layout/client_details', {
+                method: 'POST'
+            }).then(response => {
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    alert('Failed to restore default layout.');
+                }
+            });
         }
     });
 

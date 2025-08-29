@@ -19,7 +19,7 @@ import re
 from threading import Lock
 
 # Local module imports
-from database import init_app_db, get_db, query_db, log_and_execute, log_read_action, log_page_view, get_db_connection, get_user_widget_layout, save_user_widget_layout, default_widget_layouts
+from database import init_app_db, get_db, query_db, log_and_execute, log_read_action, log_page_view, get_db_connection, get_user_widget_layout, save_user_widget_layout, delete_user_widget_layout, default_widget_layouts
 from scheduler import run_job
 from billing import get_billing_dashboard_data, get_client_breakdown_data
 
@@ -250,6 +250,19 @@ def save_layout(page_name):
         return jsonify({'status': 'success'})
     except Exception as e:
         print(f"Error saving layout: {e}", file=sys.stderr)
+        return jsonify({'status': 'error', 'message': 'Internal server error'}), 500
+
+@app.route('/delete_layout/<page_name>', methods=['POST'])
+def delete_layout(page_name):
+    """Deletes the layout for the current user and page."""
+    if 'user_id' not in session:
+        return jsonify({'status': 'error', 'message': 'Not logged in'}), 401
+
+    try:
+        delete_user_widget_layout(session['user_id'], page_name)
+        return jsonify({'status': 'success'})
+    except Exception as e:
+        print(f"Error deleting layout: {e}", file=sys.stderr)
         return jsonify({'status': 'error', 'message': 'Internal server error'}), 500
 
 @app.route('/')
