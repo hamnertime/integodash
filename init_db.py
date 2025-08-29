@@ -301,7 +301,7 @@ def create_database(new_password, existing_data=None):
     cur.execute("CREATE TABLE IF NOT EXISTS billing_notes (id INTEGER PRIMARY KEY AUTOINCREMENT, company_account_number TEXT NOT NULL, note_content TEXT NOT NULL, created_at TEXT NOT NULL, author TEXT, FOREIGN KEY (company_account_number) REFERENCES companies (account_number) ON DELETE CASCADE)")
     cur.execute("CREATE TABLE IF NOT EXISTS client_attachments (id INTEGER PRIMARY KEY AUTOINCREMENT, company_account_number TEXT NOT NULL, original_filename TEXT NOT NULL, stored_filename TEXT NOT NULL UNIQUE, uploaded_at TEXT NOT NULL, file_size INTEGER, category TEXT, FOREIGN KEY (company_account_number) REFERENCES companies (account_number) ON DELETE CASCADE)")
     cur.execute("CREATE TABLE IF NOT EXISTS custom_line_items (id INTEGER PRIMARY KEY AUTOINCREMENT, company_account_number TEXT NOT NULL, name TEXT NOT NULL, monthly_fee REAL, one_off_fee REAL, one_off_month INTEGER, one_off_year INTEGER, yearly_fee REAL, yearly_bill_month INTEGER, yearly_bill_day INTEGER, FOREIGN KEY (company_account_number) REFERENCES companies (account_number) ON DELETE CASCADE)")
-    cur.execute("CREATE TABLE IF NOT EXISTS app_users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL UNIQUE)")
+    cur.execute("CREATE TABLE IF NOT EXISTS app_users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL UNIQUE, role TEXT NOT NULL DEFAULT 'Read-Only')")
     cur.execute("CREATE TABLE IF NOT EXISTS audit_log (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, timestamp TEXT NOT NULL, action TEXT NOT NULL, table_name TEXT NOT NULL, record_id INTEGER, details TEXT, FOREIGN KEY (user_id) REFERENCES app_users (id))")
     cur.execute("CREATE TABLE IF NOT EXISTS custom_links (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, url TEXT NOT NULL, link_order INTEGER DEFAULT 0)")
     cur.execute("CREATE TABLE IF NOT EXISTS feature_options (id INTEGER PRIMARY KEY AUTOINCREMENT, feature_type TEXT NOT NULL, option_name TEXT NOT NULL, UNIQUE (feature_type, option_name))")
@@ -347,10 +347,16 @@ def create_database(new_password, existing_data=None):
 
         print("Adding default application users...")
         default_users = [
-            'Admin', 'David Hamner', 'Jamie Lowe', 'Jesse Bassett', 'Matt Carter',
-            'Omar Flores-Lozano', 'Tasha Carter', 'Troy Pound'
+            ('Admin', 'Admin'),
+            ('David Hamner', 'Admin'),
+            ('Jamie Lowe', 'Read-Only'),
+            ('Jesse Bassett', 'Read-Only'),
+            ('Matt Carter', 'Admin'),
+            ('Omar Flores-Lozano', 'Editor'),
+            ('Tasha Carter', 'Read-Only'),
+            ('Troy Pound', 'Admin')
         ]
-        cur.executemany("INSERT INTO app_users (username) VALUES (?)", [(user,) for user in default_users])
+        cur.executemany("INSERT INTO app_users (username, role) VALUES (?, ?)", default_users)
 
         # This is a fresh install, so we must get the API keys
         get_and_set_api_keys(cur)

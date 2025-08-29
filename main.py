@@ -17,13 +17,13 @@ import bleach
 import re
 
 # Local module imports
-from database import init_app_db, get_db, query_db, log_and_execute, log_read_action, log_page_view, get_db_connection, set_master_password, get_master_password
+from database import init_app_db, get_db, query_db, log_and_execute, log_read_action, log_page_view, get_db_connection
 from scheduler import run_job
 from billing import get_billing_dashboard_data, get_client_breakdown_data
 
 # --- App Configuration ---
 app = Flask(__name__)
-app.secret_key = os.urandom(24)
+app.secret_key = 'a_permanent_secret_key_for_production' # This should be a long, random, and secret string
 DATABASE = 'brainhair.db'
 UPLOAD_FOLDER = 'uploads'
 STATIC_CSS_FOLDER = 'static/css'
@@ -75,7 +75,7 @@ def to_markdown(text):
 # --- Context Processors ---
 @app.context_processor
 def inject_custom_links():
-    if get_master_password() and 'user_id' in session:
+    if 'db_password' in session and 'user_id' in session:
         try:
             links = query_db("SELECT * FROM custom_links ORDER BY link_order")
             return dict(custom_links=links)
@@ -86,14 +86,21 @@ def inject_custom_links():
 # --- Web Application Routes ---
 @app.before_request
 def require_login():
-    if get_master_password() is None and request.endpoint not in ['login', 'static']:
+    # Allow access to login and static files without authentication
+    if request.endpoint in ['login', 'static']:
+        return
+
+    # If the database isn't unlocked, redirect to login
+    if 'db_password' not in session:
         return redirect(url_for('login'))
-    if 'user_id' not in session and request.endpoint not in ['login', 'select_user', 'static']:
+
+    # If the user isn't selected, redirect to the user selection page
+    if 'user_id' not in session and request.endpoint != 'select_user':
         return redirect(url_for('select_user'))
 
 @app.after_request
 def log_request(response):
-    if get_master_password() and 'user_id' in session:
+    if 'db_password' in session and 'user_id' in session:
         try:
             # Avoid logging the partial fetch requests to keep the audit log clean
             if request.endpoint not in ['get_notes_partial', 'get_attachments_partial']:
@@ -109,14 +116,17 @@ def login():
     if request.method == 'POST':
         password_attempt = request.form.get('password')
         try:
+            # Try to connect with the provided password
             with get_db_connection(password_attempt) as con:
-                set_master_password(password_attempt)
+                # If the connection is successful, start the scheduler if it's not already running
                 if not scheduler.running:
                     print("--- First successful login. Starting background scheduler. ---")
                     jobs = con.execute("SELECT id, script_path, interval_minutes FROM scheduler_jobs WHERE enabled = 1").fetchall()
                     for job in jobs:
-                        scheduler.add_job(run_job, 'interval', minutes=job['interval_minutes'], args=[job['id'], job['script_path'], get_master_password()], id=str(job['id']), next_run_time=datetime.now() + timedelta(seconds=10))
+                        scheduler.add_job(run_job, 'interval', minutes=job['interval_minutes'], args=[job['id'], job['script_path'], password_attempt], id=str(job['id']), next_run_time=datetime.now() + timedelta(seconds=10))
                     scheduler.start()
+            # Store the password in the session
+            session['db_password'] = password_attempt
             flash('Database unlocked successfully!', 'success')
             return redirect(url_for('select_user'))
         except (ValueError, Exception):
@@ -125,28 +135,26 @@ def login():
 
 @app.route('/select_user', methods=['GET', 'POST'])
 def select_user():
-    if get_master_password() is None:
-        return redirect(url_for('login'))
-
     if request.method == 'POST':
         user_id = request.form.get('user_id')
         user = query_db("SELECT * FROM app_users WHERE id = ?", [user_id], one=True)
         if user:
             session['user_id'] = user['id']
             session['username'] = user['username']
+            session['role'] = user['role']
             return redirect(url_for('billing_dashboard'))
         else:
             flash("Invalid user selected.", 'error')
 
     users = query_db("SELECT * FROM app_users ORDER BY username")
     return render_template('user_selection.html', users=users)
-# ... (the rest of the main.py file remains the same)
 
 @app.route('/logout')
 def logout():
     """Logs out the current user and redirects to the user selection screen."""
     session.pop('user_id', None)
     session.pop('username', None)
+    session.pop('role', None)
     flash("You have been logged out.", "success")
     return redirect(url_for('select_user'))
 
@@ -662,14 +670,15 @@ def billing_settings():
         action = request.form.get('action')
         if action == 'add_user':
             username = request.form.get('username')
-            if username:
+            role = request.form.get('role')
+            if username and role:
                 try:
-                    log_and_execute("INSERT INTO app_users (username) VALUES (?)", (username,))
+                    log_and_execute("INSERT INTO app_users (username, role) VALUES (?, ?)", (username, role))
                     flash(f"User '{username}' added successfully.", "success")
                 except Exception as e:
                     flash(f"Error adding user: {e}", "error")
             else:
-                flash("Username cannot be empty.", "error")
+                flash("Username and role are required.", "error")
             return redirect(url_for('billing_settings'))
 
     all_plans_raw = query_db("SELECT * FROM billing_plans ORDER BY billing_plan, term_length")
@@ -749,20 +758,22 @@ def edit_user(user_id):
         return redirect(url_for('billing_settings'))
 
     new_username = request.form.get('username')
-    if new_username:
+    new_role = request.form.get('role')
+    if new_username and new_role:
         try:
             existing_user = query_db("SELECT id FROM app_users WHERE username = ? AND id != ?", [new_username, user_id], one=True)
             if existing_user:
                 flash(f"Username '{new_username}' is already taken.", "error")
             else:
-                log_and_execute("UPDATE app_users SET username = ? WHERE id = ?", (new_username, user_id))
-                flash("Username updated successfully.", "success")
+                log_and_execute("UPDATE app_users SET username = ?, role = ? WHERE id = ?", (new_username, new_role, user_id))
+                flash("User updated successfully.", "success")
                 if session.get('user_id') == user_id:
                     session['username'] = new_username
+                    session['role'] = new_role
         except Exception as e:
             flash(f"An error occurred: {e}", "error")
     else:
-        flash("Username cannot be empty.", "error")
+        flash("Username and role are required.", "error")
     return redirect(url_for('billing_settings'))
 
 @app.route('/settings/links/delete/<int:link_id>', methods=['POST'])

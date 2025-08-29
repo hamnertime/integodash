@@ -10,16 +10,6 @@ except ImportError:
     sys.exit(1)
 
 DATABASE = 'brainhair.db'
-_db_master_password = None
-
-def set_master_password(password):
-    """Sets the master password for the database connection."""
-    global _db_master_password
-    _db_master_password = password
-
-def get_master_password():
-    """Gets the master password."""
-    return _db_master_password
 
 def get_db_connection(password):
     """Establishes a connection to the encrypted database."""
@@ -33,9 +23,9 @@ def get_db_connection(password):
 def get_db():
     """Opens a new database connection if there is none yet for the current application context."""
     if not hasattr(g, '_database'):
-        password = get_master_password()
+        password = session.get('db_password')
         if not password:
-            raise ValueError("Database has not been unlocked.")
+            raise ValueError("Database password not found in session.")
         try:
             g._database = get_db_connection(password)
             g._database.execute("SELECT name FROM sqlite_master WHERE type='table' LIMIT 1;")

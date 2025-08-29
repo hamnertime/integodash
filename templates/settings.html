@@ -58,14 +58,15 @@
         <h2>Application Users & Auditing</h2>
         <a href="{{ url_for('view_audit_log') }}" class="button">View Full Audit Log</a>
         <table class="plan-table" style="margin-top: 20px;">
-            <thead><tr><th>Username</th><th class="action-cell">Actions</th></tr></thead>
+            <thead><tr><th>Username</th><th>Role</th><th class="action-cell">Actions</th></tr></thead>
             <tbody>
                 {% for user in app_users %}
                 <tr>
                     <td>{{ user.username }}</td>
+                    <td>{{ user.role }}</td>
                     <td class="action-cell">
                         {% if user.id > 1 %}
-                        <button class="icon-button edit edit-user" data-user-id="{{ user.id }}" data-user-name="{{ user.username }}">
+                        <button class="icon-button edit edit-user" data-user-id="{{ user.id }}" data-user-name="{{ user.username }}" data-user-role="{{ user.role }}">
                            <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
                         </button>
                         {% if user.id != session.user_id %}
@@ -84,6 +85,11 @@
         <form method="POST" action="{{ url_for('billing_settings') }}" class="add-plan-form full-width">
             <input type="hidden" name="action" value="add_user">
             <input type="text" name="username" placeholder="Enter username" required>
+            <select name="role">
+                <option value="Read-Only">Read-Only</option>
+                <option value="Editor">Editor</option>
+                <option value="Admin">Admin</option>
+            </select>
             <button type="submit">Add User</button>
         </form>
     </div>
@@ -325,7 +331,13 @@
             </div>
             <form id="userModalForm" method="POST">
                 <label for="userModalName">Username:</label>
-                <input type="text" name="username" id="userModalName" required style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--input-border); background-color: var(--input-bg); color: var(--text-color);">
+                <input type="text" name="username" id="userModalName" required style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--input-border); background-color: var(--input-bg); color: var(--text-color); margin-bottom: 10px;">
+                <label for="userModalRole">Role:</label>
+                <select name="role" id="userModalRole" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--input-border); background-color: var(--input-bg); color: var(--text-color);">
+                    <option value="Read-Only">Read-Only</option>
+                    <option value="Editor">Editor</option>
+                    <option value="Admin">Admin</option>
+                </select>
                 <div style="text-align: right; margin-top: 20px;">
                     <button type="submit" class="button">Save Changes</button>
                 </div>
@@ -431,6 +443,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('userModalForm').action = `/settings/user/edit/${userId}`;
             document.getElementById('userModalTitle').textContent = `Edit User: ${this.dataset.userName}`;
             document.getElementById('userModalName').value = this.dataset.userName;
+            document.getElementById('userModalRole').value = this.dataset.userRole;
             userModal.style.display = 'block';
         });
     });
