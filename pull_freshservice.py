@@ -1,3 +1,4 @@
+# hamnertime/integodash/integodash-b7a03f16877fb4e6590039b6f2c0b632176ef6cd/pull_freshservice.py
 import requests
 import base64
 import os
@@ -183,26 +184,56 @@ def populate_users_database(db_connection, users_to_insert):
     """, users_to_insert)
     print(f"Successfully inserted/updated {cur.rowcount} users in the database.")
 
+def populate_contacts_database(db_connection, contacts_to_insert):
+    if not contacts_to_insert: return
+    cur = db_connection.cursor()
+    cur.executemany("""
+        INSERT INTO contacts (company_account_number, first_name, last_name, email, title, work_phone, mobile_phone, employment_type, status, other_emails, address, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(email) DO UPDATE SET
+            company_account_number=excluded.company_account_number,
+            first_name=excluded.first_name,
+            last_name=excluded.last_name,
+            title=excluded.title,
+            work_phone=excluded.work_phone,
+            mobile_phone=excluded.mobile_phone,
+            employment_type=excluded.employment_type,
+            status=excluded.status,
+            other_emails=excluded.other_emails,
+            address=excluded.address,
+            notes=excluded.notes
+    """, contacts_to_insert)
+    print(f"Successfully inserted/updated {cur.rowcount} contacts in the database.")
+
 def offboard_deactivated_users(db_connection, users_from_api):
     """
     Identifies users who are inactive in the API response and deletes them from the local database.
     """
     cur = db_connection.cursor()
 
-    deactivated_user_ids = {user['id'] for user in users_from_api if not user.get('active', False)}
+    deactivated_users = {user['primary_email']: user['id'] for user in users_from_api if not user.get('active', False) and user.get('primary_email')}
 
-    if not deactivated_user_ids:
+    if not deactivated_users:
         print("\nNo deactivated users found in Freshservice to offboard.")
         return
 
-    user_id_tuples = [(user_id,) for user_id in deactivated_user_ids]
+    user_ids_to_delete = list(deactivated_users.values())
+    emails_to_delete = list(deactivated_users.keys())
 
-    print(f"\nFound {len(deactivated_user_ids)} deactivated users. Removing from local database...")
+    user_id_tuples = [(user_id,) for user_id in user_ids_to_delete]
+    email_tuples = [(email,) for email in emails_to_delete]
+
+
+    print(f"\nFound {len(deactivated_users)} deactivated users. Removing from local database...")
 
     cur.execute("CREATE TEMP TABLE ids_to_delete (id INTEGER PRIMARY KEY);")
     cur.executemany("INSERT INTO ids_to_delete (id) VALUES (?)", user_id_tuples)
 
+    cur.execute("CREATE TEMP TABLE emails_to_delete (email TEXT PRIMARY KEY);")
+    cur.executemany("INSERT INTO emails_to_delete (email) VALUES (?)", email_tuples)
+
     cur.execute("DELETE FROM users WHERE freshservice_id IN (SELECT id FROM ids_to_delete);")
+    cur.execute("DELETE FROM contacts WHERE email IN (SELECT email FROM emails_to_delete);")
 
     deleted_count = cur.rowcount
     if deleted_count > 0:
@@ -245,10 +276,16 @@ if __name__ == "__main__":
         offboard_deactivated_users(con, users)
 
         active_users_to_insert = []
+        contacts_to_insert = []
         company_id_to_account_map = {c.get('id'): (c.get('custom_fields') or {}).get(ACCOUNT_NUMBER_FIELD) for c in companies}
+        processed_emails = set()
 
         for user in users:
             if not user.get('active', False):
+                continue
+
+            email = user.get('primary_email')
+            if not email or email in processed_emails:
                 continue
 
             for dept_id in (user.get('department_ids') or []):
@@ -257,15 +294,31 @@ if __name__ == "__main__":
                         str(account_num),
                         user.get('id'),
                         f"{user.get('first_name', '')} {user.get('last_name', '')}".strip(),
-                        user.get('primary_email'),
+                        email,
                         'Active',
                         user.get('created_at', datetime.now(timezone.utc).isoformat()),
                         'Regular'
                     ))
+                    contacts_to_insert.append((
+                        str(account_num),
+                        user.get('first_name'),
+                        user.get('last_name'),
+                        email,
+                        user.get('job_title'),
+                        user.get('work_phone_number'),
+                        user.get('mobile_phone_number'),
+                        'Full Time', # Assuming full-time, can be changed later
+                        'Active',
+                        ', '.join(user.get('other_emails', [])),
+                        user.get('address'),
+                        user.get('description')
+                    ))
+                    processed_emails.add(email)
                     break
 
         populate_companies_database(con, companies)
         populate_users_database(con, active_users_to_insert)
+        populate_contacts_database(con, contacts_to_insert)
 
         con.commit()
         con.close()

@@ -311,6 +311,46 @@ body.dark-mode .form-grid input[readonly] {
     gap: 20px;
 }
 
+/* contacts.html */
+#contactModal .modal-content {
+max-width: 600px;
+}
+
+#contactModal .form-row {
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 15px;
+margin-bottom: 15px;
+}
+
+#contactModal label {
+display: block;
+margin-bottom: 5px;
+font-weight: bold;
+}
+
+#contactModal input[type="text"],
+#contactModal input[type="email"],
+#contactModal select,
+#contactModal textarea {
+width: 100%;
+padding: 8px;
+border: 1px solid var(--input-border);
+border-radius: 4px;
+box-sizing: border-box;
+background-color: var(--input-bg);
+color: var(--text-color);
+}
+
+#contactModal textarea {
+resize: vertical;
+}
+
+#contactModal .button-container {
+text-align: right;
+margin-top: 20px;
+}
+
 /* login.html */
 .login-container {
     max-width: 400px;

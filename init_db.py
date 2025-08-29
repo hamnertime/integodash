@@ -1,3 +1,4 @@
+# hamnertime/integodash/integodash-b7a03f16877fb4e6590039b6f2c0b632176ef6cd/init_db.py
 # hamnertime/integodash/integodash-fda17dde7f19ded546de5dbffc8ee99ff55ec5f3/init_db.py
 import sys
 import os
@@ -118,6 +119,7 @@ def import_data_to_new_db(con, data):
         'scheduler_jobs',
         'assets',
         'users',
+        'contacts',
         'client_locations',
         'manual_assets',
         'manual_users',
@@ -233,6 +235,24 @@ def create_database(new_password, existing_data=None):
             date_added TEXT,
             billing_type TEXT NOT NULL DEFAULT 'Regular',
             FOREIGN KEY (company_account_number) REFERENCES companies (account_number)
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS contacts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            company_account_number TEXT,
+            first_name TEXT,
+            last_name TEXT,
+            email TEXT UNIQUE,
+            title TEXT,
+            work_phone TEXT,
+            mobile_phone TEXT,
+            employment_type TEXT,
+            status TEXT,
+            other_emails TEXT,
+            address TEXT,
+            notes TEXT,
+            FOREIGN KEY (company_account_number) REFERENCES companies (account_number) ON DELETE CASCADE
         )
     """)
 

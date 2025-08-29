@@ -1,3 +1,4 @@
+# hamnertime/integodash/integodash-b7a03f16877fb4e6590039b6f2c0b632176ef6cd/main.py
 # hamnertime/integodash/integodash-da8c97dfedb79ff8b1c5a3267951a55358e6f2a9/main.py
 import os
 import sys
@@ -201,12 +202,75 @@ def billing_dashboard():
         for i in range(1, 13):
             month_options.append({'value': i, 'name': datetime(today.year, i, 1).strftime('%B')})
 
-        return render_template('billing.html', clients=clients_data, month_options=month_options, current_year=today.year)
+        return render_template('clients.html', clients=clients_data, month_options=month_options, current_year=today.year)
     except (ValueError, KeyError) as e:
         app.config['DB_PASSWORD'] = None
         session.clear()
         flash(f"An error occurred on the dashboard: {e}. Please log in again.", 'error')
         return redirect(url_for('login'))
+
+@app.route('/contacts')
+def contacts():
+    contacts = query_db("""
+        SELECT c.*, co.name as company_name
+        FROM contacts c
+        LEFT JOIN companies co ON c.company_account_number = co.account_number
+        ORDER BY c.first_name, c.last_name
+    """)
+    companies = query_db("SELECT * FROM companies ORDER BY name")
+    return render_template('contacts.html', contacts=contacts, companies=companies)
+
+@app.route('/contacts/add', methods=['POST'])
+def add_contact():
+    log_and_execute("""
+        INSERT INTO contacts (first_name, last_name, email, title, company_account_number, work_phone, mobile_phone, employment_type, status, other_emails, address, notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, [
+        request.form.get('first_name'),
+        request.form.get('last_name'),
+        request.form.get('email'),
+        request.form.get('title'),
+        request.form.get('company_account_number'),
+        request.form.get('work_phone'),
+        request.form.get('mobile_phone'),
+        request.form.get('employment_type'),
+        request.form.get('status'),
+        request.form.get('other_emails'),
+        request.form.get('address'),
+        request.form.get('notes')
+    ])
+    flash('Contact added successfully.', 'success')
+    return redirect(url_for('contacts'))
+
+@app.route('/contacts/edit/<int:contact_id>', methods=['POST'])
+def edit_contact(contact_id):
+    log_and_execute("""
+        UPDATE contacts
+        SET first_name = ?, last_name = ?, email = ?, title = ?, company_account_number = ?, work_phone = ?, mobile_phone = ?, employment_type = ?, status = ?, other_emails = ?, address = ?, notes = ?
+        WHERE id = ?
+    """, [
+        request.form.get('first_name'),
+        request.form.get('last_name'),
+        request.form.get('email'),
+        request.form.get('title'),
+        request.form.get('company_account_number'),
+        request.form.get('work_phone'),
+        request.form.get('mobile_phone'),
+        request.form.get('employment_type'),
+        request.form.get('status'),
+        request.form.get('other_emails'),
+        request.form.get('address'),
+        request.form.get('notes'),
+        contact_id
+    ])
+    flash('Contact updated successfully.', 'success')
+    return redirect(url_for('contacts'))
+
+@app.route('/contacts/delete/<int:contact_id>')
+def delete_contact(contact_id):
+    log_and_execute("DELETE FROM contacts WHERE id = ?", [contact_id])
+    flash('Contact deleted successfully.', 'success')
+    return redirect(url_for('contacts'))
 
 @app.route('/client/<account_number>/notes')
 def get_notes_partial(account_number):
