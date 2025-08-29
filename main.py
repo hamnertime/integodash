@@ -1090,7 +1090,7 @@ def cleanup_inactive_sessions():
     """Removes users from active_sessions if they haven't been seen recently."""
     with app.app_context():
         now = datetime.now(timezone.utc)
-        inactive_threshold = timedelta(minutes=2)
+        inactive_threshold = timedelta(minutes=5)
         with sessions_lock:
             inactive_users = [
                 user_id for user_id, data in active_sessions.items()
