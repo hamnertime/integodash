@@ -20,39 +20,39 @@ UPLOAD_FOLDER = 'uploads'
 # --- Default Billing Plan Data ---
 # This data is used to populate a fresh database. It is ignored during migration.
 default_plans_data = [
-    # plan, term, puc, psc, pwc, pvc, pswitchc, pfirewallc, phtc, bbfw, bbfs, bit, bpt
-    ('Break Fix', '1-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 90.00, 25.00, 50.00, 1.0, 15.00),
-    ('Break Fix', '2-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 90.00, 25.00, 50.00, 1.0, 15.00),
-    ('Break Fix', '3-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 90.00, 25.00, 50.00, 1.0, 15.00),
-    ('Break Fix', 'Month to Month', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 100.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Advanced', '1-Year', 0.00, 100.00, 25.00, 100.00, 25.00, 25.00, 90.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Advanced', '2-Year', 0.00, 100.00, 25.00, 100.00, 25.00, 25.00, 90.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Advanced', '3-Year', 0.00, 100.00, 25.00, 100.00, 25.00, 25.00, 90.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Advanced', 'Month to Month', 0.00, 100.00, 25.00, 100.00, 25.00, 25.00, 100.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Basic', '1-Year', 0.00, 100.00, 10.00, 100.00, 25.00, 25.00, 90.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Basic', '2-Year', 0.00, 100.00, 10.00, 100.00, 25.00, 25.00, 90.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Basic', '3-Year', 0.00, 100.00, 10.00, 100.00, 25.00, 25.00, 90.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Basic', 'Month to Month', 0.00, 100.00, 10.00, 100.00, 25.00, 25.00, 100.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Legacy', '1-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Legacy', '2-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Legacy', '3-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Legacy', 'Month to Month', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Platinum', '1-Year', 120.00, 100.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Platinum', '2-Year', 115.00, 100.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Platinum', '3-Year', 110.00, 100.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Platinum', 'Month to Month', 125.00, 100.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Premium', '1-Year', 95.00, 100.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Premium', '2-Year', 90.00, 100.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Premium', '3-Year', 85.00, 100.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Premium', 'Month to Month', 100.00, 100.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 50.00, 1.0, 15.00),
-    ('Pro Services', '1-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 120.00, 25.00, 50.00, 1.0, 15.00),
-    ('Pro Services', '2-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 120.00, 25.00, 50.00, 1.0, 15.00),
-    ('Pro Services', '3-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 120.00, 25.00, 50.00, 1.0, 15.00),
-    ('Pro Services', 'Month to Month', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 120.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Network', '1-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 120.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Network', '2-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 120.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Network', '3-Year', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 120.00, 25.00, 50.00, 1.0, 15.00),
-    ('MSP Network', 'Month to Month', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 120.00, 25.00, 50.00, 1.0, 15.00),
+    # plan, term, puc, psc, pwc, pvc, pswitchc, pfirewallc, phtc, bbfw, bbfs, bit, bpt, support_level
+    ('Break Fix', '1-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 90.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
+    ('Break Fix', '2-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 90.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
+    ('Break Fix', '3-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 90.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
+    ('Break Fix', 'Month to Month', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 100.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
+    ('MSP Advanced', '1-Year', 0.00, 125.00, 25.00, 100.00, 25.00, 25.00, 90.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
+    ('MSP Advanced', '2-Year', 0.00, 125.00, 25.00, 100.00, 25.00, 25.00, 90.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
+    ('MSP Advanced', '3-Year', 0.00, 125.00, 25.00, 100.00, 25.00, 25.00, 90.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
+    ('MSP Advanced', 'Month to Month', 0.00, 125.00, 25.00, 100.00, 25.00, 25.00, 100.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
+    ('MSP Basic', '1-Year', 0.00, 125.00, 10.00, 100.00, 25.00, 25.00, 90.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
+    ('MSP Basic', '2-Year', 0.00, 125.00, 10.00, 100.00, 25.00, 25.00, 90.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
+    ('MSP Basic', '3-Year', 0.00, 125.00, 10.00, 100.00, 25.00, 25.00, 90.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
+    ('MSP Basic', 'Month to Month', 0.00, 125.00, 10.00, 100.00, 25.00, 25.00, 100.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
+    ('MSP Legacy', '1-Year', 0.00, 125.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited'),
+    ('MSP Legacy', '2-Year', 0.00, 125.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited'),
+    ('MSP Legacy', '3-Year', 0.00, 125.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited'),
+    ('MSP Legacy', 'Month to Month', 0.00, 125.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited'),
+    ('MSP Platinum', '1-Year', 120.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited'),
+    ('MSP Platinum', '2-Year', 115.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited'),
+    ('MSP Platinum', '3-Year', 110.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited'),
+    ('MSP Platinum', 'Month to Month', 125.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited'),
+    ('MSP Premium', '1-Year', 95.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited'),
+    ('MSP Premium', '2-Year', 90.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited'),
+    ('MSP Premium', '3-Year', 85.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited'),
+    ('MSP Premium', 'Month to Month', 100.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited'),
+    ('Pro Services', '1-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 120.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
+    ('Pro Services', '2-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 120.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
+    ('Pro Services', '3-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 120.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
+    ('Pro Services', 'Month to Month', 0.00, 0.00, 0.00, 25.00, 25.00, 0.00, 120.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
+    ('MSP Network', '1-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 120.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
+    ('MSP Network', '2-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 120.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
+    ('MSP Network', '3-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 120.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
+    ('MSP Network', 'Month to Month', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 120.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
 ]
 
 default_features = [
@@ -242,6 +242,7 @@ def create_database(new_password, existing_data=None):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             billing_plan TEXT,
             term_length TEXT,
+            support_level TEXT DEFAULT 'Billed Hourly',
             per_user_cost REAL DEFAULT 0,
             per_server_cost REAL DEFAULT 0,
             per_workstation_cost REAL DEFAULT 0,
@@ -258,11 +259,15 @@ def create_database(new_password, existing_data=None):
         CREATE TABLE IF NOT EXISTS client_billing_overrides (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             company_account_number TEXT UNIQUE,
+            billing_plan TEXT,
+            support_level TEXT,
             per_user_cost REAL, per_server_cost REAL,
             per_workstation_cost REAL, per_vm_cost REAL, per_switch_cost REAL,
             per_firewall_cost REAL, per_hour_ticket_cost REAL, backup_base_fee_workstation REAL,
             backup_base_fee_server REAL, backup_included_tb REAL, backup_per_tb_fee REAL,
             prepaid_hours_monthly REAL, prepaid_hours_yearly REAL,
+            override_billing_plan_enabled BOOLEAN DEFAULT 0,
+            override_support_level_enabled BOOLEAN DEFAULT 0,
             override_puc_enabled BOOLEAN DEFAULT 0,
             override_psc_enabled BOOLEAN DEFAULT 0, override_pwc_enabled BOOLEAN DEFAULT 0,
             override_pvc_enabled BOOLEAN DEFAULT 0, override_pswitchc_enabled BOOLEAN DEFAULT 0,
@@ -340,7 +345,7 @@ def create_database(new_password, existing_data=None):
         cur.executemany("INSERT INTO scheduler_jobs (job_name, script_path, interval_minutes, enabled) VALUES (?, ?, ?, ?)", default_jobs)
 
         print("Populating default billing plans...")
-        cur.executemany("INSERT INTO billing_plans (billing_plan, term_length, per_user_cost, per_server_cost, per_workstation_cost, per_vm_cost, per_switch_cost, per_firewall_cost, per_hour_ticket_cost, backup_base_fee_workstation, backup_base_fee_server, backup_included_tb, backup_per_tb_fee) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", default_plans_data)
+        cur.executemany("INSERT INTO billing_plans (billing_plan, term_length, per_user_cost, per_server_cost, per_workstation_cost, per_vm_cost, per_switch_cost, per_firewall_cost, per_hour_ticket_cost, backup_base_fee_workstation, backup_base_fee_server, backup_included_tb, backup_per_tb_fee, support_level) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", default_plans_data)
 
         print("Populating default feature options...")
         cur.executemany("INSERT INTO feature_options (feature_type, option_name) VALUES (?, ?)", default_features)

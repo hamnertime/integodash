@@ -16,19 +16,6 @@
         <label for="company_owner">Company Owner</label>
         <input type="text" name="company_owner" id="company_owner" value="{{ client.company_owner or '' }}">
 
-        <label for="billing_plan">Assigned Plan</label>
-        <select name="billing_plan" id="billing_plan">
-            {% for plan in all_billing_plans %}
-                <option value="{{ plan.billing_plan }}" {% if client.billing_plan == plan.billing_plan %}selected{% endif %}>{{ plan.billing_plan }}</option>
-            {% endfor %}
-        </select>
-
-        <label for="support_level">Support Level</label>
-        <select name="support_level" id="support_level">
-            <option value="Billed Hourly" {% if client.support_level == 'Billed Hourly' %}selected{% endif %}>Billed Hourly</option>
-            <option value="Unlimited" {% if client.support_level == 'Unlimited' %}selected{% endif %}>Unlimited</option>
-        </select>
-
         <label for="phone_number">Phone Number</label>
         <input type="text" name="phone_number" id="phone_number" value="{{ client.phone_number or '' }}">
 
@@ -78,19 +65,39 @@
                 <div class="header override">Override Value</div>
                 <div class="header">Enable</div>
 
-                {% macro rate_input(name, label, short_name) %}
+                {% macro plan_override_input(name, label, short_name, all_plans) %}
                     <label for="{{ name }}">{{ label }}</label>
-                    {% if name == 'backup_included_tb' %}
-                         <input type="text" value="{{ ('%.2f'|format(defaults[name]|float)) if defaults and defaults[name] is not none else 'N/A' }} TB" disabled>
-                    {% elif name == 'prepaid_hours_monthly' or name == 'prepaid_hours_yearly' %}
-                        <input type="text" value="{{ defaults[name] if defaults and defaults[name] is not none else '0' }} hours" disabled>
-                    {% else %}
-                         <input type="text" value="${{ '%.2f'|format(defaults[name]|float) if defaults and defaults[name] is not none else 'N/A' }}" disabled>
-                    {% endif %}
-                    <input type="number" step="0.01" name="{{ name }}" id="{{ name }}" value="{{ overrides[name] if overrides and overrides[name] is not none }}">
-                    <input type="checkbox" name="override_{{ short_name }}_enabled" {% if overrides and overrides['override_' + short_name + '_enabled'] %}checked{% endif %} title="Enable Override">
+                    <input type="text" value="{{ client.billing_plan or 'N/A' }}" disabled>
+                    <select name="{{ name }}" id="{{ name }}">
+                         <option value="">-- No Override --</option>
+                         {% for plan in all_plans %}
+                             <option value="{{ plan.billing_plan }}" {% if overrides and name in overrides and overrides[name] == plan.billing_plan %}selected{% endif %}>{{ plan.billing_plan }}</option>
+                         {% endfor %}
+                    </select>
+                    <input type="checkbox" name="override_{{ short_name }}_enabled" {% if overrides and ('override_' + short_name + '_enabled') in overrides and overrides['override_' + short_name + '_enabled'] %}checked{% endif %} title="Enable Override">
                 {% endmacro %}
 
+                {% macro rate_input(name, label, short_name, type='currency') %}
+                    <label for="{{ name }}">{{ label }}</label>
+                    {% if type == 'text' %}
+                        <input type="text" value="{{ defaults[name] if defaults and name in defaults.keys() and defaults[name] is not none else 'N/A' }}" disabled>
+                        <select name="{{ name }}" id="{{ name }}">
+                             <option value="">-- No Override --</option>
+                             <option value="Billed Hourly" {% if overrides and name in overrides and overrides[name] == 'Billed Hourly' %}selected{% endif %}>Billed Hourly</option>
+                             <option value="Unlimited" {% if overrides and name in overrides and overrides[name] == 'Unlimited' %}selected{% endif %}>Unlimited</option>
+                        </select>
+                    {% elif type == 'number' %}
+                         <input type="text" value="{{ defaults[name] if defaults and name in defaults.keys() and defaults[name] is not none else '0' }}" disabled>
+                         <input type="number" step="0.01" name="{{ name }}" id="{{ name }}" value="{{ overrides[name] if overrides and name in overrides and overrides[name] is not none }}">
+                    {% else %}
+                        <input type="text" value="${{ '%.2f'|format(defaults[name]|float) if defaults and name in defaults.keys() and defaults[name] is not none else 'N/A' }}" disabled>
+                        <input type="number" step="0.01" name="{{ name }}" id="{{ name }}" value="{{ overrides[name] if overrides and name in overrides and overrides[name] is not none }}">
+                    {% endif %}
+                    <input type="checkbox" name="override_{{ short_name }}_enabled" {% if overrides and ('override_' + short_name + '_enabled') in overrides and overrides['override_' + short_name + '_enabled'] %}checked{% endif %} title="Enable Override">
+                {% endmacro %}
+
+                {{ plan_override_input('billing_plan', 'Assigned Plan', 'billing_plan', all_billing_plans) }}
+                {{ rate_input('support_level', 'Support Level', 'support_level', type='text') }}
                 {{ rate_input('per_user_cost', 'Per Regular User Cost', 'puc') }}
                 {{ rate_input('per_workstation_cost', 'Per Workstation Cost', 'pwc') }}
                 {{ rate_input('per_server_cost', 'Per Server Cost', 'psc') }}
@@ -100,10 +107,10 @@
                 {{ rate_input('per_hour_ticket_cost', 'Per Hour Ticket Cost', 'phtc')}}
                 {{ rate_input('backup_base_fee_workstation', 'Backup Base (Workstation)', 'bbfw') }}
                 {{ rate_input('backup_base_fee_server', 'Backup Base (Server)', 'bbfs') }}
-                {{ rate_input('backup_included_tb', 'Backup Included (TB)', 'bit') }}
+                {{ rate_input('backup_included_tb', 'Backup Included (TB)', 'bit', type='number') }}
                 {{ rate_input('backup_per_tb_fee', 'Backup per TB Fee', 'bpt') }}
-                {{ rate_input('prepaid_hours_monthly', 'Pre-paid Hours (Monthly)', 'prepaid_hours_monthly') }}
-                {{ rate_input('prepaid_hours_yearly', 'Pre-paid Hours (Yearly)', 'prepaid_hours_yearly') }}
+                {{ rate_input('prepaid_hours_monthly', 'Pre-paid Hours (Monthly)', 'prepaid_hours_monthly', type='number') }}
+                {{ rate_input('prepaid_hours_yearly', 'Pre-paid Hours (Yearly)', 'prepaid_hours_yearly', type='number') }}
             </div>
             <div class="button-container">
                 <button type="submit" name="action" value="save_overrides">Save All Overrides</button>
@@ -122,14 +129,14 @@
                     {% set name = 'feature_' + feature_type.lower().replace(' ', '_') %}
                     {% set short_name = feature_type.lower().replace(' ', '_') %}
                     <label>{{ feature_type }}</label>
-                    <input type="text" value="{{ defaults[name] if defaults else 'Not Included' }}" disabled>
+                    <input type="text" value="{{ defaults[name] if defaults and name in defaults.keys() else 'Not Included' }}" disabled>
                     <select name="{{ name }}">
                         <option value="">-- No Override --</option>
                         {% for option in options %}
-                        <option value="{{ option.option_name }}" {% if overrides and overrides[name] == option.option_name %}selected{% endif %}>{{ option.option_name }}</option>
+                        <option value="{{ option.option_name }}" {% if overrides and name in overrides and overrides[name] == option.option_name %}selected{% endif %}>{{ option.option_name }}</option>
                         {% endfor %}
                     </select>
-                    <input type="checkbox" name="override_feature_{{ short_name }}_enabled" {% if overrides and overrides['override_feature_' + short_name + '_enabled'] %}checked{% endif %} title="Enable Override">
+                    <input type="checkbox" name="override_feature_{{ short_name }}_enabled" {% if overrides and ('override_feature_' + short_name + '_enabled') in overrides and overrides['override_feature_' + short_name + '_enabled'] %}checked{% endif %} title="Enable Override">
                 {% endfor %}
             </div>
             <div class="button-container">

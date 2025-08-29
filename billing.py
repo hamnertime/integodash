@@ -43,13 +43,18 @@ def get_billing_data_for_client(account_number, year, month):
     asset_overrides = {r['asset_id']: dict(r) for r in query_db("SELECT * FROM asset_billing_overrides ao JOIN assets a ON a.id = ao.asset_id WHERE a.company_account_number = ?", [account_number])}
     user_overrides = {r['user_id']: dict(r) for r in query_db("SELECT * FROM user_billing_overrides uo JOIN users u ON u.id = uo.user_id WHERE u.company_account_number = ?", [account_number])}
 
-    # Trim whitespace and handle None values from plan and term before querying
+    rate_overrides_row = query_db("SELECT * FROM client_billing_overrides WHERE company_account_number = ?", [account_number], one=True)
+    rate_overrides = dict(rate_overrides_row) if rate_overrides_row else {}
+
+    # Determine the effective billing plan
     billing_plan_name = (client_info.get('billing_plan') or '').strip()
+    if rate_overrides and rate_overrides.get('override_billing_plan_enabled') and rate_overrides.get('billing_plan'):
+        billing_plan_name = rate_overrides['billing_plan']
+
+    client_info['billing_plan'] = billing_plan_name
+
     contract_term = (client_info.get('contract_term_length') or '').strip()
-
     plan_details = query_db("SELECT * FROM billing_plans WHERE billing_plan = ? AND term_length = ?", [billing_plan_name, contract_term], one=True)
-
-    rate_overrides = query_db("SELECT * FROM client_billing_overrides WHERE company_account_number = ?", [account_number], one=True)
 
     # Fetch tickets for the entire year to calculate yearly totals and monthly breakdowns accurately
     current_year = datetime.now().year
@@ -61,8 +66,11 @@ def get_billing_data_for_client(account_number, year, month):
     # --- 2. Determine the Effective Billing Rates ---
     effective_rates = dict(plan_details) if plan_details else {}
     if rate_overrides:
-        rate_overrides = dict(rate_overrides)
         rate_key_map = {'puc': 'per_user_cost', 'psc': 'per_server_cost', 'pwc': 'per_workstation_cost', 'pvc': 'per_vm_cost', 'pswitchc': 'per_switch_cost', 'pfirewallc': 'per_firewall_cost', 'phtc': 'per_hour_ticket_cost', 'bbfw': 'backup_base_fee_workstation', 'bbfs': 'backup_base_fee_server', 'bit': 'backup_included_tb', 'bpt': 'backup_per_tb_fee'}
+
+        if rate_overrides.get('override_support_level_enabled'):
+            effective_rates['support_level'] = rate_overrides['support_level']
+
         for short_key, rate_key in rate_key_map.items():
             if f'override_{short_key}_enabled' in rate_overrides and rate_overrides[f'override_{short_key}_enabled']:
                 effective_rates[rate_key] = rate_overrides[rate_key]
@@ -76,7 +84,7 @@ def get_billing_data_for_client(account_number, year, month):
             if override_enabled_key in rate_overrides and rate_overrides[override_enabled_key]:
                 effective_rates[feature_key] = rate_overrides[feature_key]
 
-    support_level_display = "Unlimited" if effective_rates.get('per_hour_ticket_cost', 0) == 0 else "Billed Hourly"
+    support_level_display = effective_rates.get('support_level', 'Billed Hourly')
 
     # --- 2a. Calculate Contract End Date ---
     contract_end_date = "N/A"
@@ -155,8 +163,8 @@ def get_billing_data_for_client(account_number, year, month):
     tickets_for_period = [t for t in all_tickets_this_year if start_of_billing_month <= datetime.fromisoformat(t['last_updated_at'].replace('Z', '+00:00')) <= end_of_billing_month]
     hours_for_period = sum(t['total_hours_spent'] for t in tickets_for_period)
 
-    prepaid_monthly = float((rate_overrides['prepaid_hours_monthly'] if rate_overrides and rate_overrides.get('override_prepaid_hours_monthly_enabled') else 0) or 0)
-    prepaid_yearly = float((rate_overrides['prepaid_hours_yearly'] if rate_overrides and rate_overrides.get('override_prepaid_hours_yearly_enabled') else 0) or 0)
+    prepaid_monthly = float((rate_overrides.get('prepaid_hours_monthly') if rate_overrides and rate_overrides.get('override_prepaid_hours_monthly_enabled') else 0) or 0)
+    prepaid_yearly = float((rate_overrides.get('prepaid_hours_yearly') if rate_overrides and rate_overrides.get('override_prepaid_hours_yearly_enabled') else 0) or 0)
 
     hours_used_prior = sum(t['total_hours_spent'] for t in all_tickets_this_year if datetime.fromisoformat(t['last_updated_at'].replace('Z', '+00:00')) < start_of_billing_month)
     remaining_yearly_hours = max(0, prepaid_yearly - hours_used_prior)

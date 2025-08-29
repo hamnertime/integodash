@@ -466,7 +466,6 @@ def client_settings(account_number):
                     flash('Location Name is required.', 'error')
             elif action == 'save_overrides':
                 # Update client details
-                support_level = request.form.get('support_level') # New
                 phone_number = request.form.get('phone_number')
                 client_start_date = request.form.get('client_start_date')
                 contract_start_date = request.form.get('contract_start_date')
@@ -477,8 +476,8 @@ def client_settings(account_number):
                 description = request.form.get('description')
 
 
-                log_and_execute("UPDATE companies SET support_level = ?, phone_number = ?, client_start_date = ?, contract_start_date = ?, contract_term_length = ?, domains = ?, company_owner = ?, business_type = ?, description = ? WHERE account_number = ?", # Modified
-                               [support_level, phone_number, client_start_date, contract_start_date, contract_term_length, domains, company_owner, business_type, description, account_number]) # Modified
+                log_and_execute("UPDATE companies SET phone_number = ?, client_start_date = ?, contract_start_date = ?, contract_term_length = ?, domains = ?, company_owner = ?, business_type = ?, description = ? WHERE account_number = ?",
+                               [phone_number, client_start_date, contract_start_date, contract_term_length, domains, company_owner, business_type, description, account_number])
 
                 rate_map = {'puc': 'per_user_cost', 'pwc': 'per_workstation_cost', 'psc': 'per_server_cost', 'pvc': 'per_vm_cost', 'pswitchc': 'per_switch_cost', 'pfirewallc': 'per_firewall_cost', 'phtc': 'per_hour_ticket_cost', 'bbfw': 'backup_base_fee_workstation', 'bbfs': 'backup_base_fee_server', 'bit': 'backup_included_tb', 'bpt': 'backup_per_tb_fee', 'prepaid_hours_monthly': 'prepaid_hours_monthly', 'prepaid_hours_yearly': 'prepaid_hours_yearly'}
 
@@ -489,6 +488,18 @@ def client_settings(account_number):
                     feature_map[short_name] = f'feature_{short_name}'
 
                 columns_to_update, values_to_update = ['company_account_number'], [account_number]
+
+                # Handle billing plan override
+                columns_to_update.append('billing_plan')
+                values_to_update.append(request.form.get('billing_plan'))
+                columns_to_update.append('override_billing_plan_enabled')
+                values_to_update.append(1 if 'override_billing_plan_enabled' in request.form else 0)
+
+                # Handle support level override
+                columns_to_update.append('support_level')
+                values_to_update.append(request.form.get('support_level'))
+                columns_to_update.append('override_support_level_enabled')
+                values_to_update.append(1 if 'override_support_level_enabled' in request.form else 0)
 
                 for short_name, full_name in rate_map.items():
                     columns_to_update.append(full_name)
@@ -703,12 +714,34 @@ def billing_settings():
                 flash("Username and role are required.", "error")
             return redirect(url_for('billing_settings'))
 
-    all_plans_raw = query_db("SELECT * FROM billing_plans ORDER BY billing_plan, term_length")
-    grouped_plans = OrderedDict()
+    all_plans_raw = query_db("SELECT * FROM billing_plans")
+
+    # Group plans first
+    grouped_plans_unsorted = OrderedDict()
     for plan in all_plans_raw:
-        if plan['billing_plan'] not in grouped_plans:
-            grouped_plans[plan['billing_plan']] = []
-        grouped_plans[plan['billing_plan']].append(dict(plan))
+        plan_dict = dict(plan)
+        plan_name = plan_dict['billing_plan']
+        if plan_name not in grouped_plans_unsorted:
+            grouped_plans_unsorted[plan_name] = []
+        grouped_plans_unsorted[plan_name].append(plan_dict)
+
+    # Define custom sort order
+    plan_order = [
+        'MSP Basic', 'MSP Advanced', 'MSP Premium', 'MSP Platinum',
+        'MSP Legacy', 'MSP Network', 'Break Fix', 'Pro Services'
+    ]
+
+    # Create a sorted OrderedDict
+    grouped_plans = OrderedDict()
+    # Add plans in the specified order
+    for plan_name in plan_order:
+        if plan_name in grouped_plans_unsorted:
+            grouped_plans[plan_name] = grouped_plans_unsorted.pop(plan_name)
+
+    # Add any remaining plans (not in the custom order list) to the end, sorted alphabetically
+    for plan_name in sorted(grouped_plans_unsorted.keys()):
+        grouped_plans[plan_name] = grouped_plans_unsorted[plan_name]
+
 
     scheduler_jobs = query_db("SELECT * FROM scheduler_jobs ORDER BY id")
     app_users = query_db("SELECT * FROM app_users ORDER BY username")
@@ -960,11 +993,13 @@ def billing_settings_action():
             # Base update statement
             sql = """
                 UPDATE billing_plans SET
+                    support_level = ?,
                     per_user_cost = ?, per_workstation_cost = ?, per_server_cost = ?, per_vm_cost = ?,
                     per_switch_cost = ?, per_firewall_cost = ?, per_hour_ticket_cost = ?, backup_base_fee_workstation = ?,
                     backup_base_fee_server = ?, backup_included_tb = ?, backup_per_tb_fee = ?,
             """
             params = [
+                form.get(f'support_level_{plan_id}'),
                 float(form.get(f'per_user_cost_{plan_id}', 0)),
                 float(form.get(f'per_workstation_cost_{plan_id}', 0)),
                 float(form.get(f'per_server_cost_{plan_id}', 0)),
@@ -1003,7 +1038,7 @@ def add_billing_plan():
         return redirect(url_for('billing_settings'))
     terms = ["Month to Month", "1-Year", "2-Year", "3-Year"]
     for term in terms:
-        log_and_execute("INSERT INTO billing_plans (billing_plan, term_length) VALUES (?, ?)", (plan_name, term))
+        log_and_execute("INSERT INTO billing_plans (billing_plan, term_length, support_level) VALUES (?, ?, ?)", (plan_name, term, 'Billed Hourly'))
     flash(f"New billing plan '{plan_name}' added with default terms.", 'success')
     return redirect(url_for('billing_settings'))
 
@@ -1090,7 +1125,7 @@ def cleanup_inactive_sessions():
     """Removes users from active_sessions if they haven't been seen recently."""
     with app.app_context():
         now = datetime.now(timezone.utc)
-        inactive_threshold = timedelta(minutes=5)
+        inactive_threshold = timedelta(minutes=2)
         with sessions_lock:
             inactive_users = [
                 user_id for user_id, data in active_sessions.items()
