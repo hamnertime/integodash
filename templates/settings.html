@@ -405,54 +405,11 @@
 {{ super() }}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    let grid = GridStack.init({
-        minW: 2,
-        minH: 2
-    });
-    const savedLayout = {{ layout|tojson|safe }};
-    const defaultLayout = {{ default_layout|tojson|safe }};
-
-    if (savedLayout) {
-        grid.load(savedLayout);
-    } else if (defaultLayout) {
-        grid.load(defaultLayout);
-    }
-
-    grid.on('change', function (event, items) {
-        const layout = grid.save(false);
-        fetch('/save_layout/settings', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({layout: layout}),
-        });
-    });
-
-    grid.on('removed', function(event, items) {
-        const layout = grid.save(false);
-        fetch('/save_layout/settings', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({layout: layout}),
-        });
-    });
-
-    document.getElementById('restore-layout-btn').addEventListener('click', function() {
-        if (confirm('Are you sure you want to restore the default layout? This will discard your current customizations.')) {
-            fetch('/delete_layout/settings', {
-                method: 'POST'
-            }).then(response => {
-                if (response.ok) {
-                    window.location.reload();
-                } else {
-                    alert('Failed to restore default layout.');
-                }
-            });
-        }
-    });
+    initializeGrid(
+        'settings',
+        {{ layout|tojson|safe }},
+        {{ default_layout|tojson|safe }}
+    );
 
     // Convert UTC times to local time
     document.querySelectorAll('.local-time').forEach(function(el) {

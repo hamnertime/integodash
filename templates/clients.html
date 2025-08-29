@@ -111,56 +111,14 @@
 {{ super() }}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    initializeGrid(
+        'clients',
+        {{ layout|tojson|safe }},
+        {{ default_layout|tojson|safe }}
+    );
+
     const addClientModal = document.getElementById('addClientModal');
     const columnChooserModal = document.getElementById('columnChooserModal');
-    let grid = GridStack.init({
-        minW: 2,
-        minH: 2
-    });
-    const savedLayout = {{ layout|tojson|safe }};
-    const defaultLayout = {{ default_layout|tojson|safe }};
-
-    if (savedLayout) {
-        // Use true to add/remove widgets to match the saved layout
-        grid.load(savedLayout, true);
-    }
-
-    grid.on('change', function (event, items) {
-        const layout = grid.save(false);
-        fetch('/save_layout/clients', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({layout: layout}),
-        });
-    });
-
-    grid.on('removed', function(event, items) {
-        const layout = grid.save(false);
-        fetch('/save_layout/clients', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({layout: layout}),
-        });
-    });
-
-    document.getElementById('restore-layout-btn').addEventListener('click', function() {
-        if (confirm('Are you sure you want to restore the default layout? This will discard your current customizations.')) {
-            fetch('/delete_layout/clients', {
-                method: 'POST'
-            }).then(response => {
-                if (response.ok) {
-                    window.location.reload();
-                } else {
-                    alert('Failed to restore default layout.');
-                }
-            });
-        }
-    });
-
 
     function closeModal(modal) {
         if (modal) {

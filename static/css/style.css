@@ -674,3 +674,12 @@ gap: 10px;
     align-items: center;
     margin-bottom: 20px;
 }
+
+@keyframes highlight {
+    from { background-color: var(--primary-color); }
+    to { background-color: var(--card-bg); }
+}
+
+.widget-highlight > .grid-stack-item-content {
+    animation: highlight 1s ease-in-out;
+}

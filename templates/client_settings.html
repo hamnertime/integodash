@@ -546,69 +546,28 @@
 {% block scripts %}
 {{ super() }}
 <script>
-function toggleLineItemFields(itemType) {
-    document.getElementById('recurring_fields').style.display = 'none';
-    document.getElementById('one_off_fields').style.display = 'none';
-    document.getElementById('yearly_fields').style.display = 'none';
-
-    if (itemType === 'recurring') {
-        document.getElementById('recurring_fields').style.display = 'block';
-    } else if (itemType === 'one_off') {
-        document.getElementById('one_off_fields').style.display = 'block';
-    } else if (itemType === 'yearly') {
-        document.getElementById('yearly_fields').style.display = 'block';
-    }
-}
-// Initialize the view
-toggleLineItemFields('recurring');
-
 document.addEventListener('DOMContentLoaded', function() {
-    let grid = GridStack.init({
-        minW: 2,
-        minH: 2
-    });
-    const savedLayout = {{ layout|tojson|safe }};
-    const defaultLayout = {{ default_layout|tojson|safe }};
+    initializeGrid(
+        'client_settings',
+        {{ layout|tojson|safe }},
+        {{ default_layout|tojson|safe }}
+    );
 
-    if (savedLayout) {
-        grid.load(savedLayout);
-    }
+    function toggleLineItemFields(itemType) {
+        document.getElementById('recurring_fields').style.display = 'none';
+        document.getElementById('one_off_fields').style.display = 'none';
+        document.getElementById('yearly_fields').style.display = 'none';
 
-    grid.on('change', function (event, items) {
-        const layout = grid.save(false);
-        fetch('/save_layout/client_settings', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({layout: layout}),
-        });
-    });
-
-    grid.on('removed', function(event, items) {
-        const layout = grid.save(false);
-        fetch('/save_layout/client_settings', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({layout: layout}),
-        });
-    });
-
-    document.getElementById('restore-layout-btn').addEventListener('click', function() {
-        if (confirm('Are you sure you want to restore the default layout? This will discard your current customizations.')) {
-            fetch('/delete_layout/client_settings', {
-                method: 'POST'
-            }).then(response => {
-                if (response.ok) {
-                    window.location.reload();
-                } else {
-                    alert('Failed to restore default layout.');
-                }
-            });
+        if (itemType === 'recurring') {
+            document.getElementById('recurring_fields').style.display = 'block';
+        } else if (itemType === 'one_off') {
+            document.getElementById('one_off_fields').style.display = 'block';
+        } else if (itemType === 'yearly') {
+            document.getElementById('yearly_fields').style.display = 'block';
         }
-    });
+    }
+    // Initialize the view
+    toggleLineItemFields('recurring');
 
     const manualAssetModal = document.getElementById('manualAssetModal');
     const manualUserModal = document.getElementById('manualUserModal');
