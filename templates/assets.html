@@ -1,31 +1,13 @@
-<!-- templates/clients.html -->
+<!-- templates/assets.html -->
 {% extends "layout.html" %}
-{% block title %}Clients{% endblock %}
+{% block title %}Assets{% endblock %}
 
 {% block content %}
-<h1>All Clients</h1>
+<h1>All Assets</h1>
 
 <div class="billing-controls">
-    <div class="export-section">
-        <button class="button" id="add-client-btn">Add New Client</button>
-    </div>
     <div class="search-clients">
-        <input type="text" id="client-search" placeholder="Search clients...">
-    </div>
-</div>
-
-<div class="billing-controls">
-    <div class="export-section">
-        <form action="{{ url_for('export_all_bills_zip') }}" method="POST">
-            <strong>Export All Invoices for:</strong>
-            <select name="month">
-                {% for month in month_options %}
-                    <option value="{{ month.value }}">{{ month.name }}</option>
-                {% endfor %}
-            </select>
-            <input type="number" name="year" value="{{ current_year }}" style="width: 80px;">
-            <button type="submit" class="button">Download ZIP</button>
-        </form>
+        <input type="text" id="asset-search" name="search" placeholder="Search assets...">
     </div>
 </div>
 
@@ -38,37 +20,8 @@
     </button>
 </div>
 
-<div id="clients-table-container">
+<div id="assets-table-container">
     {# This container will be filled dynamically by JavaScript #}
-</div>
-
-<div id="addClientModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2>Add New Client</h2>
-            <span class="close-button">&times;</span>
-        </div>
-        <form id="addClientForm" method="POST" action="{{ url_for('add_client') }}">
-            <div class="form-grid" style="grid-template-columns: auto 1fr;">
-                <label for="account_number">Account Number</label>
-                <input type="text" id="account_number" name="account_number" required>
-
-                <label for="name">Company Name</label>
-                <input type="text" name="name" id="name" required>
-
-                <label for="billing_plan">Billing Plan</label>
-                <select name="billing_plan" id="billing_plan" required>
-                    <option value="">-- Select a Plan --</option>
-                    {% for plan in billing_plans %}
-                        <option value="{{ plan.billing_plan }}">{{ plan.billing_plan }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="button-container" style="text-align: right; margin-top: 20px;">
-                 <button type="submit" class="button">Add Client</button>
-            </div>
-        </form>
-    </div>
 </div>
 
 <div id="columnChooserModal" class="modal">
@@ -98,8 +51,10 @@
 {{ super() }}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const addClientModal = document.getElementById('addClientModal');
+    const assetsContainer = document.getElementById('assets-table-container');
+    const assetSearch = document.getElementById('asset-search');
     const columnChooserModal = document.getElementById('columnChooserModal');
+    let searchTimeout;
 
     function closeModal(modal) {
         if (modal) {
@@ -119,53 +74,50 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    const clientsContainer = document.getElementById('clients-table-container');
-    const clientSearch = document.getElementById('client-search');
-    let searchTimeout;
-
-    let clientsState = {
+    let assetsState = {
         page: 1,
         per_page: 50,
         search_query: '',
-        sort_by: 'name',
+        sort_by: 'hostname',
         sort_order: 'asc'
     };
 
-    const fetchClients = async () => {
-        const url = new URL(`${window.location.origin}/clients/partial`);
-        url.searchParams.set('page', clientsState.page);
-        url.searchParams.set('per_page', clientsState.per_page);
-        url.searchParams.set('search', clientsState.search_query);
-        url.searchParams.set('sort_by', clientsState.sort_by);
-        url.searchParams.set('sort_order', clientsState.sort_order);
+    const fetchAssets = async () => {
+        const url = new URL(`${window.location.origin}/assets/partial`);
+        url.searchParams.set('page', assetsState.page);
+        url.searchParams.set('per_page', assetsState.per_page);
+        url.searchParams.set('search', assetsState.search_query);
+        url.searchParams.set('sort_by', assetsState.sort_by);
+        url.searchParams.set('sort_order', assetsState.sort_order);
 
         try {
             const response = await fetch(url);
             if (!response.ok) throw new Error('Network response was not ok');
             const html = await response.text();
 
-            const searchInputIsFocused = (document.activeElement === clientSearch);
-            const cursorPosition = clientSearch.selectionStart;
+            const searchInputIsFocused = (document.activeElement === assetSearch);
+            const cursorPosition = assetSearch.selectionStart;
 
-            clientsContainer.innerHTML = html;
+            assetsContainer.innerHTML = html;
 
             if (searchInputIsFocused) {
-                clientSearch.focus();
-                clientSearch.setSelectionRange(cursorPosition, cursorPosition);
+                assetSearch.focus();
+                assetSearch.setSelectionRange(cursorPosition, cursorPosition);
             }
+
         } catch (error) {
-            console.error('Failed to fetch clients:', error);
-            clientsContainer.innerHTML = '<p class="flash-error">Error loading clients. Please try refreshing the page.</p>';
+            console.error('Failed to fetch assets:', error);
+            assetsContainer.innerHTML = '<p class="flash-error">Error loading assets. Please try refreshing the page.</p>';
         }
     };
 
-    if(clientSearch) {
-        clientSearch.addEventListener('input', function(e) {
-            clientsState.search_query = e.target.value;
-            clientsState.page = 1;
+    if(assetSearch) {
+        assetSearch.addEventListener('input', function(e) {
+            assetsState.search_query = e.target.value;
+            assetsState.page = 1;
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(() => {
-                fetchClients();
+                fetchAssets();
             }, 300);
         });
     }
@@ -174,13 +126,13 @@ document.addEventListener('DOMContentLoaded', function () {
         e.preventDefault();
         const formData = new FormData(this);
         try {
-            const response = await fetch('/save_column_prefs/clients', {
+            const response = await fetch('/save_column_prefs/assets', {
                 method: 'POST',
                 body: formData
             });
             if (response.ok) {
                 closeModal(columnChooserModal);
-                location.reload(); // Reload to apply new column settings
+                location.reload();
             } else {
                 alert('Failed to save preferences.');
             }
@@ -190,47 +142,44 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     document.addEventListener('click', function(event) {
-        if (event.target.closest('#add-client-btn')) {
-            addClientModal.style.display = 'block';
-        }
         if (event.target.closest('#column-chooser-btn')) {
             columnChooserModal.style.display = 'block';
         }
         if (event.target.closest('#refresh-btn')) {
-            fetchClients();
+            fetchAssets();
         }
     });
 
-    clientsContainer.addEventListener('click', function(event) {
+    assetsContainer.addEventListener('click', function(event) {
         const sortLink = event.target.closest('.sort-link');
         const paginationLink = event.target.closest('.pagination-link');
 
         if (sortLink) {
             event.preventDefault();
             const column = sortLink.dataset.sort;
-            if (clientsState.sort_by === column) {
-                clientsState.sort_order = clientsState.sort_order === 'asc' ? 'desc' : 'asc';
+            if (assetsState.sort_by === column) {
+                assetsState.sort_order = assetsState.sort_order === 'asc' ? 'desc' : 'asc';
             } else {
-                clientsState.sort_by = column;
-                clientsState.sort_order = 'asc';
+                assetsState.sort_by = column;
+                assetsState.sort_order = 'asc';
             }
-            fetchClients();
+            fetchAssets();
         } else if (paginationLink) {
             event.preventDefault();
-            clientsState.page = paginationLink.dataset.page;
-            fetchClients();
+            assetsState.page = paginationLink.dataset.page;
+            fetchAssets();
         }
     });
 
-    clientsContainer.addEventListener('change', function(event) {
+    assetsContainer.addEventListener('change', function(event) {
         if (event.target.id === 'per_page') {
-            clientsState.per_page = event.target.value;
-            clientsState.page = 1;
-            fetchClients();
+            assetsState.per_page = event.target.value;
+            assetsState.page = 1;
+            fetchAssets();
         }
     });
 
-    fetchClients();
+    fetchAssets();
 });
 </script>
 {% endblock %}

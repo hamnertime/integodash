@@ -1,26 +1,31 @@
-{# hamnertime/integodash/integodash-b7a03f16877fb4e6590039b6f2c0b632176ef6cd/templates/partials/contacts_table.html #}
+<!-- templates/partials/contacts_table.html -->
 <table class="client-table">
     <thead>
         <tr>
-            <th><a href="#" class="sort-link" data-sort="name">Name<span class="sort-arrow">{% if sort_by == 'name' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>
-            <th><a href="#" class="sort-link" data-sort="email">Email<span class="sort-arrow">{% if sort_by == 'email' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>
-            <th><a href="#" class="sort-link" data-sort="company">Company<span class="sort-arrow">{% if sort_by == 'company' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>
-            <th><a href="#" class="sort-link" data-sort="work_phone">Work Phone<span class="sort-arrow">{% if sort_by == 'work_phone' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>
-            <th><a href="#" class="sort-link" data-sort="mobile_phone">Mobile Phone<span class="sort-arrow">{% if sort_by == 'mobile_phone' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>
-            <th><a href="#" class="sort-link" data-sort="status">Status<span class="sort-arrow">{% if sort_by == 'status' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>
-            <th>Actions</th>
+            {% if visible_columns.name %}<th><a href="#" class="sort-link" data-sort="name">Name<span class="sort-arrow">{% if sort_by == 'name' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.email %}<th><a href="#" class="sort-link" data-sort="email">Email<span class="sort-arrow">{% if sort_by == 'email' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.company %}<th><a href="#" class="sort-link" data-sort="company">Company<span class="sort-arrow">{% if sort_by == 'company' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.title %}<th><a href="#" class="sort-link" data-sort="title">Title<span class="sort-arrow">{% if sort_by == 'title' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.work_phone %}<th><a href="#" class="sort-link" data-sort="work_phone">Work Phone<span class="sort-arrow">{% if sort_by == 'work_phone' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.mobile_phone %}<th><a href="#" class="sort-link" data-sort="mobile_phone">Mobile Phone<span class="sort-arrow">{% if sort_by == 'mobile_phone' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.employment_type %}<th><a href="#" class="sort-link" data-sort="employment_type">Employment Type<span class="sort-arrow">{% if sort_by == 'employment_type' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.status %}<th><a href="#" class="sort-link" data-sort="status">Status<span class="sort-arrow">{% if sort_by == 'status' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.actions %}<th>Actions</th>{% endif %}
         </tr>
     </thead>
     <tbody id="contact-table-body">
         {% for contact in contacts %}
         <tr>
-            <td>{{ contact.first_name }} {{ contact.last_name }}</td>
-            <td>{{ contact.email }}</td>
-            <td>{{ contact.company_name }}</td>
-            <td>{{ contact.work_phone }}</td>
-            <td>{{ contact.mobile_phone }}</td>
-            <td>{{ contact.status }}</td>
-            <td>
+            {% if visible_columns.name %}<td>{{ contact.first_name }} {{ contact.last_name }}</td>{% endif %}
+            {% if visible_columns.email %}<td>{{ contact.email }}</td>{% endif %}
+            {% if visible_columns.company %}<td><a href="{{ url_for('client_billing_details', account_number=contact.company_account_number) }}">{{ contact.company_name }}</a></td>{% endif %}
+            {% if visible_columns.title %}<td>{{ contact.title }}</td>{% endif %}
+            {% if visible_columns.work_phone %}<td>{{ contact.work_phone }}</td>{% endif %}
+            {% if visible_columns.mobile_phone %}<td>{{ contact.mobile_phone }}</td>{% endif %}
+            {% if visible_columns.employment_type %}<td>{{ contact.employment_type }}</td>{% endif %}
+            {% if visible_columns.status %}<td>{{ contact.status }}</td>{% endif %}
+            {% if visible_columns.actions %}
+            <td class="actions-cell">
                 <button class="icon-button edit edit-contact"
                     data-contact-id="{{ contact.id }}"
                     data-first-name="{{ contact.first_name }}"
@@ -41,6 +46,7 @@
                     <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
                 </a>
             </td>
+            {% endif %}
         </tr>
         {% endfor %}
     </tbody>

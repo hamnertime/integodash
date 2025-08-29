@@ -4,6 +4,7 @@ from datetime import datetime, timezone, timedelta
 from database import query_db
 import calendar
 import sys
+import re
 
 def get_billing_data_for_client(account_number, year, month):
     """
@@ -112,6 +113,10 @@ def get_billing_data_for_client(account_number, year, month):
 
         except (ValueError, TypeError, IndexError):
             contract_end_date = "Invalid Start Date"
+
+    # --- 2b. Get Datto RMM Portal URL ---
+    datto_portal_url = client_info.get('datto_portal_url')
+
 
     # --- 3. Calculate Itemized Asset Charges ---
     billed_assets = []
@@ -270,6 +275,7 @@ def get_billing_data_for_client(account_number, year, month):
         'support_level_display': support_level_display,
         'contract_end_date': contract_end_date,
         'contract_expired': contract_expired,
+        'datto_portal_url': datto_portal_url,
     }
 
 def get_billing_dashboard_data():
@@ -309,6 +315,8 @@ def get_billing_dashboard_data():
         client['hours_last_month'] = data['hours_last_month']
         client['total_backup_bytes'] = data['backup_info']['total_backup_bytes']
         client['total_bill'] = data['receipt_data']['total']
+        client['support_level'] = data['support_level_display']
+        client['contract_term_length'] = data['client']['contract_term_length']
         clients_data.append(client)
 
     return clients_data

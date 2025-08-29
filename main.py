@@ -41,6 +41,48 @@ scheduler = BackgroundScheduler()
 # Initialize database hooks
 init_app_db(app)
 
+# --- Column Definitions ---
+CLIENTS_COLUMNS = {
+    'name': {'label': 'Company Name', 'default': True},
+    'account_number': {'label': 'Account #', 'default': False},
+    'billing_plan': {'label': 'Billing Plan', 'default': True},
+    'support_level': {'label': 'Support Level', 'default': False},
+    'contract_term_length': {'label': 'Term', 'default': False},
+    'workstations': {'label': 'Workstations', 'default': True},
+    'servers': {'label': 'Servers', 'default': True},
+    'vms': {'label': 'VMs', 'default': True},
+    'regular_users': {'label': 'Users', 'default': True},
+    'backup': {'label': 'Backup (TB)', 'default': True},
+    'hours': {'label': 'Hours (This Year)', 'default': True},
+    'bill': {'label': 'Calculated Bill', 'default': True},
+    'actions': {'label': 'Actions', 'default': True}
+}
+
+ASSETS_COLUMNS = {
+    'hostname': {'label': 'Hostname', 'default': True},
+    'company': {'label': 'Company', 'default': True},
+    'device_type': {'label': 'Device Type', 'default': False},
+    'os': {'label': 'Operating System', 'default': True},
+    'internal_ip': {'label': 'Internal IP', 'default': False},
+    'external_ip': {'label': 'External IP', 'default': False},
+    'last_user': {'label': 'Last Logged In User', 'default': True},
+    'last_seen': {'label': 'Last Seen', 'default': False},
+    'status': {'label': 'Status', 'default': True},
+    'actions': {'label': 'Actions', 'default': True}
+}
+
+CONTACTS_COLUMNS = {
+    'name': {'label': 'Name', 'default': True},
+    'email': {'label': 'Email', 'default': True},
+    'company': {'label': 'Company', 'default': True},
+    'title': {'label': 'Title', 'default': False},
+    'work_phone': {'label': 'Work Phone', 'default': True},
+    'mobile_phone': {'label': 'Mobile Phone', 'default': False},
+    'employment_type': {'label': 'Employment Type', 'default': False},
+    'status': {'label': 'Status', 'default': True},
+    'actions': {'label': 'Actions', 'default': True}
+}
+
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -128,7 +170,7 @@ def log_request(response):
     if app.config.get('DB_PASSWORD') and 'user_id' in session:
         try:
             # Avoid logging the partial fetch requests to keep the audit log clean
-            if request.endpoint not in ['get_notes_partial', 'get_attachments_partial', 'get_contacts_partial']:
+            if request.endpoint not in ['get_notes_partial', 'get_attachments_partial', 'get_contacts_partial', 'get_clients_partial', 'get_assets_partial']:
                 log_page_view(response)
         except Exception as e:
             # This might fail if the DB password is wrong, etc.
@@ -196,19 +238,69 @@ def logout():
 @app.route('/')
 def billing_dashboard():
     try:
-        clients_data = get_billing_dashboard_data()
         today = datetime.now(timezone.utc)
         month_options = []
         billing_plans = query_db("SELECT DISTINCT billing_plan FROM billing_plans ORDER BY billing_plan")
         for i in range(1, 13):
             month_options.append({'value': i, 'name': datetime(today.year, i, 1).strftime('%B')})
 
-        return render_template('clients.html', clients=clients_data, month_options=month_options, current_year=today.year, billing_plans=billing_plans)
+        # Get column preferences
+        if 'clients_cols' not in session:
+            session['clients_cols'] = {k: v['default'] for k, v in CLIENTS_COLUMNS.items()}
+
+        return render_template('clients.html',
+            month_options=month_options,
+            current_year=today.year,
+            billing_plans=billing_plans,
+            columns=CLIENTS_COLUMNS,
+            visible_columns=session['clients_cols']
+        )
     except (ValueError, KeyError) as e:
         app.config['DB_PASSWORD'] = None
         session.clear()
         flash(f"An error occurred on the dashboard: {e}. Please log in again.", 'error')
         return redirect(url_for('login'))
+
+@app.route('/clients/partial')
+def get_clients_partial():
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    search_query = request.args.get('search', '')
+    sort_by = request.args.get('sort_by', 'name')
+    sort_order = request.args.get('sort_order', 'asc')
+
+    all_clients = get_billing_dashboard_data()
+
+    if search_query:
+        search_query_lower = search_query.lower()
+        all_clients = [
+            client for client in all_clients
+            if search_query_lower in client.get('name', '').lower() or
+               search_query_lower in client.get('billing_plan', '').lower()
+        ]
+
+    # Sorting
+    if sort_by in ['name', 'billing_plan', 'support_level', 'contract_term_length', 'account_number']:
+        all_clients.sort(key=lambda x: str(x.get(sort_by, '')), reverse=sort_order == 'desc')
+    else: # Numeric sort for other columns
+        all_clients.sort(key=lambda x: float(x.get(sort_by, 0) or 0), reverse=sort_order == 'desc')
+
+    total_clients = len(all_clients)
+    total_pages = (total_clients + per_page - 1) // per_page
+    start = (page - 1) * per_page
+    end = start + per_page
+    paginated_clients = all_clients[start:end]
+
+    return render_template('partials/clients_table.html',
+        clients=paginated_clients,
+        page=page,
+        per_page=per_page,
+        total_pages=total_pages,
+        search_query=search_query,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        visible_columns=session.get('clients_cols', {k: v['default'] for k, v in CLIENTS_COLUMNS.items()})
+    )
 
 @app.route('/client/add', methods=['POST'])
 def add_client():
@@ -240,11 +332,88 @@ def delete_client(account_number):
         flash(f'Error deleting client: {e}', 'error')
     return redirect(url_for('billing_dashboard'))
 
+@app.route('/assets')
+def assets():
+    if 'assets_cols' not in session:
+        session['assets_cols'] = {k: v['default'] for k, v in ASSETS_COLUMNS.items()}
+    return render_template('assets.html',
+        columns=ASSETS_COLUMNS,
+        visible_columns=session['assets_cols']
+    )
+
+@app.route('/assets/partial')
+def get_assets_partial():
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    search_query = request.args.get('search', '')
+    sort_by = request.args.get('sort_by', 'hostname')
+    sort_order = request.args.get('sort_order', 'asc')
+
+    base_query = """
+        FROM assets a
+        LEFT JOIN companies c ON a.company_account_number = c.account_number
+    """
+    params = []
+    where_clauses = []
+
+    if search_query:
+        where_clauses.append("(a.hostname LIKE ? OR a.operating_system LIKE ? OR a.last_logged_in_user LIKE ? OR c.name LIKE ? OR a.internal_ip LIKE ? OR a.external_ip LIKE ?)")
+        search_param = f'%{search_query}%'
+        params.extend([search_param] * 6)
+
+    if where_clauses:
+        base_query += " WHERE " + " AND ".join(where_clauses)
+
+    count_query = f"SELECT COUNT(*) as count {base_query}"
+    total_assets = query_db(count_query, params, one=True)['count']
+    total_pages = (total_assets + per_page - 1) // per_page
+
+    allowed_sort_columns = {
+        'hostname': 'a.hostname',
+        'company': 'c.name',
+        'os': 'a.operating_system',
+        'last_user': 'a.last_logged_in_user',
+        'status': 'a.is_online',
+        'device_type': 'a.device_type',
+        'internal_ip': 'a.internal_ip',
+        'external_ip': 'a.external_ip',
+        'last_seen': 'a.last_seen'
+    }
+    sort_column = allowed_sort_columns.get(sort_by, 'a.hostname')
+
+    if sort_order not in ['asc', 'desc']:
+        sort_order = 'asc'
+
+    offset = (page - 1) * per_page
+    assets_query = f"""
+        SELECT a.*, c.name as company_name
+        {base_query}
+        ORDER BY {sort_column} {sort_order}
+        LIMIT ? OFFSET ?
+    """
+    assets_data = query_db(assets_query, params + [per_page, offset])
+
+    return render_template('partials/assets_table.html',
+        assets=assets_data,
+        page=page,
+        per_page=per_page,
+        total_pages=total_pages,
+        search_query=search_query,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        visible_columns=session.get('assets_cols', {k: v['default'] for k, v in ASSETS_COLUMNS.items()})
+    )
 
 @app.route('/contacts')
 def contacts():
+    if 'contacts_cols' not in session:
+        session['contacts_cols'] = {k: v['default'] for k, v in CONTACTS_COLUMNS.items()}
     companies = query_db("SELECT * FROM companies ORDER BY name")
-    return render_template('contacts.html', companies=companies)
+    return render_template('contacts.html',
+        companies=companies,
+        columns=CONTACTS_COLUMNS,
+        visible_columns=session['contacts_cols']
+    )
 
 @app.route('/contacts/partial')
 def get_contacts_partial():
@@ -263,9 +432,9 @@ def get_contacts_partial():
     where_clauses = []
 
     if search_query:
-        where_clauses.append("(c.first_name LIKE ? OR c.last_name LIKE ? OR c.email LIKE ? OR co.name LIKE ?)")
+        where_clauses.append("(c.first_name LIKE ? OR c.last_name LIKE ? OR c.email LIKE ? OR co.name LIKE ? OR c.title LIKE ?)")
         search_param = f'%{search_query}%'
-        params.extend([search_param, search_param, search_param, search_param])
+        params.extend([search_param, search_param, search_param, search_param, search_param])
 
     if where_clauses:
         base_query += " WHERE " + " AND ".join(where_clauses)
@@ -283,7 +452,9 @@ def get_contacts_partial():
         'company': 'co.name',
         'work_phone': 'c.work_phone',
         'mobile_phone': 'c.mobile_phone',
-        'status': 'c.status'
+        'status': 'c.status',
+        'title': 'c.title',
+        'employment_type': 'c.employment_type'
     }
     sort_column = allowed_sort_columns.get(sort_by, 'c.first_name')
 
@@ -308,7 +479,8 @@ def get_contacts_partial():
         total_pages=total_pages,
         search_query=search_query,
         sort_by=sort_by,
-        sort_order=sort_order
+        sort_order=sort_order,
+        visible_columns=session.get('contacts_cols', {k: v['default'] for k, v in CONTACTS_COLUMNS.items()})
     )
 
 @app.route('/contacts/add', methods=['POST'])
@@ -362,6 +534,27 @@ def delete_contact(contact_id):
     log_and_execute("DELETE FROM contacts WHERE id = ?", [contact_id])
     flash('Contact deleted successfully.', 'success')
     return redirect(url_for('contacts'))
+
+@app.route('/save_column_prefs/<page_name>', methods=['POST'])
+def save_column_prefs(page_name):
+    if page_name not in ['clients', 'assets', 'contacts']:
+        return jsonify({'status': 'error', 'message': 'Invalid page name'}), 400
+
+    column_map = {
+        'clients': CLIENTS_COLUMNS,
+        'assets': ASSETS_COLUMNS,
+        'contacts': CONTACTS_COLUMNS
+    }
+
+    columns = column_map[page_name]
+    prefs = {}
+    for col in columns.keys():
+        prefs[col] = col in request.form
+
+    session[f'{page_name}_cols'] = prefs
+    session.modified = True
+
+    return jsonify({'status': 'success'})
 
 @app.route('/client/<account_number>/notes')
 def get_notes_partial(account_number):
@@ -698,8 +891,9 @@ def client_settings(account_number):
                     user_id = user['id']
                     billing_type = request.form.get(f'user_billing_type_{user_id}')
                     custom_cost = request.form.get(f'user_custom_cost_{user_id}')
-                    if billing_type:
-                        log_and_execute("INSERT INTO user_billing_overrides (user_id, billing_type, custom_cost) VALUES (?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET billing_type=excluded.billing_type, custom_cost=excluded.custom_cost", [user_id, billing_type, custom_cost if custom_cost else None])
+                    employment_type = request.form.get(f'user_employment_type_{user_id}')
+                    if billing_type or employment_type:
+                        log_and_execute("INSERT INTO user_billing_overrides (user_id, billing_type, custom_cost, employment_type) VALUES (?, ?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET billing_type=excluded.billing_type, custom_cost=excluded.custom_cost, employment_type=excluded.employment_type", [user_id, billing_type, custom_cost if custom_cost else None, employment_type])
                     else:
                         log_and_execute("DELETE FROM user_billing_overrides WHERE user_id = ?", [user_id])
                 flash("Overrides saved successfully!", 'success')
@@ -740,7 +934,7 @@ def client_settings(account_number):
         default_plan = query_db("SELECT * FROM billing_plans WHERE billing_plan = ? AND term_length = ?", [client_info['billing_plan'], client_info['contract_term_length']], one=True)
         overrides_row = query_db("SELECT * FROM client_billing_overrides WHERE company_account_number = ?", [account_number], one=True)
         assets = query_db("SELECT * FROM assets WHERE company_account_number = ?", [account_number])
-        users = query_db("SELECT * FROM users WHERE company_account_number = ? AND status = 'Active'", [account_number])
+        users = query_db("SELECT u.*, c.employment_type as default_employment_type FROM users u LEFT JOIN contacts c ON u.email = c.email WHERE u.company_account_number = ? AND u.status = 'Active' ORDER BY u.full_name", [account_number])
         manual_assets = query_db("SELECT * FROM manual_assets WHERE company_account_number = ?", [account_number])
         manual_users = query_db("SELECT * FROM manual_users WHERE company_account_number = ?", [account_number])
         custom_line_items = query_db("SELECT * FROM custom_line_items WHERE company_account_number = ?", [account_number])
@@ -802,27 +996,32 @@ def edit_manual_user(account_number, user_id):
 
 @app.route('/client/<account_number>/upload', methods=['POST'])
 def upload_file(account_number):
-    if 'file' not in request.files:
-        flash('No file part', 'error')
-        return redirect(url_for('client_billing_details', account_number=account_number))
-    file = request.files['file']
+    files = request.files.getlist('file[]')
     category = request.form.get('category')
-    if file.filename == '':
+
+    if not files or files[0].filename == '':
         flash('No selected file', 'error')
         return redirect(url_for('client_billing_details', account_number=account_number))
-    if file and allowed_file(file.filename):
-        original_filename = secure_filename(file.filename)
-        stored_filename = f"{uuid.uuid4().hex}_{original_filename}"
-        client_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], account_number)
-        if not os.path.exists(client_upload_dir):
-            os.makedirs(client_upload_dir)
-        file_path = os.path.join(client_upload_dir, stored_filename)
-        file.save(file_path)
-        file_size = os.path.getsize(file_path)
-        log_and_execute("INSERT INTO client_attachments (company_account_number, original_filename, stored_filename, uploaded_at, file_size, category) VALUES (?, ?, ?, ?, ?, ?)", (account_number, original_filename, stored_filename, datetime.now(timezone.utc).isoformat(), file_size, category))
-        flash('File uploaded successfully!', 'success')
-    else:
-        flash('File type not allowed.', 'error')
+
+    uploaded_count = 0
+    for file in files:
+        if file and allowed_file(file.filename):
+            original_filename = secure_filename(file.filename)
+            stored_filename = f"{uuid.uuid4().hex}_{original_filename}"
+            client_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], account_number)
+            if not os.path.exists(client_upload_dir):
+                os.makedirs(client_upload_dir)
+            file_path = os.path.join(client_upload_dir, stored_filename)
+            file.save(file_path)
+            file_size = os.path.getsize(file_path)
+            log_and_execute("INSERT INTO client_attachments (company_account_number, original_filename, stored_filename, uploaded_at, file_size, category) VALUES (?, ?, ?, ?, ?, ?)", (account_number, original_filename, stored_filename, datetime.now(timezone.utc).isoformat(), file_size, category))
+            uploaded_count += 1
+        else:
+            flash(f"File type not allowed for '{file.filename}'.", 'error')
+
+    if uploaded_count > 0:
+        flash(f'{uploaded_count} file(s) uploaded successfully!', 'success')
+
     return redirect(url_for('client_billing_details', account_number=account_number))
 
 @app.route('/uploads/<account_number>/<filename>')

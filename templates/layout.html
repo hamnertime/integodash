@@ -13,6 +13,7 @@
         <div class="logo">Integodash</div>
         <div class="nav-links">
             <a href="{{ url_for('billing_dashboard') }}" class="{{ 'active' if request.endpoint == 'billing_dashboard' else '' }}">Clients</a>
+            <a href="{{ url_for('assets') }}" class="{{ 'active' if request.endpoint == 'assets' else '' }}">Assets</a>
             <a href="{{ url_for('contacts') }}" class="{{ 'active' if request.endpoint == 'contacts' else '' }}">Contacts</a>
             {% if client and client.account_number %}
                 <a href="{{ url_for('client_billing_details', account_number=client.account_number) }}" class="{{ 'active' if request.endpoint == 'client_billing_details' else '' }}">Client Billing Details</a>

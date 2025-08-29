@@ -1,0 +1,58 @@
+<!-- templates/partials/assets_table.html -->
+<table class="client-table">
+    <thead>
+        <tr>
+            {% if visible_columns.hostname %}<th><a href="#" class="sort-link" data-sort="hostname">Hostname<span class="sort-arrow">{% if sort_by == 'hostname' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.company %}<th><a href="#" class="sort-link" data-sort="company">Company<span class="sort-arrow">{% if sort_by == 'company' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.device_type %}<th><a href="#" class="sort-link" data-sort="device_type">Device Type<span class="sort-arrow">{% if sort_by == 'device_type' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.os %}<th><a href="#" class="sort-link" data-sort="os">Operating System<span class="sort-arrow">{% if sort_by == 'os' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.internal_ip %}<th><a href="#" class="sort-link" data-sort="internal_ip">Internal IP<span class="sort-arrow">{% if sort_by == 'internal_ip' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.external_ip %}<th><a href="#" class="sort-link" data-sort="external_ip">External IP<span class="sort-arrow">{% if sort_by == 'external_ip' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.last_user %}<th><a href="#" class="sort-link" data-sort="last_user">Last Logged In User<span class="sort-arrow">{% if sort_by == 'last_user' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.last_seen %}<th><a href="#" class="sort-link" data-sort="last_seen">Last Seen<span class="sort-arrow">{% if sort_by == 'last_seen' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.status %}<th><a href="#" class="sort-link" data-sort="status">Status<span class="sort-arrow">{% if sort_by == 'status' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.actions %}<th>Actions</th>{% endif %}
+        </tr>
+    </thead>
+    <tbody id="asset-table-body">
+        {% for asset in assets %}
+        <tr>
+            {% if visible_columns.hostname %}<td>{% if asset.portal_url %}<a href="{{ asset.portal_url }}" target="_blank">{{ asset.hostname }}</a>{% else %}{{ asset.hostname }}{% endif %}</td>{% endif %}
+            {% if visible_columns.company %}<td><a href="{{ url_for('client_billing_details', account_number=asset.company_account_number) }}">{{ asset.company_name }}</a></td>{% endif %}
+            {% if visible_columns.device_type %}<td>{{ asset.device_type }}</td>{% endif %}
+            {% if visible_columns.os %}<td>{{ asset.operating_system }}</td>{% endif %}
+            {% if visible_columns.internal_ip %}<td>{{ asset.internal_ip }}</td>{% endif %}
+            {% if visible_columns.external_ip %}<td>{{ asset.external_ip }}</td>{% endif %}
+            {% if visible_columns.last_user %}<td>{{ asset.last_logged_in_user }}</td>{% endif %}
+            {% if visible_columns.last_seen %}<td>{{ asset.last_seen | humanize }}</td>{% endif %}
+            {% if visible_columns.status %}<td><span style="color: {{ 'green' if asset.is_online else 'red' }}; font-weight: bold;">{{ 'Online' if asset.is_online else 'Offline' }}</span></td>{% endif %}
+            {% if visible_columns.actions %}<td class="actions-cell">{% if asset.web_remote_url %}<a href="{{ asset.web_remote_url }}" class="button" target="_blank" style="padding: 5px 10px; font-size: 0.9em;">Remote</a>{% endif %}</td>{% endif %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="pagination" style="margin-top: 20px; text-align: center; display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        {% if total_pages > 1 %}
+            {% if page > 1 %}
+                <a href="#" class="button pagination-link" data-page="{{ page - 1 }}">&laquo; Previous</a>
+            {% endif %}
+
+            <span style="margin: 0 15px;">Page {{ page }} of {{ total_pages }}</span>
+
+            {% if page < total_pages %}
+                <a href="#" class="button pagination-link" data-page="{{ page + 1 }}">Next &raquo;</a>
+            {% endif %}
+        {% endif %}
+    </div>
+    <form method="get" action="#" id="per-page-form">
+        <label for="per_page">Assets per page:</label>
+        <select name="per_page" id="per_page">
+            <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+            <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+            <option value="200" {% if per_page == 200 %}selected{% endif %}>200</option>
+            <option value="500" {% if per_page == 500 %}selected{% endif %}>500</option>
+        </select>
+    </form>
+</div>

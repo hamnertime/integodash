@@ -202,11 +202,18 @@
         <div class="form-section">
             <h2>User Billing Overrides</h2>
             <table class="item-table">
-                <thead><tr><th>Full Name</th><th>Billing Type</th><th>Custom Cost ($)</th></tr></thead>
+                <thead><tr><th>Full Name</th><th>Employment Type</th><th>Billing Type</th><th>Custom Cost ($)</th></tr></thead>
                 <tbody>
                 {% for user in users %}
                     <tr>
                         <td>{{ user.full_name }} ({{ user.email }})</td>
+                        <td>
+                            <select name="user_employment_type_{{ user.id }}">
+                                <option value="" {% if not user_overrides[user.id] or not user_overrides[user.id].employment_type %}selected{% endif %}>-- Default ({{ user.default_employment_type or 'Full Time' }}) --</option>
+                                <option value="Full Time" {% if user_overrides[user.id] and user_overrides[user.id].employment_type == 'Full Time' %}selected{% endif %}>Full Time</option>
+                                <option value="Part Time" {% if user_overrides[user.id] and user_overrides[user.id].employment_type == 'Part Time' %}selected{% endif %}>Part Time</option>
+                            </select>
+                        </td>
                         <td>
                             <select name="user_billing_type_{{ user.id }}">
                                 <option value="" {% if not user_overrides[user.id] %}selected{% endif %}>-- Default (Paid) --</option>

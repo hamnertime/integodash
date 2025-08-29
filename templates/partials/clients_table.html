@@ -1,0 +1,78 @@
+<!-- templates/partials/clients_table.html -->
+<table class="client-table">
+    <thead>
+        <tr>
+            {% if visible_columns.name %}<th><a href="#" class="sort-link" data-sort="name">Company Name<span class="sort-arrow">{% if sort_by == 'name' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.account_number %}<th><a href="#" class="sort-link" data-sort="account_number">Account #<span class="sort-arrow">{% if sort_by == 'account_number' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.billing_plan %}<th><a href="#" class="sort-link" data-sort="billing_plan">Billing Plan<span class="sort-arrow">{% if sort_by == 'billing_plan' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.support_level %}<th><a href="#" class="sort-link" data-sort="support_level">Support Level<span class="sort-arrow">{% if sort_by == 'support_level' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.contract_term_length %}<th><a href="#" class="sort-link" data-sort="contract_term_length">Term<span class="sort-arrow">{% if sort_by == 'contract_term_length' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.workstations %}<th><a href="#" class="sort-link" data-sort="workstations">Workstations<span class="sort-arrow">{% if sort_by == 'workstations' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.servers %}<th><a href="#" class="sort-link" data-sort="servers">Servers<span class="sort-arrow">{% if sort_by == 'servers' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.vms %}<th><a href="#" class="sort-link" data-sort="vms">VMs<span class="sort-arrow">{% if sort_by == 'vms' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.regular_users %}<th><a href="#" class="sort-link" data-sort="regular_users">Users<span class="sort-arrow">{% if sort_by == 'regular_users' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.backup %}<th><a href="#" class="sort-link" data-sort="total_backup_bytes">Backup (TB)<span class="sort-arrow">{% if sort_by == 'total_backup_bytes' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.hours %}<th><a href="#" class="sort-link" data-sort="total_hours">Hours (This Year)<span class="sort-arrow">{% if sort_by == 'total_hours' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.bill %}<th><a href="#" class="sort-link" data-sort="total_bill">Calculated Bill<span class="sort-arrow">{% if sort_by == 'total_bill' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.actions %}<th>Actions</th>{% endif %}
+        </tr>
+    </thead>
+    <tbody id="client-table-body">
+        {% if clients %}
+            {% for client in clients %}
+            <tr>
+                {% if visible_columns.name %}<td><strong><a href="{{ url_for('client_billing_details', account_number=client.account_number) }}">{{ client.name }}</a></strong></td>{% endif %}
+                {% if visible_columns.account_number %}<td>{{ client.account_number }}</td>{% endif %}
+                {% if visible_columns.billing_plan %}<td>{{ client.billing_plan }}</td>{% endif %}
+                {% if visible_columns.support_level %}<td>{{ client.support_level }}</td>{% endif %}
+                {% if visible_columns.contract_term_length %}<td>{{ client.contract_term_length }}</td>{% endif %}
+                {% if visible_columns.workstations %}<td>{{ client.workstations }}</td>{% endif %}
+                {% if visible_columns.servers %}<td>{{ client.servers }}</td>{% endif %}
+                {% if visible_columns.vms %}<td>{{ client.vms }}</td>{% endif %}
+                {% if visible_columns.regular_users %}<td>{{ client.regular_users }}</td>{% endif %}
+                {% if visible_columns.backup %}<td>{{ "%.2f"|format(client.total_backup_bytes / 1099511627776.0) }}</td>{% endif %}
+                {% if visible_columns.hours %}<td>{{ "%.2f"|format(client.total_hours) }}</td>{% endif %}
+                {% if visible_columns.bill %}<td>${{ "%.2f"|format(client.total_bill) }}</td>{% endif %}
+                {% if visible_columns.actions %}
+                <td class="actions-cell">
+                    <form action="{{ url_for('delete_client', account_number=client.account_number) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this client?');">
+                        <button type="submit" class="icon-button delete">
+                            <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
+                        </button>
+                    </form>
+                </td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        {% else %}
+            <tr>
+                <td colspan="10" style="text-align: center;">No clients found.</td>
+            </tr>
+        {% endif %}
+    </tbody>
+</table>
+
+<div class="pagination" style="margin-top: 20px; text-align: center; display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        {% if total_pages > 1 %}
+            {% if page > 1 %}
+                <a href="#" class="button pagination-link" data-page="{{ page - 1 }}">&laquo; Previous</a>
+            {% endif %}
+
+            <span style="margin: 0 15px;">Page {{ page }} of {{ total_pages }}</span>
+
+            {% if page < total_pages %}
+                <a href="#" class="button pagination-link" data-page="{{ page + 1 }}">Next &raquo;</a>
+            {% endif %}
+        {% endif %}
+    </div>
+    <form method="get" action="#" id="per-page-form">
+        <label for="per_page">Clients per page:</label>
+        <select name="per_page" id="per_page">
+            <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+            <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+            <option value="200" {% if per_page == 200 %}selected{% endif %}>200</option>
+            <option value="500" {% if per_page == 500 %}selected{% endif %}>500</option>
+        </select>
+    </form>
+</div>

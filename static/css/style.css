@@ -117,7 +117,7 @@ input:checked + .slider:before {
 .audit-details { white-space: pre-wrap; background-color: #2a2a40; color: #e0e0ff; padding: 15px; border-radius: 5px; max-height: 200px; overflow-y: auto; font-family: 'Courier New', Courier, monospace; }
 
 /* billing.html */
-.client-table { width: 100%; border-collapse: collapse; background-color: var(--card-bg); box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 1em; margin-bottom: 20px; }
+.client-table { width: 100%; border-collapse: collapse; background-color: var(--card-bg); box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 1em; }
 .client-table th, .client-table td { border: 1px solid var(--table-border-color); padding: 12px 15px; text-align: left; vertical-align: middle; }
 .client-table th { background-color: var(--table-header-bg); font-weight: 600; }
 .client-table th a { text-decoration: none; color: inherit; display: block; }
@@ -128,7 +128,7 @@ input:checked + .slider:before {
 .client-table tr:hover { background-color: var(--table-row-hover-bg); }
 .sort-arrow { margin-left: 5px; }
 .billing-controls { display: flex; justify-content: space-between; align-items: center; background-color: var(--card-bg); padding: 15px; border-radius: 8px; margin-bottom: 20px; }
-.billing-controls .export-section { margin-bottom: 0; padding: 0; background-color: transparent; text-align: left; }
+.billing-controls .export-section { margin-bottom: 0; padding: 0; background-color: transparent; text-align: left; display: flex; gap: 10px; align-items: center; }
 .billing-controls .search-clients input { padding: 10px; border-radius: 5px; border: 1px solid var(--input-border); background-color: var(--input-bg); color: var(--text-color); width: 250px; }
 .billing-controls select, .billing-controls input[type="number"] {
     padding: 8px;
@@ -583,4 +583,37 @@ margin-top: 20px;
 .client-table .icon-button.delete svg {
     width: 18px;
     height: 18px;
+}
+
+/* Column Chooser */
+.column-chooser-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.column-chooser-grid label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.table-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 10px;
+    gap: 5px;
+}
+
+.table-actions .icon-button {
+    color: var(--text-color);
+}
+
+.client-table th.actions-header {
+    vertical-align: middle;
+}
+
+.client-table td.actions-cell {
+    text-align: right;
 }

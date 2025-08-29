@@ -2,7 +2,7 @@
     <h2>Client Attachments</h2>
     <div class="attachment-controls">
         <form method="POST" action="{{ url_for('upload_file', account_number=client.account_number) }}" enctype="multipart/form-data" class="upload-form">
-            <input type="file" name="file" id="file-upload" required>
+            <input type="file" name="file[]" id="file-upload" required multiple>
             <label for="file-upload" class="file-upload-label">Browse...</label>
             <span id="file-name-display">No file selected</span>
             <select name="category">

@@ -199,6 +199,8 @@ def create_database(new_password, existing_data=None):
             account_number TEXT PRIMARY KEY,
             name TEXT UNIQUE,
             freshservice_id INTEGER UNIQUE,
+            datto_site_uid TEXT,
+            datto_portal_url TEXT,
             contract_type TEXT,
             billing_plan TEXT,
             status TEXT,
@@ -223,7 +225,36 @@ def create_database(new_password, existing_data=None):
             UNIQUE (company_account_number, location_name)
         )
     """)
-    cur.execute("CREATE TABLE IF NOT EXISTS assets (id INTEGER PRIMARY KEY, company_account_number TEXT, datto_uid TEXT UNIQUE, hostname TEXT, friendly_name TEXT, device_type TEXT, billing_type TEXT, status TEXT, date_added TEXT, operating_system TEXT, backup_data_bytes INTEGER, FOREIGN KEY (company_account_number) REFERENCES companies (account_number))")
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS assets (
+            id INTEGER PRIMARY KEY,
+            company_account_number TEXT,
+            datto_uid TEXT UNIQUE,
+            hostname TEXT,
+            friendly_name TEXT,
+            device_type TEXT,
+            billing_type TEXT,
+            status TEXT,
+            date_added TEXT,
+            operating_system TEXT,
+            backup_data_bytes INTEGER,
+            internal_ip TEXT,
+            external_ip TEXT,
+            last_logged_in_user TEXT,
+            domain TEXT,
+            is_64_bit BOOLEAN,
+            is_online BOOLEAN,
+            last_seen TEXT,
+            last_reboot TEXT,
+            last_audit_date TEXT,
+            udf_data TEXT,
+            antivirus_data TEXT,
+            patch_management_data TEXT,
+            portal_url TEXT,
+            web_remote_url TEXT,
+            FOREIGN KEY (company_account_number) REFERENCES companies (account_number)
+        )
+    """)
     cur.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY,
@@ -318,7 +349,7 @@ def create_database(new_password, existing_data=None):
     cur.execute(client_overrides_sql)
 
     cur.execute("CREATE TABLE IF NOT EXISTS asset_billing_overrides (id INTEGER PRIMARY KEY AUTOINCREMENT, asset_id INTEGER UNIQUE, billing_type TEXT, custom_cost REAL, FOREIGN KEY (asset_id) REFERENCES assets (id) ON DELETE CASCADE)")
-    cur.execute("CREATE TABLE IF NOT EXISTS user_billing_overrides (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER UNIQUE, billing_type TEXT, custom_cost REAL, FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE)")
+    cur.execute("CREATE TABLE IF NOT EXISTS user_billing_overrides (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER UNIQUE, billing_type TEXT, custom_cost REAL, employment_type TEXT, FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE)")
     cur.execute("CREATE TABLE IF NOT EXISTS manual_assets (id INTEGER PRIMARY KEY AUTOINCREMENT, company_account_number TEXT NOT NULL, hostname TEXT NOT NULL, device_type TEXT, billing_type TEXT, custom_cost REAL, FOREIGN KEY (company_account_number) REFERENCES companies (account_number) ON DELETE CASCADE)")
     cur.execute("CREATE TABLE IF NOT EXISTS manual_users (id INTEGER PRIMARY KEY AUTOINCREMENT, company_account_number TEXT NOT NULL, full_name TEXT NOT NULL, email TEXT, billing_type TEXT, custom_cost REAL, FOREIGN KEY (company_account_number) REFERENCES companies (account_number) ON DELETE CASCADE)")
     cur.execute("CREATE TABLE IF NOT EXISTS ticket_details (ticket_id INTEGER PRIMARY KEY, company_account_number TEXT, subject TEXT, last_updated_at TEXT, closed_at TEXT, total_hours_spent REAL, FOREIGN KEY (company_account_number) REFERENCES companies (account_number))")

@@ -93,19 +93,26 @@ def populate_assets_database(db_password, assets_to_insert):
     try:
         con, cur = get_db_connection(DB_FILE, db_password)
         print(f"\nAttempting to insert/update {len(assets_to_insert)} assets into the database...")
-        cur.executemany("""
-            INSERT INTO assets (company_account_number, datto_uid, hostname, friendly_name, device_type, billing_type, operating_system, status, date_added, backup_data_bytes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(datto_uid) DO UPDATE SET
-                company_account_number=excluded.company_account_number,
-                hostname=excluded.hostname,
-                friendly_name=excluded.friendly_name,
-                device_type=excluded.device_type,
-                billing_type=excluded.billing_type,
-                operating_system=excluded.operating_system,
-                status=excluded.status,
-                backup_data_bytes=excluded.backup_data_bytes;
-        """, assets_to_insert)
+
+        # The columns list must match the order of values in the assets_to_insert tuples
+        columns = [
+            'company_account_number', 'datto_uid', 'hostname', 'friendly_name', 'device_type',
+            'billing_type', 'operating_system', 'status', 'date_added', 'backup_data_bytes',
+            'internal_ip', 'external_ip', 'last_logged_in_user', 'domain', 'is_64_bit',
+            'is_online', 'last_seen', 'last_reboot', 'last_audit_date', 'udf_data',
+            'antivirus_data', 'patch_management_data', 'portal_url', 'web_remote_url'
+        ]
+
+        placeholders = ', '.join(['?'] * len(columns))
+        update_setters = ', '.join([f"{col}=excluded.{col}" for col in columns])
+
+        sql = f"""
+            INSERT INTO assets ({', '.join(columns)})
+            VALUES ({placeholders})
+            ON CONFLICT(datto_uid) DO UPDATE SET {update_setters};
+        """
+
+        cur.executemany(sql, assets_to_insert)
         con.commit()
         print(f" Successfully inserted/updated {cur.rowcount} assets in '{DB_FILE}'.")
     except sqlite3.Error as e:
@@ -114,6 +121,31 @@ def populate_assets_database(db_password, assets_to_insert):
         sys.exit(1)
     finally:
         if con: con.close()
+
+
+def update_company_datto_info(db_password, account_number, site_uid, portal_url):
+    """Updates the company record with the Datto site UID and Portal URL."""
+    con = None
+    try:
+        con, cur = get_db_connection(DB_FILE, db_password)
+        cur.execute("UPDATE companies SET datto_site_uid = ?, datto_portal_url = ? WHERE account_number = ?", (site_uid, portal_url, account_number))
+        con.commit()
+        if cur.rowcount > 0:
+            print(f"   -> Successfully linked site UID {site_uid} and Portal URL to account {account_number}.")
+    except sqlite3.Error as e:
+        print(f"\n❌ Database error while updating Datto info: {e}", file=sys.stderr)
+        if con: con.rollback()
+    finally:
+        if con: con.close()
+
+def format_timestamp(ms_timestamp):
+    """Converts a millisecond timestamp to an ISO 8601 string, or returns None."""
+    if ms_timestamp is None:
+        return None
+    try:
+        return datetime.fromtimestamp(ms_timestamp / 1000, tz=timezone.utc).isoformat()
+    except (ValueError, TypeError):
+        return None
 
 # --- Main Execution ---
 if __name__ == "__main__":
@@ -151,14 +183,15 @@ if __name__ == "__main__":
             print(f"   -> Skipping: No '{DATTO_VARIABLE_NAME}' variable found.")
             continue
 
+        portal_url = site.get('portalUrl')
+        update_company_datto_info(DB_MASTER_PASSWORD, account_number, site_uid, portal_url)
+
         print(f"   -> Found Account Number: {account_number}. Fetching devices...")
         devices_in_site = get_paginated_api_request(endpoint, token, f"/v2/site/{site_uid}/devices")
 
         if devices_in_site:
             print(f"   -> Found {len(devices_in_site)} devices. Preparing for DB insert.")
             for device in devices_in_site:
-                creation_ms = device.get('creationDate')
-                date_added_str = datetime.fromtimestamp(creation_ms / 1000, tz=timezone.utc).isoformat() if creation_ms else None
 
                 udf_dict = device.get('udf', {}) or {}
 
@@ -187,8 +220,22 @@ if __name__ == "__main__":
                     billing_type,
                     device.get('operatingSystem'),
                     'Active',
-                    date_added_str,
-                    backup_data_bytes
+                    format_timestamp(device.get('creationDate')),
+                    backup_data_bytes,
+                    device.get('intIpAddress'),
+                    device.get('extIpAddress'),
+                    device.get('lastLoggedInUser'),
+                    device.get('domain'),
+                    device.get('a64Bit'),
+                    device.get('online'),
+                    format_timestamp(device.get('lastSeen')),
+                    format_timestamp(device.get('lastReboot')),
+                    format_timestamp(device.get('lastAuditDate')),
+                    json.dumps(udf_dict),
+                    json.dumps(device.get('antivirus')),
+                    json.dumps(device.get('patchManagement')),
+                    device.get('portalUrl'),
+                    device.get('webRemoteUrl')
                 ))
 
     if assets_to_insert:
