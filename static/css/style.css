@@ -617,3 +617,12 @@ margin-top: 20px;
 .client-table td.actions-cell {
     text-align: right;
 }
+
+.grid-stack-item-content {
+    background-color: var(--card-bg);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    padding: 20px;
+    color: var(--text-color);
+    overflow: auto;
+}
