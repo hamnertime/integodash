@@ -24,6 +24,7 @@
                 <a href="{{ link.url }}" target="_blank">{{ link.name }}</a>
             {% endfor %}
             <a href="{{ url_for('billing_settings') }}" class="{{ 'active' if request.endpoint in ['billing_settings', 'view_audit_log'] else '' }}">Settings & Sync</a>
+            <button id="widget-library-btn" class="button">Widget Library</button>
             {% if 'username' in session %}
                 <span style="border-left: 1px solid #fff; padding-left: 15px; margin-left: 5px;">Welcome, {{ session['username'] }}</span>
                 <a href="{{ url_for('logout') }}">Logout</a>
@@ -36,6 +37,18 @@
             </div>
         </div>
     </nav>
+
+    <div id="widgetLibraryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Widget Library</h2>
+                <span class="close-button">&times;</span>
+            </div>
+            <div id="widget-library-list">
+                <!-- Widgets will be dynamically added here -->
+            </div>
+        </div>
+    </div>
 
     <div class="container">
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -50,6 +63,7 @@
 
     {% block scripts %}
     <script src="https://cdn.jsdelivr.net/npm/gridstack@7.2.3/dist/gridstack-all.js"></script>
+    <script src="{{ url_for('static', filename='js/widget_library.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const toggleSwitch = document.querySelector('.theme-switch input[type="checkbox"]');

@@ -5,8 +5,10 @@
 {% endblock %}
 
 {% block content %}
+<div class="page-header">
     <h1>{{ client.name }}</h1>
-
+    <button id="restore-layout-btn" class="button">Restore Default Layout</button>
+</div>
     <div class="grid-stack">
         <div class="grid-stack-item" gs-id="billing-period-selector-widget" gs-w="12" gs-h="1">
             <div class="grid-stack-item-content billing-period-selector form-section">
@@ -277,8 +279,12 @@
 <script src="https://cdn.jsdelivr.net/npm/js-confetti@latest/dist/js-confetti.browser.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    let grid = GridStack.init();
+    let grid = GridStack.init({
+        minW: 2,
+        minH: 2
+    });
     const savedLayout = {{ layout|tojson|safe }};
+    const defaultLayout = {{ default_layout|tojson|safe }};
 
     if (savedLayout) {
         grid.load(savedLayout);
@@ -286,13 +292,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
     grid.on('change', function (event, items) {
         const layout = grid.save(false);
-        fetch('/save_layout/client_{{ client.account_number }}', {
+        fetch('/save_layout/client_details', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({layout: layout}),
         });
+    });
+
+    document.getElementById('restore-layout-btn').addEventListener('click', function() {
+        if (defaultLayout) {
+            grid.load(defaultLayout, true);
+        }
     });
 
     const platinumSpan = document.getElementById('msp-platinum-plan');

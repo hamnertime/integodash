@@ -625,4 +625,56 @@ margin-top: 20px;
     padding: 20px;
     color: var(--text-color);
     overflow: auto;
+    position: relative;
+}
+
+/* Gridstack Dark Mode Enhancements */
+body.dark-mode .grid-stack-item-content {
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-mode .grid-stack-item.ui-draggable-dragging .grid-stack-item-content {
+    box-shadow: 0 8px 25px rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .grid-stack-placeholder > .placeholder-content {
+    background-color: rgba(212, 175, 55, 0.15);
+    border: 1px dashed var(--primary-color);
+}
+
+body.dark-mode .ui-resizable-handle.ui-resizable-se {
+    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 14" width="14" height="14"><path d="M14 0 L0 14 L14 14 Z" fill="rgba(255,255,255,0.3)"/></svg>');
+}
+
+/* Widget Library */
+#widget-library-list {
+display: flex;
+flex-wrap: wrap;
+gap: 10px;
+}
+
+.remove-widget-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: none;
+    border: none;
+    color: var(--text-color);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+}
+
+.grid-stack-item-content:hover .remove-widget-btn {
+    opacity: 1;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
 }

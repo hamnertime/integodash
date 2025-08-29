@@ -19,7 +19,7 @@ import re
 from threading import Lock
 
 # Local module imports
-from database import init_app_db, get_db, query_db, log_and_execute, log_read_action, log_page_view, get_db_connection, get_user_widget_layout, save_user_widget_layout
+from database import init_app_db, get_db, query_db, log_and_execute, log_read_action, log_page_view, get_db_connection, get_user_widget_layout, save_user_widget_layout, default_widget_layouts
 from scheduler import run_job
 from billing import get_billing_dashboard_data, get_client_breakdown_data
 
@@ -29,7 +29,7 @@ app.secret_key = 'a_permanent_secret_key_for_production' # This should be a long
 app.config['DB_PASSWORD'] = None # This will hold the master password in memory
 DATABASE = 'brainhair.db'
 UPLOAD_FOLDER = 'uploads'
-STATIC_CSS_FOLDER = 'static/css'
+STATIC_JS_FOLDER = 'static/js'
 ALLOWED_EXTENSIONS = {'pdf', 'txt', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'xls', 'xlsx', 'json'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # Dictionary to store active user sessions
@@ -266,6 +266,7 @@ def billing_dashboard():
             session['clients_cols'] = {k: v['default'] for k, v in CLIENTS_COLUMNS.items()}
 
         layout = get_user_widget_layout(session['user_id'], 'clients')
+        default_layout = default_widget_layouts.get('clients')
 
         return render_template('clients.html',
             month_options=month_options,
@@ -273,7 +274,8 @@ def billing_dashboard():
             billing_plans=billing_plans,
             columns=CLIENTS_COLUMNS,
             visible_columns=session['clients_cols'],
-            layout=layout
+            layout=layout,
+            default_layout=default_layout
         )
     except (ValueError, KeyError) as e:
         app.config['DB_PASSWORD'] = None
@@ -357,10 +359,12 @@ def assets():
     if 'assets_cols' not in session:
         session['assets_cols'] = {k: v['default'] for k, v in ASSETS_COLUMNS.items()}
     layout = get_user_widget_layout(session['user_id'], 'assets')
+    default_layout = default_widget_layouts.get('assets')
     return render_template('assets.html',
         columns=ASSETS_COLUMNS,
         visible_columns=session['assets_cols'],
-        layout=layout
+        layout=layout,
+        default_layout=default_layout
     )
 
 @app.route('/assets/partial')
@@ -432,11 +436,13 @@ def contacts():
         session['contacts_cols'] = {k: v['default'] for k, v in CONTACTS_COLUMNS.items()}
     companies = query_db("SELECT * FROM companies ORDER BY name")
     layout = get_user_widget_layout(session['user_id'], 'contacts')
+    default_layout = default_widget_layouts.get('contacts')
     return render_template('contacts.html',
         companies=companies,
         columns=CONTACTS_COLUMNS,
         visible_columns=session['contacts_cols'],
-        layout=layout
+        layout=layout,
+        default_layout=default_layout
     )
 
 @app.route('/contacts/partial')
@@ -723,7 +729,8 @@ def client_billing_details(account_number):
              month_options.append({'year': today.year if i <= today.month else today.year -1, 'month': i, 'name': datetime(today.year, i, 1).strftime('%B %Y')})
         selected_billing_period = datetime(year, month, 1).strftime('%B %Y')
 
-        layout = get_user_widget_layout(session['user_id'], f'client_{account_number}')
+        layout = get_user_widget_layout(session['user_id'], 'client_details')
+        default_layout = default_widget_layouts.get('client_details')
 
         return render_template(
             'client_billing_details.html',
@@ -744,7 +751,8 @@ def client_billing_details(account_number):
             sort_by=sort_by,
             sort_order=sort_order,
             search_query=search_query,
-            layout=layout
+            layout=layout,
+            default_layout=default_layout
         )
     except (ValueError, KeyError) as e:
         app.config['DB_PASSWORD'] = None
@@ -970,9 +978,10 @@ def client_settings(account_number):
         today = datetime.now(timezone.utc)
         month_options = [{'value': (today + timedelta(days=31*i)).strftime('%Y-%m'), 'name': (today + timedelta(days=31*i)).strftime('%B %Y')} for i in range(12)]
 
-        layout = get_user_widget_layout(session['user_id'], f'client_settings_{account_number}')
+        layout = get_user_widget_layout(session['user_id'], 'client_settings')
+        default_layout = default_widget_layouts.get('client_settings')
 
-        return render_template('client_settings.html', client=client_info, locations=locations, defaults=default_plan, overrides=dict(overrides_row) if overrides_row else {}, assets=assets, users=users, manual_assets=manual_assets, manual_users=manual_users, custom_line_items=custom_line_items, asset_overrides=asset_overrides, user_overrides=user_overrides, month_options=month_options, feature_options=feature_options, all_billing_plans=all_billing_plans, layout=layout)
+        return render_template('client_settings.html', client=client_info, locations=locations, defaults=default_plan, overrides=dict(overrides_row) if overrides_row else {}, assets=assets, users=users, manual_assets=manual_assets, manual_users=manual_users, custom_line_items=custom_line_items, asset_overrides=asset_overrides, user_overrides=user_overrides, month_options=month_options, feature_options=feature_options, all_billing_plans=all_billing_plans, layout=layout, default_layout=default_layout)
     except (ValueError, KeyError) as e:
         app.config['DB_PASSWORD'] = None
         session.clear()
@@ -1151,6 +1160,7 @@ def billing_settings():
             feature_types.append(option['feature_type'])
 
     layout = get_user_widget_layout(session['user_id'], 'settings')
+    default_layout = default_widget_layouts.get('settings')
 
     return render_template('settings.html',
         grouped_plans=grouped_plans,
@@ -1160,7 +1170,8 @@ def billing_settings():
         feature_options=feature_options,
         feature_types=feature_types,
         active_sessions=active_sessions,
-        layout=layout
+        layout=layout,
+        default_layout=default_layout
     )
 
 @app.route('/settings/audit_log')
@@ -1540,8 +1551,8 @@ if __name__ == '__main__':
         sys.exit(1)
     if not os.path.exists(UPLOAD_FOLDER):
         os.makedirs(UPLOAD_FOLDER)
-    if not os.path.exists(STATIC_CSS_FOLDER):
-        os.makedirs(STATIC_CSS_FOLDER)
+    if not os.path.exists(STATIC_JS_FOLDER):
+        os.makedirs(STATIC_JS_FOLDER)
 
     scheduler.add_job(cleanup_inactive_sessions, 'interval', minutes=1, id='cleanup_sessions')
     print("--- Starting Flask Web Server ---")

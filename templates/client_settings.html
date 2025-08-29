@@ -5,8 +5,10 @@
 {% endblock %}
 
 {% block content %}
+<div class="page-header">
     <h1>Override Settings for {{ client.name }}</h1>
-
+    <button id="restore-layout-btn" class="button">Restore Default Layout</button>
+</div>
     <div class="grid-stack">
         <div class="grid-stack-item" gs-id="client-details-widget" gs-w="6" gs-h="4">
             <div class="grid-stack-item-content form-section">
@@ -561,8 +563,12 @@ function toggleLineItemFields(itemType) {
 toggleLineItemFields('recurring');
 
 document.addEventListener('DOMContentLoaded', function() {
-    let grid = GridStack.init();
+    let grid = GridStack.init({
+        minW: 2,
+        minH: 2
+    });
     const savedLayout = {{ layout|tojson|safe }};
+    const defaultLayout = {{ default_layout|tojson|safe }};
 
     if (savedLayout) {
         grid.load(savedLayout);
@@ -570,13 +576,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
     grid.on('change', function (event, items) {
         const layout = grid.save(false);
-        fetch('/save_layout/client_settings_{{ client.account_number }}', {
+        fetch('/save_layout/client_settings', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({layout: layout}),
         });
+    });
+
+    document.getElementById('restore-layout-btn').addEventListener('click', function() {
+        if (defaultLayout) {
+            grid.load(defaultLayout, true);
+        }
     });
 
     const manualAssetModal = document.getElementById('manualAssetModal');

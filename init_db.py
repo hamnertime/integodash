@@ -5,6 +5,7 @@ import getpass
 import time
 import shutil
 import re
+import json
 
 # This is provided by the sqlcipher3-wheels package
 try:
@@ -63,6 +64,44 @@ default_features = [
     ('SAT', 'Not Included'), ('SAT', 'BSN'),
     ('Password Manager', 'Not Included'), ('Password Manager', 'Keeper'),
 ]
+
+default_widget_layouts = {
+    "client_details": [
+        {"w": 12, "h": 1, "id": "billing-period-selector-widget", "x": 0, "y": 0},
+        {"w": 6, "h": 4, "id": "client-details-widget", "x": 0, "y": 1},
+        {"w": 6, "h": 4, "id": "client-features-widget", "x": 6, "y": 1},
+        {"w": 6, "h": 2, "id": "locations-widget", "x": 0, "y": 5},
+        {"w": 6, "h": 5, "id": "billing-receipt-widget", "x": 6, "y": 5},
+        {"w": 6, "h": 3, "id": "contract-details-widget", "x": 0, "y": 7},
+        {"w": 6, "h": 4, "id": "notes-widget", "x": 0, "y": 10},
+        {"w": 6, "h": 4, "id": "attachments-widget", "x": 6, "y": 10},
+        {"w": 12, "h": 3, "id": "tracked-assets-widget", "x": 0, "y": 14},
+        {"w": 12, "h": 3, "id": "ticket-breakdown-widget", "x": 0, "y": 17}
+    ],
+    "client_settings": [
+        {"w": 6, "h": 5, "id": "client-details-widget", "x": 0, "y": 0},
+        {"x": 6, "w": 6, "h": 5, "id": "contract-details-widget", "y": 0},
+        {"y": 5, "w": 12, "h": 7, "id": "billing-overrides-widget", "x": 0},
+        {"y": 12, "w": 12, "h": 4, "id": "feature-overrides-widget", "x": 0},
+        {"y": 16, "w": 12, "h": 4, "id": "custom-line-items-widget", "x": 0},
+        {"x": 0, "y": 20, "w": 6, "h": 4, "id": "add-manual-user-widget"},
+        {"y": 20, "w": 6, "h": 4, "id": "add-manual-asset-widget", "x": 6},
+        {"y": 24, "w": 12, "h": 3, "id": "user-overrides-widget", "x": 0},
+        {"y": 27, "w": 12, "h": 4, "id": "asset-overrides-widget", "x": 0}
+    ],
+    "clients": [
+        {"x": 0, "y": 0, "w": 12, "h": 8, "id": "clients-table-widget"},
+        {"w": 12, "h": 2, "id": "export-all-widget", "x": 0, "y": 8}
+    ],
+    "settings": [
+        {"w": 12, "h": 2, "id": "import-export-widget", "x": 0, "y": 0},
+        {"x": 0, "w": 12, "h": 4, "id": "scheduler-widget", "y": 2},
+        {"y": 6, "w": 12, "h": 7, "id": "users-auditing-widget", "x": 0},
+        {"y": 13, "w": 12, "h": 3, "id": "custom-links-widget", "x": 0},
+        {"y": 16, "w": 12, "h": 8, "id": "billing-plans-widget", "x": 0},
+        {"x": 0, "y": 24, "w": 12, "h": 8, "id": "feature-options-widget"}
+    ]
+}
 
 def export_data_from_old_db(password):
     """
@@ -426,6 +465,15 @@ def create_database(new_password, existing_data=None):
 
         # This is a fresh install, so we must get the API keys
         get_and_set_api_keys(cur)
+
+        # Set the default widget layout for the Admin user (ID 1)
+        print("Setting default widget layouts for Admin user...")
+        for page_name, layout in default_widget_layouts.items():
+            layout_json = json.dumps(layout)
+            cur.execute(
+                "INSERT INTO user_widget_layouts (user_id, page_name, layout) VALUES (?, ?, ?)",
+                (1, page_name, layout_json)
+            )
 
 
     con.commit()

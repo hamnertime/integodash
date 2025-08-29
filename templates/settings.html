@@ -5,7 +5,10 @@
 {% endblock %}
 
 {% block content %}
-    <h1>Settings & Sync</h1>
+    <div class="page-header">
+        <h1>Settings & Sync</h1>
+        <button id="restore-layout-btn" class="button">Restore Default Layout</button>
+    </div>
 
     <div class="grid-stack">
         <div class="grid-stack-item" gs-id="import-export-widget" gs-w="6" gs-h="3">
@@ -402,11 +405,17 @@
 {{ super() }}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    let grid = GridStack.init();
+    let grid = GridStack.init({
+        minW: 2,
+        minH: 2
+    });
     const savedLayout = {{ layout|tojson|safe }};
+    const defaultLayout = {{ default_layout|tojson|safe }};
 
     if (savedLayout) {
         grid.load(savedLayout);
+    } else if (defaultLayout) {
+        grid.load(defaultLayout);
     }
 
     grid.on('change', function (event, items) {
@@ -418,6 +427,12 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: JSON.stringify({layout: layout}),
         });
+    });
+
+    document.getElementById('restore-layout-btn').addEventListener('click', function() {
+        if (defaultLayout) {
+            grid.load(defaultLayout);
+        }
     });
 
     // Convert UTC times to local time

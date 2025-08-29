@@ -12,6 +12,47 @@ except ImportError:
 
 DATABASE = 'brainhair.db'
 
+# --- Default Widget Layouts ---
+# This dictionary serves as the fallback for any user who has not saved their own layout.
+default_widget_layouts = {
+    "client_details": [
+        {"w": 12, "h": 1, "id": "billing-period-selector-widget", "x": 0, "y": 0},
+        {"w": 6, "h": 4, "id": "client-details-widget", "x": 0, "y": 1},
+        {"w": 6, "h": 4, "id": "client-features-widget", "x": 6, "y": 1},
+        {"w": 6, "h": 2, "id": "locations-widget", "x": 0, "y": 5},
+        {"w": 6, "h": 5, "id": "billing-receipt-widget", "x": 6, "y": 5},
+        {"w": 6, "h": 3, "id": "contract-details-widget", "x": 0, "y": 7},
+        {"w": 6, "h": 4, "id": "notes-widget", "x": 0, "y": 10},
+        {"w": 6, "h": 4, "id": "attachments-widget", "x": 6, "y": 10},
+        {"w": 12, "h": 3, "id": "tracked-assets-widget", "x": 0, "y": 14},
+        {"w": 12, "h": 3, "id": "ticket-breakdown-widget", "x": 0, "y": 17}
+    ],
+    "client_settings": [
+        {"w": 6, "h": 5, "id": "client-details-widget", "x": 0, "y": 0},
+        {"x": 6, "w": 6, "h": 5, "id": "contract-details-widget", "y": 0},
+        {"y": 5, "w": 12, "h": 7, "id": "billing-overrides-widget", "x": 0},
+        {"y": 12, "w": 12, "h": 4, "id": "feature-overrides-widget", "x": 0},
+        {"y": 16, "w": 12, "h": 4, "id": "custom-line-items-widget", "x": 0},
+        {"x": 0, "y": 20, "w": 6, "h": 4, "id": "add-manual-user-widget"},
+        {"y": 20, "w": 6, "h": 4, "id": "add-manual-asset-widget", "x": 6},
+        {"y": 24, "w": 12, "h": 3, "id": "user-overrides-widget", "x": 0},
+        {"y": 27, "w": 12, "h": 4, "id": "asset-overrides-widget", "x": 0}
+    ],
+    "clients": [
+        {"x": 0, "y": 0, "w": 12, "h": 8, "id": "clients-table-widget"},
+        {"w": 12, "h": 2, "id": "export-all-widget", "x": 0, "y": 8}
+    ],
+    "settings": [
+        {"w": 12, "h": 2, "id": "import-export-widget", "x": 0, "y": 0},
+        {"x": 0, "w": 12, "h": 4, "id": "scheduler-widget", "y": 2},
+        {"y": 6, "w": 12, "h": 7, "id": "users-auditing-widget", "x": 0},
+        {"y": 13, "w": 12, "h": 3, "id": "custom-links-widget", "x": 0},
+        {"y": 16, "w": 12, "h": 8, "id": "billing-plans-widget", "x": 0},
+        {"x": 0, "y": 24, "w": 12, "h": 8, "id": "feature-options-widget"}
+    ]
+}
+
+
 def get_db_connection(password):
     """Establishes a connection to the encrypted database."""
     if not password:
@@ -106,7 +147,10 @@ def log_page_view(response):
         db.commit()
 
 def get_user_widget_layout(user_id, page_name):
-    """Fetches the widget layout for a specific user and page."""
+    """
+    Fetches the widget layout for a specific user and page.
+    If no layout is found for the user, it returns the default layout.
+    """
     layout_data = query_db(
         "SELECT layout FROM user_widget_layouts WHERE user_id = ? AND page_name = ?",
         [user_id, page_name],
@@ -114,7 +158,10 @@ def get_user_widget_layout(user_id, page_name):
     )
     if layout_data and layout_data['layout']:
         return json.loads(layout_data['layout'])
-    return None
+
+    # If no user-specific layout is found, return the default for that page
+    return default_widget_layouts.get(page_name)
+
 
 def save_user_widget_layout(user_id, page_name, layout):
     """Saves or updates the widget layout for a specific user and page."""
