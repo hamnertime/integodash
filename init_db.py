@@ -20,39 +20,39 @@ UPLOAD_FOLDER = 'uploads'
 # --- Default Billing Plan Data ---
 # This data is used to populate a fresh database. It is ignored during migration.
 default_plans_data = [
-    # plan, term, puc, psc, pwc, pvc, pswitchc, pfirewallc, phtc, bbfw, bbfs, bit, bpt, support_level
-    ('Break Fix', '1-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 90.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
-    ('Break Fix', '2-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 90.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
-    ('Break Fix', '3-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 90.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
-    ('Break Fix', 'Month to Month', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 100.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
-    ('MSP Advanced', '1-Year', 0.00, 125.00, 25.00, 100.00, 25.00, 25.00, 90.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
-    ('MSP Advanced', '2-Year', 0.00, 125.00, 25.00, 100.00, 25.00, 25.00, 90.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
-    ('MSP Advanced', '3-Year', 0.00, 125.00, 25.00, 100.00, 25.00, 25.00, 90.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
-    ('MSP Advanced', 'Month to Month', 0.00, 125.00, 25.00, 100.00, 25.00, 25.00, 100.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
-    ('MSP Basic', '1-Year', 0.00, 125.00, 10.00, 100.00, 25.00, 25.00, 90.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
-    ('MSP Basic', '2-Year', 0.00, 125.00, 10.00, 100.00, 25.00, 25.00, 90.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
-    ('MSP Basic', '3-Year', 0.00, 125.00, 10.00, 100.00, 25.00, 25.00, 90.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
-    ('MSP Basic', 'Month to Month', 0.00, 125.00, 10.00, 100.00, 25.00, 25.00, 100.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
-    ('MSP Legacy', '1-Year', 0.00, 125.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited'),
-    ('MSP Legacy', '2-Year', 0.00, 125.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited'),
-    ('MSP Legacy', '3-Year', 0.00, 125.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited'),
-    ('MSP Legacy', 'Month to Month', 0.00, 125.00, 0.00, 0.00, 0.00, 0.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited'),
-    ('MSP Platinum', '1-Year', 120.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited'),
-    ('MSP Platinum', '2-Year', 115.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited'),
-    ('MSP Platinum', '3-Year', 110.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited'),
-    ('MSP Platinum', 'Month to Month', 125.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited'),
-    ('MSP Premium', '1-Year', 95.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited'),
-    ('MSP Premium', '2-Year', 90.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited'),
-    ('MSP Premium', '3-Year', 85.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited'),
-    ('MSP Premium', 'Month to Month', 100.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited'),
-    ('Pro Services', '1-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 120.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
-    ('Pro Services', '2-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 120.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
-    ('Pro Services', '3-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 120.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
-    ('Pro Services', 'Month to Month', 0.00, 0.00, 0.00, 25.00, 25.00, 0.00, 120.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
-    ('MSP Network', '1-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 120.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
-    ('MSP Network', '2-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 120.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
-    ('MSP Network', '3-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 120.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
-    ('MSP Network', 'Month to Month', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 120.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly'),
+    # plan, term, puc, psc, pwc, pvc, pswitchc, pfirewallc, phtc, bbfw, bbfs, bit, bpt, support_level, antivirus, soc, password_manager, sat
+    ('Break Fix', '1-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 90.00, 25.00, 50.00, 1.0, 15.00, 'Billed Hourly', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
+    ('Break Fix', '2-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 90.00, 25.00, 50.00, 1.0, 15.00, 'Billed Hourly', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
+    ('Break Fix', '3-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 90.00, 25.00, 50.00, 1.0, 15.00, 'Billed Hourly', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
+    ('Break Fix', 'Month to Month', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 100.00, 25.00, 50.00, 1.0, 15.00, 'Billed Hourly', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
+    ('MSP Advanced', '1-Year', 0.00, 125.00, 25.00, 100.00, 25.00, 25.00, 90.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly', 'SentinelOne', 'RocketCyber', 'Not Included', 'Not Included'),
+    ('MSP Advanced', '2-Year', 0.00, 125.00, 25.00, 100.00, 25.00, 25.00, 90.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly', 'SentinelOne', 'RocketCyber', 'Not Included', 'Not Included'),
+    ('MSP Advanced', '3-Year', 0.00, 125.00, 25.00, 100.00, 25.00, 25.00, 90.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly', 'SentinelOne', 'RocketCyber', 'Not Included', 'Not Included'),
+    ('MSP Advanced', 'Month to Month', 0.00, 125.00, 25.00, 100.00, 25.00, 25.00, 100.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly', 'SentinelOne', 'RocketCyber', 'Not Included', 'Not Included'),
+    ('MSP Basic', '1-Year', 0.00, 125.00, 10.00, 100.00, 25.00, 25.00, 90.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly', 'Datto EDR', 'Not Included', 'Not Included', 'Not Included'),
+    ('MSP Basic', '2-Year', 0.00, 125.00, 10.00, 100.00, 25.00, 25.00, 90.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly', 'Datto EDR', 'Not Included', 'Not Included', 'Not Included'),
+    ('MSP Basic', '3-Year', 0.00, 125.00, 10.00, 100.00, 25.00, 25.00, 90.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly', 'Datto EDR', 'Not Included', 'Not Included', 'Not Included'),
+    ('MSP Basic', 'Month to Month', 0.00, 125.00, 10.00, 100.00, 25.00, 25.00, 100.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly', 'Datto EDR', 'Not Included', 'Not Included', 'Not Included'),
+    ('MSP Legacy', '1-Year', 0.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited', 'Datto EDR', 'Not Included', 'Not Included', 'Not Included'),
+    ('MSP Legacy', '2-Year', 0.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited', 'Datto EDR', 'Not Included', 'Not Included', 'Not Included'),
+    ('MSP Legacy', '3-Year', 0.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited', 'Datto EDR', 'Not Included', 'Not Included', 'Not Included'),
+    ('MSP Legacy', 'Month to Month', 0.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited', 'Datto EDR', 'Not Included', 'Not Included', 'Not Included'),
+    ('MSP Platinum', '1-Year', 120.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited', 'SentinelOne', 'RocketCyber', 'Keeper', 'BSN'),
+    ('MSP Platinum', '2-Year', 115.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited', 'SentinelOne', 'RocketCyber', 'Keeper', 'BSN'),
+    ('MSP Platinum', '3-Year', 110.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited', 'SentinelOne', 'RocketCyber', 'Keeper', 'BSN'),
+    ('MSP Platinum', 'Month to Month', 125.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited', 'SentinelOne', 'RocketCyber', 'Keeper', 'BSN'),
+    ('MSP Premium', '1-Year', 95.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited', 'Datto EDR', 'Not Included', 'Not Included', 'Not Included'),
+    ('MSP Premium', '2-Year', 90.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited', 'Datto EDR', 'Not Included', 'Not Included', 'Not Included'),
+    ('MSP Premium', '3-Year', 85.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited', 'Datto EDR', 'Not Included', 'Not Included', 'Not Included'),
+    ('MSP Premium', 'Month to Month', 100.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited', 'Datto EDR', 'Not Included', 'Not Included', 'Not Included'),
+    ('Pro Services', '1-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 120.00, 25.00, 50.00, 1.0, 15.00, 'Billed Hourly', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
+    ('Pro Services', '2-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 120.00, 25.00, 50.00, 1.0, 15.00, 'Billed Hourly', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
+    ('Pro Services', '3-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 120.00, 25.00, 50.00, 1.0, 15.00, 'Billed Hourly', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
+    ('Pro Services', 'Month to Month', 0.00, 0.00, 0.00, 25.00, 25.00, 0.00, 120.00, 25.00, 50.00, 1.0, 15.00, 'Billed Hourly', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
+    ('MSP Network', '1-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 120.00, 25.00, 50.00, 1.0, 15.00, 'Billed Hourly', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
+    ('MSP Network', '2-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 120.00, 25.00, 50.00, 1.0, 15.00, 'Billed Hourly', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
+    ('MSP Network', '3-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 120.00, 25.00, 50.00, 1.0, 15.00, 'Billed Hourly', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
+    ('MSP Network', 'Month to Month', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 120.00, 25.00, 50.00, 1.0, 15.00, 'Billed Hourly', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
 ]
 
 default_features = [
@@ -345,7 +345,7 @@ def create_database(new_password, existing_data=None):
         cur.executemany("INSERT INTO scheduler_jobs (job_name, script_path, interval_minutes, enabled) VALUES (?, ?, ?, ?)", default_jobs)
 
         print("Populating default billing plans...")
-        cur.executemany("INSERT INTO billing_plans (billing_plan, term_length, per_user_cost, per_server_cost, per_workstation_cost, per_vm_cost, per_switch_cost, per_firewall_cost, per_hour_ticket_cost, backup_base_fee_workstation, backup_base_fee_server, backup_included_tb, backup_per_tb_fee, support_level) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", default_plans_data)
+        cur.executemany("INSERT INTO billing_plans (billing_plan, term_length, per_user_cost, per_server_cost, per_workstation_cost, per_vm_cost, per_switch_cost, per_firewall_cost, per_hour_ticket_cost, backup_base_fee_workstation, backup_base_fee_server, backup_included_tb, backup_per_tb_fee, support_level, feature_antivirus, feature_soc, feature_password_manager, feature_sat) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", default_plans_data)
 
         print("Populating default feature options...")
         cur.executemany("INSERT INTO feature_options (feature_type, option_name) VALUES (?, ?)", default_features)
