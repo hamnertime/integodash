@@ -15,6 +15,7 @@ from werkzeug.utils import secure_filename
 import markdown
 import bleach
 import re
+from threading import Lock
 
 # Local module imports
 from database import init_app_db, get_db, query_db, log_and_execute, log_read_action, log_page_view, get_db_connection
@@ -24,11 +25,15 @@ from billing import get_billing_dashboard_data, get_client_breakdown_data
 # --- App Configuration ---
 app = Flask(__name__)
 app.secret_key = 'a_permanent_secret_key_for_production' # This should be a long, random, and secret string
+app.config['DB_PASSWORD'] = None # This will hold the master password in memory
 DATABASE = 'brainhair.db'
 UPLOAD_FOLDER = 'uploads'
 STATIC_CSS_FOLDER = 'static/css'
 ALLOWED_EXTENSIONS = {'pdf', 'txt', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'xls', 'xlsx', 'json'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+# Dictionary to store active user sessions
+active_sessions = {}
+sessions_lock = Lock()
 
 scheduler = BackgroundScheduler()
 
@@ -75,7 +80,7 @@ def to_markdown(text):
 # --- Context Processors ---
 @app.context_processor
 def inject_custom_links():
-    if 'db_password' in session and 'user_id' in session:
+    if app.config.get('DB_PASSWORD') and 'user_id' in session:
         try:
             links = query_db("SELECT * FROM custom_links ORDER BY link_order")
             return dict(custom_links=links)
@@ -85,13 +90,20 @@ def inject_custom_links():
 
 # --- Web Application Routes ---
 @app.before_request
-def require_login():
+def before_request_tasks():
+    session.permanent = False
+    # Update last_seen timestamp for active user
+    if 'user_id' in session:
+        with sessions_lock:
+            if session['user_id'] in active_sessions:
+                active_sessions[session['user_id']]['last_seen'] = datetime.now(timezone.utc)
+
     # Allow access to login and static files without authentication
     if request.endpoint in ['login', 'static']:
         return
 
     # If the database isn't unlocked, redirect to login
-    if 'db_password' not in session:
+    if not app.config.get('DB_PASSWORD'):
         return redirect(url_for('login'))
 
     # If the user isn't selected, redirect to the user selection page
@@ -100,7 +112,7 @@ def require_login():
 
 @app.after_request
 def log_request(response):
-    if 'db_password' in session and 'user_id' in session:
+    if app.config.get('DB_PASSWORD') and 'user_id' in session:
         try:
             # Avoid logging the partial fetch requests to keep the audit log clean
             if request.endpoint not in ['get_notes_partial', 'get_attachments_partial']:
@@ -125,8 +137,8 @@ def login():
                     for job in jobs:
                         scheduler.add_job(run_job, 'interval', minutes=job['interval_minutes'], args=[job['id'], job['script_path'], password_attempt], id=str(job['id']), next_run_time=datetime.now() + timedelta(seconds=10))
                     scheduler.start()
-            # Store the password in the session
-            session['db_password'] = password_attempt
+            # Store the password in the app's config
+            app.config['DB_PASSWORD'] = password_attempt
             flash('Database unlocked successfully!', 'success')
             return redirect(url_for('select_user'))
         except (ValueError, Exception):
@@ -142,6 +154,13 @@ def select_user():
             session['user_id'] = user['id']
             session['username'] = user['username']
             session['role'] = user['role']
+            now = datetime.now(timezone.utc)
+            with sessions_lock:
+                active_sessions[user['id']] = {
+                    'username': user['username'],
+                    'login_time': now,
+                    'last_seen': now
+                }
             return redirect(url_for('billing_dashboard'))
         else:
             flash("Invalid user selected.", 'error')
@@ -152,7 +171,10 @@ def select_user():
 @app.route('/logout')
 def logout():
     """Logs out the current user and redirects to the user selection screen."""
-    session.pop('user_id', None)
+    user_id = session.pop('user_id', None)
+    with sessions_lock:
+        if user_id in active_sessions:
+            del active_sessions[user_id]
     session.pop('username', None)
     session.pop('role', None)
     flash("You have been logged out.", "success")
@@ -169,9 +191,8 @@ def billing_dashboard():
 
         return render_template('billing.html', clients=clients_data, month_options=month_options, current_year=today.year)
     except (ValueError, KeyError) as e:
-        session.pop('db_password', None)
-        session.pop('user_id', None)
-        session.pop('username', None)
+        app.config['DB_PASSWORD'] = None
+        session.clear()
         flash(f"An error occurred on the dashboard: {e}. Please log in again.", 'error')
         return redirect(url_for('login'))
 
@@ -339,9 +360,8 @@ def client_billing_details(account_number):
             search_query=search_query
         )
     except (ValueError, KeyError) as e:
-        session.pop('db_password', None)
-        session.pop('user_id', None)
-        session.pop('username', None)
+        app.config['DB_PASSWORD'] = None
+        session.clear()
         flash(f"An error occurred on details page: {e}. Please log in again.", 'error')
         return redirect(url_for('login'))
 
@@ -406,6 +426,8 @@ def client_settings(account_number):
         for option in feature_options_raw:
             feature_options[option['feature_type']].append(dict(option))
 
+        all_billing_plans = query_db("SELECT DISTINCT billing_plan FROM billing_plans ORDER BY billing_plan")
+
         if request.method == 'POST':
             action = request.form.get('action')
             if action == 'add_manual_asset':
@@ -444,6 +466,7 @@ def client_settings(account_number):
                     flash('Location Name is required.', 'error')
             elif action == 'save_overrides':
                 # Update client details
+                support_level = request.form.get('support_level') # New
                 phone_number = request.form.get('phone_number')
                 client_start_date = request.form.get('client_start_date')
                 contract_start_date = request.form.get('contract_start_date')
@@ -454,8 +477,8 @@ def client_settings(account_number):
                 description = request.form.get('description')
 
 
-                log_and_execute("UPDATE companies SET phone_number = ?, client_start_date = ?, contract_start_date = ?, contract_term_length = ?, domains = ?, company_owner = ?, business_type = ?, description = ? WHERE account_number = ?",
-                               [phone_number, client_start_date, contract_start_date, contract_term_length, domains, company_owner, business_type, description, account_number])
+                log_and_execute("UPDATE companies SET support_level = ?, phone_number = ?, client_start_date = ?, contract_start_date = ?, contract_term_length = ?, domains = ?, company_owner = ?, business_type = ?, description = ? WHERE account_number = ?", # Modified
+                               [support_level, phone_number, client_start_date, contract_start_date, contract_term_length, domains, company_owner, business_type, description, account_number]) # Modified
 
                 rate_map = {'puc': 'per_user_cost', 'pwc': 'per_workstation_cost', 'psc': 'per_server_cost', 'pvc': 'per_vm_cost', 'pswitchc': 'per_switch_cost', 'pfirewallc': 'per_firewall_cost', 'phtc': 'per_hour_ticket_cost', 'bbfw': 'backup_base_fee_workstation', 'bbfs': 'backup_base_fee_server', 'bit': 'backup_included_tb', 'bpt': 'backup_per_tb_fee', 'prepaid_hours_monthly': 'prepaid_hours_monthly', 'prepaid_hours_yearly': 'prepaid_hours_yearly'}
 
@@ -548,11 +571,10 @@ def client_settings(account_number):
         today = datetime.now(timezone.utc)
         month_options = [{'value': (today + timedelta(days=31*i)).strftime('%Y-%m'), 'name': (today + timedelta(days=31*i)).strftime('%B %Y')} for i in range(12)]
 
-        return render_template('client_settings.html', client=client_info, locations=locations, defaults=default_plan, overrides=dict(overrides_row) if overrides_row else {}, assets=assets, users=users, manual_assets=manual_assets, manual_users=manual_users, custom_line_items=custom_line_items, asset_overrides=asset_overrides, user_overrides=user_overrides, month_options=month_options, feature_options=feature_options)
+        return render_template('client_settings.html', client=client_info, locations=locations, defaults=default_plan, overrides=dict(overrides_row) if overrides_row else {}, assets=assets, users=users, manual_assets=manual_assets, manual_users=manual_users, custom_line_items=custom_line_items, asset_overrides=asset_overrides, user_overrides=user_overrides, month_options=month_options, feature_options=feature_options, all_billing_plans=all_billing_plans)
     except (ValueError, KeyError) as e:
-        session.pop('db_password', None)
-        session.pop('user_id', None)
-        session.pop('username', None)
+        app.config['DB_PASSWORD'] = None
+        session.clear()
         flash(f"A database or key error occurred on settings page: {e}. Please log in again.", 'error')
         return redirect(url_for('login'))
 
@@ -706,7 +728,8 @@ def billing_settings():
         app_users=app_users,
         custom_links=custom_links,
         feature_options=feature_options,
-        feature_types=feature_types
+        feature_types=feature_types,
+        active_sessions=active_sessions
     )
 
 @app.route('/settings/audit_log')
@@ -994,7 +1017,7 @@ def update_scheduler_job(job_id):
 
 @app.route('/scheduler/run_now/<int:job_id>', methods=['POST'])
 def run_now(job_id):
-    password = session.get('db_password')
+    password = app.config.get('DB_PASSWORD')
     job = query_db("SELECT script_path FROM scheduler_jobs WHERE id = ?", [job_id], one=True)
     if job and scheduler.running:
         scheduler.add_job(run_job, args=[job_id, job['script_path'], password], id=f"manual_run_{job_id}_{time.time()}", misfire_grace_time=None, coalesce=False)
@@ -1063,6 +1086,20 @@ def export_all_bills_zip():
     memory_file.seek(0)
     return Response(memory_file, mimetype='application/zip', headers={'Content-Disposition': f'attachment;filename=all_invoices_{year}-{month:02d}.zip'})
 
+def cleanup_inactive_sessions():
+    """Removes users from active_sessions if they haven't been seen recently."""
+    with app.app_context():
+        now = datetime.now(timezone.utc)
+        inactive_threshold = timedelta(minutes=2)
+        with sessions_lock:
+            inactive_users = [
+                user_id for user_id, data in active_sessions.items()
+                if now - data.get('last_seen', data['login_time']) > inactive_threshold
+            ]
+            for user_id in inactive_users:
+                print(f"--- Cleaning up inactive session for user ID: {user_id} ---")
+                del active_sessions[user_id]
+
 if __name__ == '__main__':
     if not os.path.exists(DATABASE):
         print(f"Database not found. Run 'python init_db.py' first.", file=sys.stderr)
@@ -1071,6 +1108,8 @@ if __name__ == '__main__':
         os.makedirs(UPLOAD_FOLDER)
     if not os.path.exists(STATIC_CSS_FOLDER):
         os.makedirs(STATIC_CSS_FOLDER)
+
+    scheduler.add_job(cleanup_inactive_sessions, 'interval', minutes=1, id='cleanup_sessions')
     print("--- Starting Flask Web Server ---")
     try:
         app.run(debug=True, host='0.0.0.0', port=5002, ssl_context=('cert.pem', 'key.pem'))

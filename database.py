@@ -1,6 +1,6 @@
 # hamnertime/integodash/integodash-fda17dde7f19ded546de5dbffc8ee99ff55ec5f3/database.py
 import os
-from flask import g, session, request
+from flask import g, session, request, current_app
 from datetime import datetime, timezone
 
 try:
@@ -23,9 +23,9 @@ def get_db_connection(password):
 def get_db():
     """Opens a new database connection if there is none yet for the current application context."""
     if not hasattr(g, '_database'):
-        password = session.get('db_password')
+        password = current_app.config.get('DB_PASSWORD')
         if not password:
-            raise ValueError("Database password not found in session.")
+            raise ValueError("Database password not found in app config.")
         try:
             g._database = get_db_connection(password)
             g._database.execute("SELECT name FROM sqlite_master WHERE type='table' LIMIT 1;")
