@@ -128,7 +128,7 @@ def log_request(response):
     if app.config.get('DB_PASSWORD') and 'user_id' in session:
         try:
             # Avoid logging the partial fetch requests to keep the audit log clean
-            if request.endpoint not in ['get_notes_partial', 'get_attachments_partial']:
+            if request.endpoint not in ['get_notes_partial', 'get_attachments_partial', 'get_contacts_partial']:
                 log_page_view(response)
         except Exception as e:
             # This might fail if the DB password is wrong, etc.
@@ -211,14 +211,73 @@ def billing_dashboard():
 
 @app.route('/contacts')
 def contacts():
-    contacts = query_db("""
-        SELECT c.*, co.name as company_name
+    companies = query_db("SELECT * FROM companies ORDER BY name")
+    return render_template('contacts.html', companies=companies)
+
+@app.route('/contacts/partial')
+def get_contacts_partial():
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    search_query = request.args.get('search', '')
+    sort_by = request.args.get('sort_by', 'name')
+    sort_order = request.args.get('sort_order', 'asc')
+
+    # Base query
+    base_query = """
         FROM contacts c
         LEFT JOIN companies co ON c.company_account_number = co.account_number
-        ORDER BY c.first_name, c.last_name
-    """)
-    companies = query_db("SELECT * FROM companies ORDER BY name")
-    return render_template('contacts.html', contacts=contacts, companies=companies)
+    """
+    params = []
+    where_clauses = []
+
+    if search_query:
+        where_clauses.append("(c.first_name LIKE ? OR c.last_name LIKE ? OR c.email LIKE ? OR co.name LIKE ?)")
+        search_param = f'%{search_query}%'
+        params.extend([search_param, search_param, search_param, search_param])
+
+    if where_clauses:
+        base_query += " WHERE " + " AND ".join(where_clauses)
+
+
+    # Get total count for pagination
+    count_query = f"SELECT COUNT(*) as count {base_query}"
+    total_contacts = query_db(count_query, params, one=True)['count']
+    total_pages = (total_contacts + per_page - 1) // per_page
+
+    # Validate sort_by to prevent SQL injection
+    allowed_sort_columns = {
+        'name': 'c.first_name',
+        'email': 'c.email',
+        'company': 'co.name',
+        'work_phone': 'c.work_phone',
+        'mobile_phone': 'c.mobile_phone',
+        'status': 'c.status'
+    }
+    sort_column = allowed_sort_columns.get(sort_by, 'c.first_name')
+
+
+    # Validate sort_order
+    if sort_order not in ['asc', 'desc']:
+        sort_order = 'asc'
+
+    offset = (page - 1) * per_page
+    contacts_query = f"""
+        SELECT c.*, co.name as company_name
+        {base_query}
+        ORDER BY {sort_column} {sort_order}
+        LIMIT ? OFFSET ?
+    """
+    contacts = query_db(contacts_query, params + [per_page, offset])
+
+    return render_template('partials/contacts_table.html',
+        contacts=contacts,
+        page=page,
+        per_page=per_page,
+        total_pages=total_pages,
+        search_query=search_query,
+        sort_by=sort_by,
+        sort_order=sort_order
+    )
 
 @app.route('/contacts/add', methods=['POST'])
 def add_contact():

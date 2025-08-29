@@ -10,56 +10,13 @@
         <button class="button" id="add-contact-btn">Add New Contact</button>
     </div>
     <div class="search-clients">
-        <input type="text" id="contact-search" placeholder="Search contacts...">
+        <input type="text" id="contact-search" name="search" placeholder="Search contacts...">
     </div>
 </div>
 
-<table class="client-table">
-    <thead>
-        <tr>
-            <th><a href="#" class="sort-link" data-sort="name">Name<span class="sort-arrow"></span></a></th>
-            <th><a href="#" class="sort-link" data-sort="email">Email<span class="sort-arrow"></span></a></th>
-            <th><a href="#" class="sort-link" data-sort="company">Company<span class="sort-arrow"></span></a></th>
-            <th><a href="#" class="sort-link" data-sort="work_phone">Work Phone<span class="sort-arrow"></span></a></th>
-            <th><a href="#" class="sort-link" data-sort="mobile_phone">Mobile Phone<span class="sort-arrow"></span></a></th>
-            <th><a href="#" class="sort-link" data-sort="status">Status<span class="sort-arrow"></span></a></th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody id="contact-table-body">
-        {% for contact in contacts %}
-        <tr>
-            <td data-sort-value="{{ contact.first_name }} {{ contact.last_name }}">{{ contact.first_name }} {{ contact.last_name }}</td>
-            <td data-sort-value="{{ contact.email }}">{{ contact.email }}</td>
-            <td data-sort-value="{{ contact.company_name }}">{{ contact.company_name }}</td>
-            <td data-sort-value="{{ contact.work_phone }}">{{ contact.work_phone }}</td>
-            <td data-sort-value="{{ contact.mobile_phone }}">{{ contact.mobile_phone }}</td>
-            <td data-sort-value="{{ contact.status }}">{{ contact.status }}</td>
-            <td>
-                <button class="icon-button edit edit-contact"
-                    data-contact-id="{{ contact.id }}"
-                    data-first-name="{{ contact.first_name }}"
-                    data-last-name="{{ contact.last_name }}"
-                    data-email="{{ contact.email }}"
-                    data-title="{{ contact.title }}"
-                    data-company-account-number="{{ contact.company_account_number }}"
-                    data-work-phone="{{ contact.work_phone }}"
-                    data-mobile-phone="{{ contact.mobile_phone }}"
-                    data-employment-type="{{ contact.employment_type }}"
-                    data-status="{{ contact.status }}"
-                    data-other-emails="{{ contact.other_emails }}"
-                    data-address="{{ contact.address }}"
-                    data-notes="{{ contact.notes }}">
-                    <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
-                </button>
-                <a href="{{ url_for('delete_contact', contact_id=contact.id) }}" class="icon-button delete" onclick="return confirm('Are you sure?')">
-                    <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
-                </a>
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div id="contacts-table-container">
+    {# This container will be filled dynamically by JavaScript #}
+</div>
 
 <div id="contactModal" class="modal">
     <div class="modal-content">
@@ -148,133 +105,127 @@
 {{ super() }}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    const contactsContainer = document.getElementById('contacts-table-container');
     const contactSearch = document.getElementById('contact-search');
+    let searchTimeout;
+
+    let contactsState = {
+        page: 1,
+        per_page: 50,
+        search_query: '',
+        sort_by: 'name',
+        sort_order: 'asc'
+    };
+
+    const fetchContacts = async () => {
+        const url = new URL(`${window.location.origin}/contacts/partial`);
+        url.searchParams.set('page', contactsState.page);
+        url.searchParams.set('per_page', contactsState.per_page);
+        url.searchParams.set('search', contactsState.search_query);
+        url.searchParams.set('sort_by', contactsState.sort_by);
+        url.searchParams.set('sort_order', contactsState.sort_order);
+
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Network response was not ok');
+            const html = await response.text();
+            contactsContainer.innerHTML = html;
+        } catch (error) {
+            console.error('Failed to fetch contacts:', error);
+            contactsContainer.innerHTML = '<p class="flash-error">Error loading contacts. Please try refreshing the page.</p>';
+        }
+    };
+
     if(contactSearch) {
-        contactSearch.addEventListener('input', function() {
-            const searchQuery = this.value.toLowerCase();
-            const tableBody = document.getElementById('contact-table-body');
-            const rows = tableBody.getElementsByTagName('tr');
-            for (let i = 0; i < rows.length; i++) {
-                const cells = rows[i].getElementsByTagName('td');
-                let rowVisible = false;
-                if (cells.length > 0) {
-                    const contactName = cells[0].textContent.toLowerCase();
-                    const contactEmail = cells[1].textContent.toLowerCase();
-                    const companyName = cells[2].textContent.toLowerCase();
-                    if (contactName.includes(searchQuery) || contactEmail.includes(searchQuery) || companyName.includes(searchQuery)) {
-                        rowVisible = true;
-                    }
-                }
-                rows[i].style.display = rowVisible ? '' : 'none';
-            }
+        contactSearch.addEventListener('input', function(e) {
+            contactsState.search_query = e.target.value;
+            contactsState.page = 1;
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                fetchContacts();
+            }, 300);
         });
     }
 
-    const modal = document.getElementById('contactModal');
-    const btn = document.getElementById('add-contact-btn');
-    const span = document.getElementsByClassName('close-button')[0];
-    const form = document.getElementById('contactForm');
-    const modalTitle = document.getElementById('contactModalTitle');
+    // Use event delegation on a static parent (document) for clicks
+    document.addEventListener('click', function(event) {
+        const modal = document.getElementById('contactModal');
+        const form = document.getElementById('contactForm');
+        const modalTitle = document.getElementById('contactModalTitle');
 
-    btn.onclick = function() {
-        modalTitle.textContent = 'Add New Contact';
-        form.action = "{{ url_for('add_contact') }}";
-        form.reset();
-        modal.style.display = 'block';
-    }
+        // Modal 'Add' button
+        if (event.target.id === 'add-contact-btn') {
+            modalTitle.textContent = 'Add New Contact';
+            form.action = "{{ url_for('add_contact') }}";
+            form.reset();
+            modal.style.display = 'block';
+        }
 
-    span.onclick = function() {
-        modal.style.display = 'none';
-    }
+        // Modal 'Close' button
+        const closeButton = event.target.closest('.close-button');
+        if (closeButton && closeButton.closest('#contactModal')) {
+            modal.style.display = 'none';
+        }
 
+        // Clicks inside the dynamic contacts container
+        if (contactsContainer.contains(event.target)) {
+            const sortLink = event.target.closest('.sort-link');
+            const paginationLink = event.target.closest('.pagination-link');
+            const editButton = event.target.closest('.edit-contact');
+
+            if (sortLink) {
+                event.preventDefault();
+                const column = sortLink.dataset.sort;
+                if (contactsState.sort_by === column) {
+                    contactsState.sort_order = contactsState.sort_order === 'asc' ? 'desc' : 'asc';
+                } else {
+                    contactsState.sort_by = column;
+                    contactsState.sort_order = 'asc';
+                }
+                fetchContacts();
+            } else if (paginationLink) {
+                event.preventDefault();
+                contactsState.page = paginationLink.dataset.page;
+                fetchContacts();
+            } else if (editButton) {
+                modalTitle.textContent = 'Edit Contact';
+                form.action = `/contacts/edit/${editButton.dataset.contactId}`;
+                document.getElementById('first_name').value = editButton.dataset.firstName;
+                document.getElementById('last_name').value = editButton.dataset.lastName;
+                document.getElementById('email').value = editButton.dataset.email;
+                document.getElementById('title').value = editButton.dataset.title;
+                document.getElementById('company_account_number').value = editButton.dataset.companyAccountNumber;
+                document.getElementById('work_phone').value = editButton.dataset.workPhone;
+                document.getElementById('mobile_phone').value = editButton.dataset.mobilePhone;
+                document.getElementById('employment_type').value = editButton.dataset.employmentType;
+                document.getElementById('status').value = editButton.dataset.status;
+                document.getElementById('other_emails').value = editButton.dataset.otherEmails;
+                document.getElementById('address').value = editButton.dataset.address;
+                document.getElementById('notes').value = editButton.dataset.notes;
+                modal.style.display = 'block';
+            }
+        }
+    });
+
+    // Use event delegation for the 'change' event on the per_page dropdown
+    document.addEventListener('change', function(event) {
+        if (event.target.id === 'per_page' && contactsContainer.contains(event.target.form)) {
+            contactsState.per_page = event.target.value;
+            contactsState.page = 1;
+            fetchContacts();
+        }
+    });
+
+    // Close modal if clicking outside of it
     window.onclick = function(event) {
+        const modal = document.getElementById('contactModal');
         if (event.target == modal) {
             modal.style.display = 'none';
         }
     }
 
-    document.querySelectorAll('.edit-contact').forEach(button => {
-        button.addEventListener('click', function() {
-            modalTitle.textContent = 'Edit Contact';
-            form.action = `/contacts/edit/${this.dataset.contactId}`;
-            document.getElementById('first_name').value = this.dataset.firstName;
-            document.getElementById('last_name').value = this.dataset.lastName;
-            document.getElementById('email').value = this.dataset.email;
-            document.getElementById('title').value = this.dataset.title;
-            document.getElementById('company_account_number').value = this.dataset.companyAccountNumber;
-            document.getElementById('work_phone').value = this.dataset.workPhone;
-            document.getElementById('mobile_phone').value = this.dataset.mobilePhone;
-            document.getElementById('employment_type').value = this.dataset.employmentType;
-            document.getElementById('status').value = this.dataset.status;
-            document.getElementById('other_emails').value = this.dataset.otherEmails;
-            document.getElementById('address').value = this.dataset.address;
-            document.getElementById('notes').value = this.dataset.notes;
-            modal.style.display = 'block';
-        });
-    });
-
-    let currentSort = { column: 'name', order: 'asc' };
-
-    document.querySelectorAll('.sort-link').forEach(link => {
-        link.addEventListener('click', function(e) {
-            e.preventDefault();
-            const column = this.dataset.sort;
-            let order = 'asc';
-            if (currentSort.column === column && currentSort.order === 'asc') {
-                order = 'desc';
-            }
-            currentSort = { column, order };
-            sortTable(column, order);
-            updateSortArrows();
-        });
-    });
-
-    function sortTable(column, order) {
-        const tableBody = document.getElementById('contact-table-body');
-        const rows = Array.from(tableBody.getElementsByTagName('tr'));
-
-        rows.sort((a, b) => {
-            const aVal = a.cells[getColumnIndex(column)].dataset.sortValue;
-            const bVal = b.cells[getColumnIndex(column)].dataset.sortValue;
-
-            const isNumeric = !isNaN(parseFloat(aVal)) && isFinite(aVal);
-
-            let comparison = 0;
-            if (isNumeric) {
-                comparison = parseFloat(aVal) - parseFloat(bVal);
-            } else {
-                comparison = aVal.localeCompare(bVal);
-            }
-
-            return order === 'asc' ? comparison : -comparison;
-        });
-
-        rows.forEach(row => tableBody.appendChild(row));
-    }
-
-    function getColumnIndex(columnName) {
-        const headers = document.querySelectorAll('.client-table th');
-        for (let i = 0; i < headers.length; i++) {
-            const link = headers[i].querySelector('.sort-link');
-            if (link && link.dataset.sort === columnName) {
-                return i;
-            }
-        }
-        return 0;
-    }
-
-    function updateSortArrows() {
-        document.querySelectorAll('.sort-arrow').forEach(arrow => {
-            arrow.textContent = '';
-        });
-        const activeLink = document.querySelector(`.sort-link[data-sort="${currentSort.column}"]`);
-        if (activeLink) {
-            const arrow = activeLink.querySelector('.sort-arrow');
-            arrow.textContent = currentSort.order === 'asc' ? '▲' : '▼';
-        }
-    }
-    sortTable(currentSort.column, currentSort.order);
-    updateSortArrows();
+    // Initial load
+    fetchContacts();
 });
 </script>
 {% endblock %}

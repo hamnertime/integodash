@@ -1,0 +1,73 @@
+{# hamnertime/integodash/integodash-b7a03f16877fb4e6590039b6f2c0b632176ef6cd/templates/partials/contacts_table.html #}
+<table class="client-table">
+    <thead>
+        <tr>
+            <th><a href="#" class="sort-link" data-sort="name">Name<span class="sort-arrow">{% if sort_by == 'name' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>
+            <th><a href="#" class="sort-link" data-sort="email">Email<span class="sort-arrow">{% if sort_by == 'email' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>
+            <th><a href="#" class="sort-link" data-sort="company">Company<span class="sort-arrow">{% if sort_by == 'company' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>
+            <th><a href="#" class="sort-link" data-sort="work_phone">Work Phone<span class="sort-arrow">{% if sort_by == 'work_phone' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>
+            <th><a href="#" class="sort-link" data-sort="mobile_phone">Mobile Phone<span class="sort-arrow">{% if sort_by == 'mobile_phone' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>
+            <th><a href="#" class="sort-link" data-sort="status">Status<span class="sort-arrow">{% if sort_by == 'status' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody id="contact-table-body">
+        {% for contact in contacts %}
+        <tr>
+            <td>{{ contact.first_name }} {{ contact.last_name }}</td>
+            <td>{{ contact.email }}</td>
+            <td>{{ contact.company_name }}</td>
+            <td>{{ contact.work_phone }}</td>
+            <td>{{ contact.mobile_phone }}</td>
+            <td>{{ contact.status }}</td>
+            <td>
+                <button class="icon-button edit edit-contact"
+                    data-contact-id="{{ contact.id }}"
+                    data-first-name="{{ contact.first_name }}"
+                    data-last-name="{{ contact.last_name }}"
+                    data-email="{{ contact.email }}"
+                    data-title="{{ contact.title }}"
+                    data-company-account-number="{{ contact.company_account_number }}"
+                    data-work-phone="{{ contact.work_phone }}"
+                    data-mobile-phone="{{ contact.mobile_phone }}"
+                    data-employment-type="{{ contact.employment_type }}"
+                    data-status="{{ contact.status }}"
+                    data-other-emails="{{ contact.other_emails }}"
+                    data-address="{{ contact.address }}"
+                    data-notes="{{ contact.notes }}">
+                    <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
+                </button>
+                <a href="{{ url_for('delete_contact', contact_id=contact.id) }}" class="icon-button delete" onclick="return confirm('Are you sure?')">
+                    <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
+                </a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="pagination" style="margin-top: 20px; text-align: center; display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        {% if total_pages > 1 %}
+            {% if page > 1 %}
+                <a href="#" class="button pagination-link" data-page="{{ page - 1 }}">&laquo; Previous</a>
+            {% endif %}
+
+            <span style="margin: 0 15px;">Page {{ page }} of {{ total_pages }}</span>
+
+            {% if page < total_pages %}
+                <a href="#" class="button pagination-link" data-page="{{ page + 1 }}">Next &raquo;</a>
+            {% endif %}
+        {% endif %}
+    </div>
+    <form method="get" action="{{ url_for('contacts') }}" id="per-page-form">
+        <label for="per_page">Contacts per page:</label>
+        <select name="per_page" id="per_page">
+            <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+            <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+            <option value="200" {% if per_page == 200 %}selected{% endif %}>200</option>
+            <option value="500" {% if per_page == 500 %}selected{% endif %}>500</option>
+            <option value="1000" {% if per_page == 1000 %}selected{% endif %}>1000</option>
+        </select>
+    </form>
+</div>
