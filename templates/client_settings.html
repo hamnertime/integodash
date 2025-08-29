@@ -1,41 +1,59 @@
 {% extends "layout.html" %}
 {% block title %}{{ client.name }} Overrides{% endblock %}
 
+{% block head %}
+<style>
+.grid-stack-item-content {
+    background-color: var(--card-bg);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    padding: 20px;
+    color: var(--text-color);
+    overflow: auto;
+}
+</style>
+{% endblock %}
+
 {% block content %}
     <h1>Override Settings for {{ client.name }}</h1>
 
-    <form method="POST" action="{{ url_for('client_settings', account_number=client.account_number) }}">
-        <div class="grid-container">
-            <div class="left-column">
-<div class="form-section">
-    <h2>Client Details</h2>
-    <div class="form-grid" style="grid-template-columns: auto 1fr;">
-        <label for="account_number">Account Number</label>
-        <input type="text" id="account_number" value="{{ client.account_number or '' }}" readonly>
+    <div class="grid-stack">
+        <div class="grid-stack-item" gs-id="client-details-widget" gs-w="6" gs-h="4">
+            <div class="grid-stack-item-content form-section">
+                <h2>Client Details</h2>
+                <form method="POST" action="{{ url_for('client_settings', account_number=client.account_number) }}">
+                    <div class="form-grid" style="grid-template-columns: auto 1fr;">
+                        <label for="account_number">Account Number</label>
+                        <input type="text" id="account_number" value="{{ client.account_number or '' }}" readonly>
 
-        <label for="company_owner">Company Owner</label>
-        <input type="text" name="company_owner" id="company_owner" value="{{ client.company_owner or '' }}">
+                        <label for="company_owner">Company Owner</label>
+                        <input type="text" name="company_owner" id="company_owner" value="{{ client.company_owner or '' }}">
 
-        <label for="phone_number">Phone Number</label>
-        <input type="text" name="phone_number" id="phone_number" value="{{ client.phone_number or '' }}">
+                        <label for="phone_number">Phone Number</label>
+                        <input type="text" name="phone_number" id="phone_number" value="{{ client.phone_number or '' }}">
 
-        <label for="domains">Domains</label>
-        <input type="text" name="domains" id="domains" value="{{ client.domains or '' }}">
+                        <label for="domains">Domains</label>
+                        <input type="text" name="domains" id="domains" value="{{ client.domains or '' }}">
 
-        <label for="business_type">Business Type</label>
-        <select name="business_type" id="business_type">
-            <option value="For Profit" {% if client.business_type == 'For Profit' %}selected{% endif %}>For Profit</option>
-            <option value="Non-Profit" {% if client.business_type == 'Non-Profit' %}selected{% endif %}>Non-Profit</option>
-        </select>
+                        <label for="business_type">Business Type</label>
+                        <select name="business_type" id="business_type">
+                            <option value="For Profit" {% if client.business_type == 'For Profit' %}selected{% endif %}>For Profit</option>
+                            <option value="Non-Profit" {% if client.business_type == 'Non-Profit' %}selected{% endif %}>Non-Profit</option>
+                        </select>
 
-        <label for="description">Description</label>
-        <textarea name="description" id="description" rows="4" style="grid-column: 1 / span 2;">{{ client.description or '' }}</textarea>
-    </div>
-</div>
+                        <label for="description">Description</label>
+                        <textarea name="description" id="description" rows="4" style="grid-column: 1 / span 2;">{{ client.description or '' }}</textarea>
+                    </div>
+                    <div class="button-container" style="text-align: right; margin-top: 20px;">
+                         <button type="submit" name="action" value="save_overrides">Save Details</button>
+                    </div>
+                </form>
             </div>
-            <div class="right-column">
-                <div class="form-section">
-                    <h2>Contract Details</h2>
+        </div>
+        <div class="grid-stack-item" gs-id="contract-details-widget" gs-x="6" gs-w="6" gs-h="3">
+            <div class="grid-stack-item-content form-section">
+                <h2>Contract Details</h2>
+                <form method="POST" action="{{ url_for('client_settings', account_number=client.account_number) }}">
                     <div class="form-grid" style="grid-template-columns: auto 1fr;">
                         <label for="client_start_date">Client Start Date</label>
                         <input type="date" name="client_start_date" id="client_start_date" value="{{ client.client_start_date or '' }}">
@@ -51,360 +69,385 @@
                         <label for="contract_start_date">Contract Start Date</label>
                         <input type="date" name="contract_start_date" id="contract_start_date" value="{{ client.contract_start_date or '' }}">
                     </div>
-                </div>
-            </div>
-        </div>
-        <div class="button-container" style="text-align: right; margin-top: -10px; margin-bottom: 20px;">
-             <button type="submit" name="action" value="save_overrides">Save Details</button>
-        </div>
-
-        <div class="form-section">
-            <h2>Billing Rate Overrides</h2>
-            <div class="form-grid">
-                <div></div> <div class="header default">Default Value</div>
-                <div class="header override">Override Value</div>
-                <div class="header">Enable</div>
-
-                {% macro plan_override_input(name, label, short_name, all_plans) %}
-                    <label for="{{ name }}">{{ label }}</label>
-                    <input type="text" value="{{ client.billing_plan or 'N/A' }}" disabled>
-                    <select name="{{ name }}" id="{{ name }}">
-                         <option value="">-- No Override --</option>
-                         {% for plan in all_plans %}
-                             <option value="{{ plan.billing_plan }}" {% if overrides and name in overrides and overrides[name] == plan.billing_plan %}selected{% endif %}>{{ plan.billing_plan }}</option>
-                         {% endfor %}
-                    </select>
-                    <input type="checkbox" name="override_{{ short_name }}_enabled" {% if overrides and ('override_' + short_name + '_enabled') in overrides and overrides['override_' + short_name + '_enabled'] %}checked{% endif %} title="Enable Override">
-                {% endmacro %}
-
-                {% macro rate_input(name, label, short_name, type='currency', step='0.01') %}
-                    <label for="{{ name }}">{{ label }}</label>
-                    {% if type == 'text' %}
-                        <input type="text" value="{{ defaults[name] if defaults and name in defaults.keys() and defaults[name] is not none else 'N/A' }}" disabled>
-                        <select name="{{ name }}" id="{{ name }}">
-                             <option value="">-- No Override --</option>
-                             <option value="Billed Hourly" {% if overrides and name in overrides and overrides[name] == 'Billed Hourly' %}selected{% endif %}>Billed Hourly</option>
-                             <option value="Unlimited" {% if overrides and name in overrides and overrides[name] == 'Unlimited' %}selected{% endif %}>Unlimited</option>
-                        </select>
-                    {% elif type == 'number' %}
-                         <input type="text" value="{{ defaults[name] if defaults and name in defaults.keys() and defaults[name] is not none else '0' }}" disabled>
-                         <input type="number" step="{{ step }}" name="{{ name }}" id="{{ name }}" value="{{ overrides[name] if overrides and name in overrides and overrides[name] is not none }}">
-                    {% else %}
-                        <input type="text" value="${{ '%.2f'|format(defaults[name]|float) if defaults and name in defaults.keys() and defaults[name] is not none else 'N/A' }}" disabled>
-                        <input type="number" step="{{ step }}" name="{{ name }}" id="{{ name }}" value="{{ overrides[name] if overrides and name in overrides and overrides[name] is not none }}">
-                    {% endif %}
-                    <input type="checkbox" name="override_{{ short_name }}_enabled" {% if overrides and ('override_' + short_name + '_enabled') in overrides and overrides['override_' + short_name + '_enabled'] %}checked{% endif %} title="Enable Override">
-                {% endmacro %}
-
-                {{ plan_override_input('billing_plan', 'Assigned Plan', 'billing_plan', all_billing_plans) }}
-                {{ rate_input('support_level', 'Support Level', 'support_level', type='text') }}
-                {{ rate_input('per_user_cost', 'Per Regular User Cost', 'puc') }}
-                {{ rate_input('per_workstation_cost', 'Per Workstation Cost', 'pwc') }}
-                {{ rate_input('per_server_cost', 'Per Server Cost', 'psc') }}
-                {{ rate_input('per_vm_cost', 'Per VM Cost', 'pvc') }}
-                {{ rate_input('per_switch_cost', 'Per Switch Cost', 'pswitchc') }}
-                {{ rate_input('per_firewall_cost', 'Per Firewall Cost', 'pfirewallc') }}
-                {{ rate_input('per_hour_ticket_cost', 'Per Hour Ticket Cost', 'phtc')}}
-                {{ rate_input('backup_base_fee_workstation', 'Backup Base (Workstation)', 'bbfw') }}
-                {{ rate_input('backup_base_fee_server', 'Backup Base (Server)', 'bbfs') }}
-                {{ rate_input('backup_included_tb', 'Backup Included (TB)', 'bit', type='number') }}
-                {{ rate_input('backup_per_tb_fee', 'Backup per TB Fee', 'bpt') }}
-                {{ rate_input('prepaid_hours_monthly', 'Pre-paid Hours (Monthly)', 'prepaid_hours_monthly', type='number', step='1') }}
-                {{ rate_input('prepaid_hours_yearly', 'Pre-paid Hours (Yearly)', 'prepaid_hours_yearly', type='number', step='1') }}
-            </div>
-            <div class="button-container">
-                <button type="submit" name="action" value="save_overrides">Save All Overrides</button>
+                    <div class="button-container" style="text-align: right; margin-top: 20px;">
+                         <button type="submit" name="action" value="save_overrides">Save Details</button>
+                    </div>
+                </form>
             </div>
         </div>
 
-        <div class="form-section">
-            <h2>Feature Overrides</h2>
-            <div class="form-grid">
-                <div></div>
-                <div class="header default">Default Value</div>
-                <div class="header override">Override Value</div>
-                <div class="header">Enable</div>
+        <div class="grid-stack-item" gs-id="billing-overrides-widget" gs-y="4" gs-w="12" gs-h="6">
+            <div class="grid-stack-item-content form-section">
+                <h2>Billing Rate Overrides</h2>
+                <form method="POST" action="{{ url_for('client_settings', account_number=client.account_number) }}">
+                    <div class="form-grid">
+                        <div></div> <div class="header default">Default Value</div>
+                        <div class="header override">Override Value</div>
+                        <div class="header">Enable</div>
 
-                {% for feature_type, options in feature_options.items() %}
-                    {% set name = 'feature_' + feature_type.lower().replace(' ', '_') %}
-                    {% set short_name = feature_type.lower().replace(' ', '_') %}
-                    <label>{{ feature_type }}</label>
-                    <input type="text" value="{{ defaults[name] if defaults and name in defaults.keys() else 'Not Included' }}" disabled>
-                    <select name="{{ name }}">
-                        <option value="">-- No Override --</option>
-                        {% for option in options %}
-                        <option value="{{ option.option_name }}" {% if overrides and name in overrides and overrides[name] == option.option_name %}selected{% endif %}>{{ option.option_name }}</option>
+                        {% macro plan_override_input(name, label, short_name, all_plans) %}
+                            <label for="{{ name }}">{{ label }}</label>
+                            <input type="text" value="{{ client.billing_plan or 'N/A' }}" disabled>
+                            <select name="{{ name }}" id="{{ name }}">
+                                 <option value="">-- No Override --</option>
+                                 {% for plan in all_plans %}
+                                     <option value="{{ plan.billing_plan }}" {% if overrides and name in overrides and overrides[name] == plan.billing_plan %}selected{% endif %}>{{ plan.billing_plan }}</option>
+                                 {% endfor %}
+                            </select>
+                            <input type="checkbox" name="override_{{ short_name }}_enabled" {% if overrides and ('override_' + short_name + '_enabled') in overrides and overrides['override_' + short_name + '_enabled'] %}checked{% endif %} title="Enable Override">
+                        {% endmacro %}
+
+                        {% macro rate_input(name, label, short_name, type='currency', step='0.01') %}
+                            <label for="{{ name }}">{{ label }}</label>
+                            {% if type == 'text' %}
+                                <input type="text" value="{{ defaults[name] if defaults and name in defaults.keys() and defaults[name] is not none else 'N/A' }}" disabled>
+                                <select name="{{ name }}" id="{{ name }}">
+                                     <option value="">-- No Override --</option>
+                                     <option value="Billed Hourly" {% if overrides and name in overrides and overrides[name] == 'Billed Hourly' %}selected{% endif %}>Billed Hourly</option>
+                                     <option value="Unlimited" {% if overrides and name in overrides and overrides[name] == 'Unlimited' %}selected{% endif %}>Unlimited</option>
+                                </select>
+                            {% elif type == 'number' %}
+                                 <input type="text" value="{{ defaults[name] if defaults and name in defaults.keys() and defaults[name] is not none else '0' }}" disabled>
+                                 <input type="number" step="{{ step }}" name="{{ name }}" id="{{ name }}" value="{{ overrides[name] if overrides and name in overrides and overrides[name] is not none }}">
+                            {% else %}
+                                <input type="text" value="${{ '%.2f'|format(defaults[name]|float) if defaults and name in defaults.keys() and defaults[name] is not none else 'N/A' }}" disabled>
+                                <input type="number" step="{{ step }}" name="{{ name }}" id="{{ name }}" value="{{ overrides[name] if overrides and name in overrides and overrides[name] is not none }}">
+                            {% endif %}
+                            <input type="checkbox" name="override_{{ short_name }}_enabled" {% if overrides and ('override_' + short_name + '_enabled') in overrides and overrides['override_' + short_name + '_enabled'] %}checked{% endif %} title="Enable Override">
+                        {% endmacro %}
+
+                        {{ plan_override_input('billing_plan', 'Assigned Plan', 'billing_plan', all_billing_plans) }}
+                        {{ rate_input('support_level', 'Support Level', 'support_level', type='text') }}
+                        {{ rate_input('per_user_cost', 'Per Regular User Cost', 'puc') }}
+                        {{ rate_input('per_workstation_cost', 'Per Workstation Cost', 'pwc') }}
+                        {{ rate_input('per_server_cost', 'Per Server Cost', 'psc') }}
+                        {{ rate_input('per_vm_cost', 'Per VM Cost', 'pvc') }}
+                        {{ rate_input('per_switch_cost', 'Per Switch Cost', 'pswitchc') }}
+                        {{ rate_input('per_firewall_cost', 'Per Firewall Cost', 'pfirewallc') }}
+                        {{ rate_input('per_hour_ticket_cost', 'Per Hour Ticket Cost', 'phtc')}}
+                        {{ rate_input('backup_base_fee_workstation', 'Backup Base (Workstation)', 'bbfw') }}
+                        {{ rate_input('backup_base_fee_server', 'Backup Base (Server)', 'bbfs') }}
+                        {{ rate_input('backup_included_tb', 'Backup Included (TB)', 'bit', type='number') }}
+                        {{ rate_input('backup_per_tb_fee', 'Backup per TB Fee', 'bpt') }}
+                        {{ rate_input('prepaid_hours_monthly', 'Pre-paid Hours (Monthly)', 'prepaid_hours_monthly', type='number', step='1') }}
+                        {{ rate_input('prepaid_hours_yearly', 'Pre-paid Hours (Yearly)', 'prepaid_hours_yearly', type='number', step='1') }}
+                    </div>
+                    <div class="button-container">
+                        <button type="submit" name="action" value="save_overrides">Save All Overrides</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="grid-stack-item" gs-id="feature-overrides-widget" gs-y="10" gs-w="12" gs-h="5">
+            <div class="grid-stack-item-content form-section">
+                <h2>Feature Overrides</h2>
+                <form method="POST" action="{{ url_for('client_settings', account_number=client.account_number) }}">
+                    <div class="form-grid">
+                        <div></div>
+                        <div class="header default">Default Value</div>
+                        <div class="header override">Override Value</div>
+                        <div class="header">Enable</div>
+
+                        {% for feature_type, options in feature_options.items() %}
+                            {% set name = 'feature_' + feature_type.lower().replace(' ', '_') %}
+                            {% set short_name = feature_type.lower().replace(' ', '_') %}
+                            <label>{{ feature_type }}</label>
+                            <input type="text" value="{{ defaults[name] if defaults and name in defaults.keys() else 'Not Included' }}" disabled>
+                            <select name="{{ name }}">
+                                <option value="">-- No Override --</option>
+                                {% for option in options %}
+                                <option value="{{ option.option_name }}" {% if overrides and name in overrides and overrides[name] == option.option_name %}selected{% endif %}>{{ option.option_name }}</option>
+                                {% endfor %}
+                            </select>
+                            <input type="checkbox" name="override_feature_{{ short_name }}_enabled" {% if overrides and ('override_feature_' + short_name + '_enabled') in overrides and overrides['override_feature_' + short_name + '_enabled'] %}checked{% endif %} title="Enable Override">
                         {% endfor %}
-                    </select>
-                    <input type="checkbox" name="override_feature_{{ short_name }}_enabled" {% if overrides and ('override_feature_' + short_name + '_enabled') in overrides and overrides['override_feature_' + short_name + '_enabled'] %}checked{% endif %} title="Enable Override">
-                {% endfor %}
-            </div>
-            <div class="button-container">
-                <button type="submit" name="action" value="save_overrides">Save All Overrides</button>
-            </div>
-        </div>
-
-        <div class="form-section">
-            <h2>Asset Billing Overrides</h2>
-            <table class="item-table">
-                <thead><tr><th>Hostname</th><th>Detected Type</th><th>Billing Type</th><th>Custom Cost ($)</th></tr></thead>
-                <tbody>
-                {% for asset in assets %}
-                    <tr>
-                        <td>{{ asset.hostname }}</td>
-                        <td>{{ asset.billing_type }}</td>
-                        <td>
-                            <select name="asset_billing_type_{{ asset.id }}">
-                                <option value="" {% if not asset_overrides[asset.id] %}selected{% endif %}>-- Use Detected ({{ asset.billing_type }}) --</option>
-                                <option value="Workstation" {% if asset_overrides[asset.id] and asset_overrides[asset.id].billing_type == 'Workstation' %}selected{% endif %}>Workstation</option>
-                                <option value="Server" {% if asset_overrides[asset.id] and asset_overrides[asset.id].billing_type == 'Server' %}selected{% endif %}>Server</option>
-                                <option value="VM" {% if asset_overrides[asset.id] and asset_overrides[asset.id].billing_type == 'VM' %}selected{% endif %}>VM</option>
-                                <option value="No Charge" {% if asset_overrides[asset.id] and asset_overrides[asset.id].billing_type == 'No Charge' %}selected{% endif %}>No Charge</option>
-                                <option value="Custom" {% if asset_overrides[asset.id] and asset_overrides[asset.id].billing_type == 'Custom' %}selected{% endif %}>Custom Cost</option>
-                            </select>
-                        </td>
-                        <td><input type="number" step="0.01" name="asset_custom_cost_{{ asset.id }}" placeholder="0.00" value="{{ asset_overrides[asset.id].custom_cost if asset_overrides[asset.id] and asset_overrides[asset.id].custom_cost is not none }}"></td>
-                    </tr>
-                {% endfor %}
-                </tbody>
-            </table>
-            <h3 style="margin-top: 20px;">Manually Added Assets</h3>
-             <table class="item-table">
-                <thead><tr><th>Hostname</th><th>Source</th><th>Billing Type</th><th>Cost</th><th>Actions</th></tr></thead>
-                <tbody>
-                {% for asset in manual_assets %}
-                    <tr>
-                        <td>{{ asset.hostname }}</td>
-                        <td>MANUAL</td>
-                        <td>{{ asset.billing_type }}</td>
-                        <td>${{ "%.2f"|format(asset.custom_cost|float) if asset.custom_cost is not none else '0.00' }}</td>
-                        <td>
-                             <button type="button" class="icon-button edit edit-manual-asset"
-                                data-asset-id="{{ asset.id }}"
-                                data-hostname="{{ asset.hostname }}"
-                                data-billing-type="{{ asset.billing_type }}"
-                                data-custom-cost="{{ asset.custom_cost if asset.custom_cost is not none else '' }}">
-                                <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
-                            </button>
-                            <a href="{{ url_for('client_settings', account_number=client.account_number, delete_manual_asset=asset.id) }}" class="icon-button delete" onclick="return confirm('Are you sure?')">
-                                <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
-                            </a>
-                        </td>
-                    </tr>
-                {% endfor %}
-                </tbody>
-             </table>
-             <div class="button-container">
-                <button type="submit" name="action" value="save_overrides">Save All Overrides</button>
+                    </div>
+                    <div class="button-container">
+                        <button type="submit" name="action" value="save_overrides">Save All Overrides</button>
+                    </div>
+                </form>
             </div>
         </div>
 
-        <div class="form-section">
-            <h2>User Billing Overrides</h2>
-            <table class="item-table">
-                <thead><tr><th>Full Name</th><th>Employment Type</th><th>Billing Type</th><th>Custom Cost ($)</th></tr></thead>
-                <tbody>
-                {% for user in users %}
-                    <tr>
-                        <td>{{ user.full_name }} ({{ user.email }})</td>
-                        <td>
-                            <select name="user_employment_type_{{ user.id }}">
-                                <option value="" {% if not user_overrides[user.id] or not user_overrides[user.id].employment_type %}selected{% endif %}>-- Default ({{ user.default_employment_type or 'Full Time' }}) --</option>
-                                <option value="Full Time" {% if user_overrides[user.id] and user_overrides[user.id].employment_type == 'Full Time' %}selected{% endif %}>Full Time</option>
-                                <option value="Part Time" {% if user_overrides[user.id] and user_overrides[user.id].employment_type == 'Part Time' %}selected{% endif %}>Part Time</option>
-                            </select>
-                        </td>
-                        <td>
-                            <select name="user_billing_type_{{ user.id }}">
-                                <option value="" {% if not user_overrides[user.id] %}selected{% endif %}>-- Default (Paid) --</option>
-                                <option value="Paid" {% if user_overrides[user.id] and user_overrides[user.id].billing_type == 'Paid' %}selected{% endif %}>Paid</option>
-                                <option value="No Charge" {% if user_overrides[user.id] and user_overrides[user.id].billing_type == 'No Charge' %}selected{% endif %}>No Charge</option>
-                                <option value="Custom" {% if user_overrides[user.id] and user_overrides[user.id].billing_type == 'Custom' %}selected{% endif %}>Custom Cost</option>
-                            </select>
-                        </td>
-                        <td><input type="number" step="0.01" name="user_custom_cost_{{ user.id }}" placeholder="0.00" value="{{ user_overrides[user.id].custom_cost if user_overrides[user.id] and user_overrides[user.id].custom_cost is not none }}"></td>
-                    </tr>
-                {% endfor %}
-                </tbody>
-            </table>
-            <h3 style="margin-top: 20px;">Manually Added Users</h3>
-            <table class="item-table">
-                 <thead><tr><th>Full Name</th><th>Source</th><th>Billing Type</th><th>Cost</th><th>Actions</th></tr></thead>
-                <tbody>
-                {% for user in manual_users %}
-                    <tr>
-                        <td>{{ user.full_name }}</td>
-                        <td>MANUAL</td>
-                        <td>{{ user.billing_type }}</td>
-                        <td>${{ "%.2f"|format(user.custom_cost|float) if user.custom_cost is not none else '0.00' }}</td>
-                        <td>
-                            <button type="button" class="icon-button edit edit-manual-user"
-                                data-user-id="{{ user.id }}"
-                                data-full-name="{{ user.full_name }}"
-                                data-billing-type="{{ user.billing_type }}"
-                                data-custom-cost="{{ user.custom_cost if user.custom_cost is not none else '' }}">
-                                <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
-                            </button>
-                             <a href="{{ url_for('client_settings', account_number=client.account_number, delete_manual_user=user.id) }}" class="icon-button delete" onclick="return confirm('Are you sure?')">
-                                <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
-                            </a>
-                        </td>
-                    </tr>
-                {% endfor %}
-                </tbody>
-             </table>
-             <div class="button-container">
-                <button type="submit" name="action" value="save_overrides">Save All Overrides</button>
+        <div class="grid-stack-item" gs-id="asset-overrides-widget" gs-y="15" gs-w="12" gs-h="6">
+            <div class="grid-stack-item-content form-section">
+                <h2>Asset Billing Overrides</h2>
+                <form method="POST" action="{{ url_for('client_settings', account_number=client.account_number) }}">
+                    <table class="item-table">
+                        <thead><tr><th>Hostname</th><th>Detected Type</th><th>Billing Type</th><th>Custom Cost ($)</th></tr></thead>
+                        <tbody>
+                        {% for asset in assets %}
+                            <tr>
+                                <td>{{ asset.hostname }}</td>
+                                <td>{{ asset.billing_type }}</td>
+                                <td>
+                                    <select name="asset_billing_type_{{ asset.id }}">
+                                        <option value="" {% if not asset_overrides[asset.id] %}selected{% endif %}>-- Use Detected ({{ asset.billing_type }}) --</option>
+                                        <option value="Workstation" {% if asset_overrides[asset.id] and asset_overrides[asset.id].billing_type == 'Workstation' %}selected{% endif %}>Workstation</option>
+                                        <option value="Server" {% if asset_overrides[asset.id] and asset_overrides[asset.id].billing_type == 'Server' %}selected{% endif %}>Server</option>
+                                        <option value="VM" {% if asset_overrides[asset.id] and asset_overrides[asset.id].billing_type == 'VM' %}selected{% endif %}>VM</option>
+                                        <option value="No Charge" {% if asset_overrides[asset.id] and asset_overrides[asset.id].billing_type == 'No Charge' %}selected{% endif %}>No Charge</option>
+                                        <option value="Custom" {% if asset_overrides[asset.id] and asset_overrides[asset.id].billing_type == 'Custom' %}selected{% endif %}>Custom Cost</option>
+                                    </select>
+                                </td>
+                                <td><input type="number" step="0.01" name="asset_custom_cost_{{ asset.id }}" placeholder="0.00" value="{{ asset_overrides[asset.id].custom_cost if asset_overrides[asset.id] and asset_overrides[asset.id].custom_cost is not none }}"></td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                    <h3 style="margin-top: 20px;">Manually Added Assets</h3>
+                     <table class="item-table">
+                        <thead><tr><th>Hostname</th><th>Source</th><th>Billing Type</th><th>Cost</th><th>Actions</th></tr></thead>
+                        <tbody>
+                        {% for asset in manual_assets %}
+                            <tr>
+                                <td>{{ asset.hostname }}</td>
+                                <td>MANUAL</td>
+                                <td>{{ asset.billing_type }}</td>
+                                <td>${{ "%.2f"|format(asset.custom_cost|float) if asset.custom_cost is not none else '0.00' }}</td>
+                                <td>
+                                     <button type="button" class="icon-button edit edit-manual-asset"
+                                        data-asset-id="{{ asset.id }}"
+                                        data-hostname="{{ asset.hostname }}"
+                                        data-billing-type="{{ asset.billing_type }}"
+                                        data-custom-cost="{{ asset.custom_cost if asset.custom_cost is not none else '' }}">
+                                        <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
+                                    </button>
+                                    <a href="{{ url_for('client_settings', account_number=client.account_number, delete_manual_asset=asset.id) }}" class="icon-button delete" onclick="return confirm('Are you sure?')">
+                                        <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                     </table>
+                     <div class="button-container">
+                        <button type="submit" name="action" value="save_overrides">Save All Overrides</button>
+                    </div>
+                </form>
             </div>
         </div>
-    </form>
 
-    <div style="display: flex; gap: 30px; margin-top: 30px;">
-        <form method="POST" action="{{ url_for('client_settings', account_number=client.account_number) }}" class="form-section simple-form" style="flex: 1;">
-            <h2>Add Manual Asset</h2>
-            <div class="form-row">
-                <div>
-                    <label for="manual_asset_hostname">Hostname:</label>
-                    <input type="text" id="manual_asset_hostname" name="manual_asset_hostname" required>
-                </div>
-                <div>
-                    <label for="manual_asset_custom_cost">Custom Cost:</label>
-                    <input type="number" id="manual_asset_custom_cost" name="manual_asset_custom_cost" step="0.01">
-                </div>
+        <div class="grid-stack-item" gs-id="user-overrides-widget" gs-y="21" gs-w="12" gs-h="6">
+            <div class="grid-stack-item-content form-section">
+                <h2>User Billing Overrides</h2>
+                <form method="POST" action="{{ url_for('client_settings', account_number=client.account_number) }}">
+                    <table class="item-table">
+                        <thead><tr><th>Full Name</th><th>Employment Type</th><th>Billing Type</th><th>Custom Cost ($)</th></tr></thead>
+                        <tbody>
+                        {% for user in users %}
+                            <tr>
+                                <td>{{ user.full_name }} ({{ user.email }})</td>
+                                <td>
+                                    <select name="user_employment_type_{{ user.id }}">
+                                        <option value="" {% if not user_overrides[user.id] or not user_overrides[user.id].employment_type %}selected{% endif %}>-- Default ({{ user.default_employment_type or 'Full Time' }}) --</option>
+                                        <option value="Full Time" {% if user_overrides[user.id] and user_overrides[user.id].employment_type == 'Full Time' %}selected{% endif %}>Full Time</option>
+                                        <option value="Part Time" {% if user_overrides[user.id] and user_overrides[user.id].employment_type == 'Part Time' %}selected{% endif %}>Part Time</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <select name="user_billing_type_{{ user.id }}">
+                                        <option value="" {% if not user_overrides[user.id] %}selected{% endif %}>-- Default (Paid) --</option>
+                                        <option value="Paid" {% if user_overrides[user.id] and user_overrides[user.id].billing_type == 'Paid' %}selected{% endif %}>Paid</option>
+                                        <option value="No Charge" {% if user_overrides[user.id] and user_overrides[user.id].billing_type == 'No Charge' %}selected{% endif %}>No Charge</option>
+                                        <option value="Custom" {% if user_overrides[user.id] and user_overrides[user.id].billing_type == 'Custom' %}selected{% endif %}>Custom Cost</option>
+                                    </select>
+                                </td>
+                                <td><input type="number" step="0.01" name="user_custom_cost_{{ user.id }}" placeholder="0.00" value="{{ user_overrides[user.id].custom_cost if user_overrides[user.id] and user_overrides[user.id].custom_cost is not none }}"></td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                    <h3 style="margin-top: 20px;">Manually Added Users</h3>
+                    <table class="item-table">
+                         <thead><tr><th>Full Name</th><th>Source</th><th>Billing Type</th><th>Cost</th><th>Actions</th></tr></thead>
+                        <tbody>
+                        {% for user in manual_users %}
+                            <tr>
+                                <td>{{ user.full_name }}</td>
+                                <td>MANUAL</td>
+                                <td>{{ user.billing_type }}</td>
+                                <td>${{ "%.2f"|format(user.custom_cost|float) if user.custom_cost is not none else '0.00' }}</td>
+                                <td>
+                                    <button type="button" class="icon-button edit edit-manual-user"
+                                        data-user-id="{{ user.id }}"
+                                        data-full-name="{{ user.full_name }}"
+                                        data-billing-type="{{ user.billing_type }}"
+                                        data-custom-cost="{{ user.custom_cost if user.custom_cost is not none else '' }}">
+                                        <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
+                                    </button>
+                                     <a href="{{ url_for('client_settings', account_number=client.account_number, delete_manual_user=user.id) }}" class="icon-button delete" onclick="return confirm('Are you sure?')">
+                                        <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                     </table>
+                     <div class="button-container">
+                        <button type="submit" name="action" value="save_overrides">Save All Overrides</button>
+                    </div>
+                </form>
             </div>
-            <div>
-                <label for="manual_asset_billing_type">Billing Type:</label>
-                <select id="manual_asset_billing_type" name="manual_asset_billing_type">
-                    <option value="Workstation">Workstation</option>
-                    <option value="Server">Server</option>
-                    <option value="VM">VM</option>
-                    <option value="No Charge">No Charge</option>
-                    <option value="Custom">Custom</option>
-                </select>
-            </div>
-            <div class="button-container">
-                <button type="submit" name="action" value="add_manual_asset">Add Asset</button>
-            </div>
-        </form>
+        </div>
 
-        <form method="POST" action="{{ url_for('client_settings', account_number=client.account_number) }}" class="form-section simple-form" style="flex: 1;">
-            <h2>Add Manual User</h2>
-            <div class="form-row">
-                <div>
-                    <label for="manual_user_name">Full Name:</label>
-                    <input type="text" id="manual_user_name" name="manual_user_name" required>
-                </div>
-                <div>
-                    <label for="manual_user_custom_cost">Custom Cost:</label>
-                    <input type="number" id="manual_user_custom_cost" name="manual_user_custom_cost" step="0.01">
-                </div>
+        <div class="grid-stack-item" gs-id="add-manual-asset-widget" gs-y="27" gs-w="6" gs-h="3">
+            <div class="grid-stack-item-content">
+                <form method="POST" action="{{ url_for('client_settings', account_number=client.account_number) }}" class="form-section simple-form" style="flex: 1;">
+                    <h2>Add Manual Asset</h2>
+                    <div class="form-row">
+                        <div>
+                            <label for="manual_asset_hostname">Hostname:</label>
+                            <input type="text" id="manual_asset_hostname" name="manual_asset_hostname" required>
+                        </div>
+                        <div>
+                            <label for="manual_asset_custom_cost">Custom Cost:</label>
+                            <input type="number" id="manual_asset_custom_cost" name="manual_asset_custom_cost" step="0.01">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="manual_asset_billing_type">Billing Type:</label>
+                        <select id="manual_asset_billing_type" name="manual_asset_billing_type">
+                            <option value="Workstation">Workstation</option>
+                            <option value="Server">Server</option>
+                            <option value="VM">VM</option>
+                            <option value="No Charge">No Charge</option>
+                            <option value="Custom">Custom</option>
+                        </select>
+                    </div>
+                    <div class="button-container">
+                        <button type="submit" name="action" value="add_manual_asset">Add Asset</button>
+                    </div>
+                </form>
             </div>
-            <div>
-                <label for="manual_user_billing_type">Billing Type:</label>
-                <select id="manual_user_billing_type" name="manual_user_billing_type">
-                    <option value="Paid">Paid</option>
-                    <option value="No Charge">No Charge</option>
-                    <option value="Custom">Custom</option>
-                </select>
-            </div>
-            <div class="button-container">
-                <button type="submit" name="action" value="add_manual_user">Add User</button>
-            </div>
-        </form>
-    </div>
+        </div>
 
-    <div class="form-section simple-form">
-        <h2>Custom Line Items</h2>
-        <table class="item-table">
-            <thead><tr><th>Name</th><th>Type</th><th>Amount</th><th>Billing Period</th><th>Actions</th></tr></thead>
-            <tbody>
-            {% for item in custom_line_items %}
-                <tr>
-                    <td>{{ item.name }}</td>
-                    <td>
-                        {% if item.monthly_fee is not none %}Recurring
-                        {% elif item.yearly_fee is not none %}Yearly
-                        {% else %}One-Off{% endif %}
-                    </td>
-                    <td>${{ "%.2f"|format(item.monthly_fee or item.one_off_fee or item.yearly_fee or 0.0) }}</td>
-                    <td>
-                        {% if item.one_off_year %}{{ item.one_off_year }}-{{ "%02d"|format(item.one_off_month) }}
-                        {% elif item.yearly_bill_month %}Every {{ "%02d"|format(item.yearly_bill_month) }}/{{ "%02d"|format(item.yearly_bill_day) }}
-                        {% else %}N/A{% endif %}
-                    </td>
-                    <td>
-                        <button type="button" class="icon-button edit edit-line-item"
-                            data-item-id="{{ item.id }}"
-                            data-name="{{ item.name }}"
-                            data-monthly-fee="{{ item.monthly_fee if item.monthly_fee is not none else '' }}"
-                            data-one-off-fee="{{ item.one_off_fee if item.one_off_fee is not none else '' }}"
-                            data-one-off-month="{{ item.one_off_month if item.one_off_month is not none else '' }}"
-                            data-one-off-year="{{ item.one_off_year if item.one_off_year is not none else '' }}"
-                            data-yearly-fee="{{ item.yearly_fee if item.yearly_fee is not none else '' }}"
-                            data-yearly-bill-month="{{ item.yearly_bill_month if item.yearly_bill_month is not none else '' }}"
-                            data-yearly-bill-day="{{ item.yearly_bill_day if item.yearly_bill_day is not none else '' }}"
-                        >
-                            <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
-                        </button>
-                        <a href="{{ url_for('client_settings', account_number=client.account_number, delete_line_item=item.id) }}" class="icon-button delete" onclick="return confirm('Are you sure?')">
-                            <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
-                        </a>
-                    </td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-
-        <h3 style="margin-top: 20px;">Add New Line Item</h3>
-        <form method="POST" action="{{ url_for('client_settings', account_number=client.account_number) }}">
-             <div class="form-row">
-                <div>
-                    <label for="line_item_name">Item Name:</label>
-                    <input type="text" id="line_item_name" name="line_item_name" required>
-                </div>
-                <div id="recurring_fields">
-                    <label for="line_item_recurring_fee">Monthly Fee:</label>
-                    <input type="number" id="line_item_recurring_fee" name="line_item_recurring_fee" step="0.01">
-                </div>
+        <div class="grid-stack-item" gs-id="add-manual-user-widget" gs-x="6" gs-y="27" gs-w="6" gs-h="3">
+            <div class="grid-stack-item-content">
+                <form method="POST" action="{{ url_for('client_settings', account_number=client.account_number) }}" class="form-section simple-form" style="flex: 1;">
+                    <h2>Add Manual User</h2>
+                    <div class="form-row">
+                        <div>
+                            <label for="manual_user_name">Full Name:</label>
+                            <input type="text" id="manual_user_name" name="manual_user_name" required>
+                        </div>
+                        <div>
+                            <label for="manual_user_custom_cost">Custom Cost:</label>
+                            <input type="number" id="manual_user_custom_cost" name="manual_user_custom_cost" step="0.01">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="manual_user_billing_type">Billing Type:</label>
+                        <select id="manual_user_billing_type" name="manual_user_billing_type">
+                            <option value="Paid">Paid</option>
+                            <option value="No Charge">No Charge</option>
+                            <option value="Custom">Custom</option>
+                        </select>
+                    </div>
+                    <div class="button-container">
+                        <button type="submit" name="action" value="add_manual_user">Add User</button>
+                    </div>
+                </form>
             </div>
-            <div>
-                <label for="line_item_type">Item Type:</label>
-                <select id="line_item_type" name="line_item_type" onchange="toggleLineItemFields(this.value)">
-                    <option value="recurring" selected>Recurring Monthly</option>
-                    <option value="one_off">One-Off Charge</option>
-                    <option value="yearly">Recurring Yearly</option>
-                </select>
-            </div>
+        </div>
 
-            <div id="one_off_fields" style="display:none;">
-                <label for="line_item_one_off_fee">One-Off Fee:</label>
-                <input type="number" id="line_item_one_off_fee" name="line_item_one_off_fee" step="0.01">
-                <label for="line_item_one_off_month">Billing Month:</label>
-                <select id="line_item_one_off_month" name="line_item_one_off_month">
-                    {% for month in month_options %}
-                        <option value="{{ month.value }}">{{ month.name }}</option>
+        <div class="grid-stack-item" gs-id="custom-line-items-widget" gs-y="30" gs-w="12" gs-h="5">
+            <div class="grid-stack-item-content form-section simple-form">
+                <h2>Custom Line Items</h2>
+                <table class="item-table">
+                    <thead><tr><th>Name</th><th>Type</th><th>Amount</th><th>Billing Period</th><th>Actions</th></tr></thead>
+                    <tbody>
+                    {% for item in custom_line_items %}
+                        <tr>
+                            <td>{{ item.name }}</td>
+                            <td>
+                                {% if item.monthly_fee is not none %}Recurring
+                                {% elif item.yearly_fee is not none %}Yearly
+                                {% else %}One-Off{% endif %}
+                            </td>
+                            <td>${{ "%.2f"|format(item.monthly_fee or item.one_off_fee or item.yearly_fee or 0.0) }}</td>
+                            <td>
+                                {% if item.one_off_year %}{{ item.one_off_year }}-{{ "%02d"|format(item.one_off_month) }}
+                                {% elif item.yearly_bill_month %}Every {{ "%02d"|format(item.yearly_bill_month) }}/{{ "%02d"|format(item.yearly_bill_day) }}
+                                {% else %}N/A{% endif %}
+                            </td>
+                            <td>
+                                <button type="button" class="icon-button edit edit-line-item"
+                                    data-item-id="{{ item.id }}"
+                                    data-name="{{ item.name }}"
+                                    data-monthly-fee="{{ item.monthly_fee if item.monthly_fee is not none else '' }}"
+                                    data-one-off-fee="{{ item.one_off_fee if item.one_off_fee is not none else '' }}"
+                                    data-one-off-month="{{ item.one_off_month if item.one_off_month is not none else '' }}"
+                                    data-one-off-year="{{ item.one_off_year if item.one_off_year is not none else '' }}"
+                                    data-yearly-fee="{{ item.yearly_fee if item.yearly_fee is not none else '' }}"
+                                    data-yearly-bill-month="{{ item.yearly_bill_month if item.yearly_bill_month is not none else '' }}"
+                                    data-yearly-bill-day="{{ item.yearly_bill_day if item.yearly_bill_day is not none else '' }}"
+                                >
+                                    <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
+                                </button>
+                                <a href="{{ url_for('client_settings', account_number=client.account_number, delete_line_item=item.id) }}" class="icon-button delete" onclick="return confirm('Are you sure?')">
+                                    <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
+                                </a>
+                            </td>
+                        </tr>
                     {% endfor %}
-                </select>
-            </div>
+                    </tbody>
+                </table>
 
-            <div id="yearly_fields" style="display:none;">
-                <label for="line_item_yearly_fee">Yearly Fee:</label>
-                <input type="number" id="line_item_yearly_fee" name="line_item_yearly_fee" step="0.01">
-                <label for="line_item_yearly_month">Billing Month:</label>
-                <select id="line_item_yearly_month" name="line_item_yearly_month">
-                    {% for i in range(1, 13) %}<option value="{{ i }}">{{ i }}</option>{% endfor %}
-                </select>
-                <label for="line_item_yearly_day">Billing Day:</label>
-                <select id="line_item_yearly_day" name="line_item_yearly_day">
-                    {% for i in range(1, 32) %}<option value="{{ i }}">{{ i }}</option>{% endfor %}
-                </select>
-            </div>
+                <h3 style="margin-top: 20px;">Add New Line Item</h3>
+                <form method="POST" action="{{ url_for('client_settings', account_number=client.account_number) }}">
+                     <div class="form-row">
+                        <div>
+                            <label for="line_item_name">Item Name:</label>
+                            <input type="text" id="line_item_name" name="line_item_name" required>
+                        </div>
+                        <div id="recurring_fields">
+                            <label for="line_item_recurring_fee">Monthly Fee:</label>
+                            <input type="number" id="line_item_recurring_fee" name="line_item_recurring_fee" step="0.01">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="line_item_type">Item Type:</label>
+                        <select id="line_item_type" name="line_item_type" onchange="toggleLineItemFields(this.value)">
+                            <option value="recurring" selected>Recurring Monthly</option>
+                            <option value="one_off">One-Off Charge</option>
+                            <option value="yearly">Recurring Yearly</option>
+                        </select>
+                    </div>
 
-            <div class="button-container">
-                <button type="submit" name="action" value="add_line_item">Add Line Item</button>
+                    <div id="one_off_fields" style="display:none;">
+                        <label for="line_item_one_off_fee">One-Off Fee:</label>
+                        <input type="number" id="line_item_one_off_fee" name="line_item_one_off_fee" step="0.01">
+                        <label for="line_item_one_off_month">Billing Month:</label>
+                        <select id="line_item_one_off_month" name="line_item_one_off_month">
+                            {% for month in month_options %}
+                                <option value="{{ month.value }}">{{ month.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div id="yearly_fields" style="display:none;">
+                        <label for="line_item_yearly_fee">Yearly Fee:</label>
+                        <input type="number" id="line_item_yearly_fee" name="line_item_yearly_fee" step="0.01">
+                        <label for="line_item_yearly_month">Billing Month:</label>
+                        <select id="line_item_yearly_month" name="line_item_yearly_month">
+                            {% for i in range(1, 13) %}<option value="{{ i }}">{{ i }}</option>{% endfor %}
+                        </select>
+                        <label for="line_item_yearly_day">Billing Day:</label>
+                        <select id="line_item_yearly_day" name="line_item_yearly_day">
+                            {% for i in range(1, 32) %}<option value="{{ i }}">{{ i }}</option>{% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="button-container">
+                        <button type="submit" name="action" value="add_line_item">Add Line Item</button>
+                    </div>
+                </form>
             </div>
-        </form>
+        </div>
     </div>
+
 
     <div id="manualAssetModal" class="modal">
         <div class="modal-content simple-form">
@@ -528,6 +571,24 @@ function toggleLineItemFields(itemType) {
 toggleLineItemFields('recurring');
 
 document.addEventListener('DOMContentLoaded', function() {
+    let grid = GridStack.init();
+    const savedLayout = {{ layout|tojson|safe }};
+
+    if (savedLayout) {
+        grid.load(savedLayout);
+    }
+
+    grid.on('change', function (event, items) {
+        const layout = grid.save();
+        fetch('/save_layout/client_settings_{{ client.account_number }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({layout: layout}),
+        });
+    });
+
     const manualAssetModal = document.getElementById('manualAssetModal');
     const manualUserModal = document.getElementById('manualUserModal');
     const lineItemModal = document.getElementById('lineItemModal');

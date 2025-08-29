@@ -1,286 +1,254 @@
 {% extends "layout.html" %}
 {% block title %}Settings & Sync{% endblock %}
 
+{% block head %}
+<style>
+.grid-stack-item-content {
+    background-color: var(--card-bg);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    padding: 20px;
+    color: var(--text-color);
+    overflow: auto;
+}
+</style>
+{% endblock %}
+
 {% block content %}
     <h1>Settings & Sync</h1>
 
-    <div class="form-section">
-        <h2>Import / Export Settings</h2>
-        <p>You can export all default billing plans and client-specific overrides to a single JSON file. This is useful for backups or migrating to a new instance. Importing will overwrite all existing settings.</p>
-        <div style="display: flex; gap: 20px; margin-top: 20px;">
-            <a href="{{ url_for('export_settings') }}" class="button">Export All Settings</a>
-            <form action="{{ url_for('import_settings') }}" method="post" enctype="multipart/form-data" onsubmit="return confirm('Are you sure you want to import settings? This will overwrite all existing billing plans and client overrides.');" class="upload-form">
-                <input type="file" name="file" id="file-import" accept=".json" required>
-                <label for="file-import" class="file-upload-label">Browse...</label>
-                <span id="file-name-display">No file selected</span>
-                <button type="submit" class="button danger">Import Settings</button>
-            </form>
-        </div>
-    </div>
-
-    <div class="form-section">
-        <h2>Automated Sync Scheduler</h2>
-        <p>Configure and monitor the background data sync jobs. <strong>Note:</strong> You must restart the application for changes to interval or enabled status to take effect.</p>
-        <table class="plan-table">
-            <thead>
-                <tr>
-                    <th style="text-align: left;">Job Name</th>
-                    <th>Schedule (minutes)</th>
-                    <th>Enabled</th>
-                    <th>Last Run</th>
-                    <th>Status</th>
-                    <th class="action-cell">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for job in scheduler_jobs %}
-                <tr>
-                    <td style="text-align: left;">{{ job.job_name }}</td>
-                    <form action="{{ url_for('update_scheduler_job', job_id=job.id) }}" method="post" style="display: contents;">
-                        <td><input type="number" name="interval_minutes" value="{{ job.interval_minutes }}" style="width: 80px; text-align: center;"></td>
-                        <td><input type="checkbox" name="enabled" {% if job.enabled %}checked{% endif %} onchange="this.form.submit()"></td>
+    <div class="grid-stack">
+        <div class="grid-stack-item" gs-id="import-export-widget" gs-w="6" gs-h="3">
+            <div class="grid-stack-item-content form-section">
+                <h2>Import / Export Settings</h2>
+                <p>You can export all default billing plans and client-specific overrides to a single JSON file. This is useful for backups or migrating to a new instance. Importing will overwrite all existing settings.</p>
+                <div style="display: flex; gap: 20px; margin-top: 20px;">
+                    <a href="{{ url_for('export_settings') }}" class="button">Export All Settings</a>
+                    <form action="{{ url_for('import_settings') }}" method="post" enctype="multipart/form-data" onsubmit="return confirm('Are you sure you want to import settings? This will overwrite all existing billing plans and client overrides.');" class="upload-form">
+                        <input type="file" name="file" id="file-import" accept=".json" required>
+                        <label for="file-import" class="file-upload-label">Browse...</label>
+                        <span id="file-name-display">No file selected</span>
+                        <button type="submit" class="button danger">Import Settings</button>
                     </form>
-                    <td>{{ job.last_run or 'Never' }}</td>
-                    <td style="font-weight: bold; color: {{ 'green' if job.last_status == 'Success' else '#dc3545' }}">{{ job.last_status or 'N/A' }}</td>
-                    <td class="action-cell">
-                        <form action="{{ url_for('run_now', job_id=job.id) }}" method="post" style="display:inline-block; margin-right: 10px;">
-                            <button type="submit">Run Now</button>
-                        </form>
-                        <button class="view-log" data-job-id="{{ job.id }}" data-job-name="{{ job.job_name }}">View Log</button>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+                </div>
+            </div>
+        </div>
 
-    <div class="form-section">
-        <h2>Application Users & Auditing</h2>
-        <a href="{{ url_for('view_audit_log') }}" class="button">View Full Audit Log</a>
-        <div class="user-management-grid">
-            <div>
-                <h3>User Accounts</h3>
-                <table class="plan-table" style="margin-top: 20px;">
-                    <thead><tr><th>Username</th><th>Role</th><th class="action-cell">Actions</th></tr></thead>
-                    <tbody>
-                        {% for user in app_users %}
+        <div class="grid-stack-item" gs-id="scheduler-widget" gs-x="6" gs-w="6" gs-h="4">
+            <div class="grid-stack-item-content form-section">
+                <h2>Automated Sync Scheduler</h2>
+                <p>Configure and monitor the background data sync jobs. <strong>Note:</strong> You must restart the application for changes to interval or enabled status to take effect.</p>
+                <table class="plan-table">
+                    <thead>
                         <tr>
-                            <td>{{ user.username }}</td>
-                            <td>{{ user.role }}</td>
+                            <th style="text-align: left;">Job Name</th>
+                            <th>Schedule (minutes)</th>
+                            <th>Enabled</th>
+                            <th>Last Run</th>
+                            <th>Status</th>
+                            <th class="action-cell">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for job in scheduler_jobs %}
+                        <tr>
+                            <td style="text-align: left;">{{ job.job_name }}</td>
+                            <form action="{{ url_for('update_scheduler_job', job_id=job.id) }}" method="post" style="display: contents;">
+                                <td><input type="number" name="interval_minutes" value="{{ job.interval_minutes }}" style="width: 80px; text-align: center;"></td>
+                                <td><input type="checkbox" name="enabled" {% if job.enabled %}checked{% endif %} onchange="this.form.submit()"></td>
+                            </form>
+                            <td>{{ job.last_run or 'Never' }}</td>
+                            <td style="font-weight: bold; color: {{ 'green' if job.last_status == 'Success' else '#dc3545' }}">{{ job.last_status or 'N/A' }}</td>
                             <td class="action-cell">
-                                {% if user.id > 1 %}
-                                <button class="icon-button edit edit-user" data-user-id="{{ user.id }}" data-user-name="{{ user.username }}" data-user-role="{{ user.role }}">
-                                   <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
-                                </button>
-                                {% if user.id != session.user_id %}
-                                <form action="{{ url_for('delete_user', user_id=user.id) }}" method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this user?');">
-                                    <button type="submit" class="icon-button delete">
-                                        <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
-                                    </button>
+                                <form action="{{ url_for('run_now', job_id=job.id) }}" method="post" style="display:inline-block; margin-right: 10px;">
+                                    <button type="submit">Run Now</button>
                                 </form>
-                                {% endif %}
-                                {% endif %}
+                                <button class="view-log" data-job-id="{{ job.id }}" data-job-name="{{ job.job_name }}">View Log</button>
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
-                <form method="POST" action="{{ url_for('billing_settings') }}" class="add-plan-form full-width">
-                    <input type="hidden" name="action" value="add_user">
-                    <input type="text" name="username" placeholder="Enter username" required>
-                    <select name="role">
-                        <option value="Read-Only">Read-Only</option>
-                        <option value="Editor">Editor</option>
-                        <option value="Admin">Admin</option>
-                    </select>
-                    <button type="submit">Add User</button>
-                </form>
-            </div>
-            <div>
-                <h3>Currently Logged-in Users</h3>
-                <table class="plan-table" style="margin-top: 20px;">
-                    <thead>
-                        <tr>
-                            <th>Username</th>
-                            <th>Login Time</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for user_id, user_data in active_sessions.items() %}
-                        <tr>
-                            <td>{{ user_data.username }}</td>
-                            <td><span class="local-time" data-utc-time="{{ user_data.login_time.isoformat() }}"></span></td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="2" style="text-align: center;">No users are currently logged in.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
             </div>
         </div>
-    </div>
 
-    <div class="form-section">
-        <h2>Add New Billing Plan</h2>
-        <form action="{{ url_for('add_billing_plan') }}" method="POST" class="add-plan-form full-width">
-            <input type="text" name="new_plan_name" placeholder="Enter New Plan Name" required>
-            <button type="submit">Create Plan</button>
-        </form>
-    </div>
-
-    <div class="form-section">
-        <h2>Default Billing Plan Settings</h2>
-        <p>These are the default rates for each billing plan and contract term combination. Client-specific overrides can be set on each client's individual settings page.</p>
-        {% for plan_name, plans in grouped_plans.items() %}
-        <div class="plan-group">
-            <form method="POST" action="{{ url_for('billing_settings_action') }}">
-                <input type="hidden" name="plan_name" value="{{ plan_name }}">
-                <div class="plan-group-header">
-                    <h3>{{ plan_name }}</h3>
+        <div class="grid-stack-item" gs-id="users-auditing-widget" gs-y="4" gs-w="12" gs-h="5">
+            <div class="grid-stack-item-content form-section">
+                <h2>Application Users & Auditing</h2>
+                <a href="{{ url_for('view_audit_log') }}" class="button">View Full Audit Log</a>
+                <div class="user-management-grid">
                     <div>
-                        <button type="submit" name="form_action" value="save" class="icon-button save" title="Save Plan">
-                            <svg viewBox="0 0 24 24"><path d="M17 3H5C3.89 3 3 3.9 3 5V19C3 20.1 3.89 21 5 21H19C20.1 21 21 20.1 21 19V7L17 3M19 19H5V5H16.17L19 7.83V19M12 12C10.34 12 9 13.34 9 15S10.34 18 12 18 15 16.66 15 15 13.66 12 12 12M6 6H15V10H6V6Z" /></svg>
-                        </button>
-                        <button type="submit" class="icon-button delete" name="form_action" value="delete" onclick="return confirm('Are you sure you want to delete the entire {{ plan_name }} plan and all its terms?');" title="Delete Plan">
-                            <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
-                        </button>
+                        <h3>User Accounts</h3>
+                        <table class="plan-table" style="margin-top: 20px;">
+                            <thead><tr><th>Username</th><th>Role</th><th class="action-cell">Actions</th></tr></thead>
+                            <tbody>
+                                {% for user in app_users %}
+                                <tr>
+                                    <td>{{ user.username }}</td>
+                                    <td>{{ user.role }}</td>
+                                    <td class="action-cell">
+                                        {% if user.id > 1 %}
+                                        <button class="icon-button edit edit-user" data-user-id="{{ user.id }}" data-user-name="{{ user.username }}" data-user-role="{{ user.role }}">
+                                           <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
+                                        </button>
+                                        {% if user.id != session.user_id %}
+                                        <form action="{{ url_for('delete_user', user_id=user.id) }}" method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this user?');">
+                                            <button type="submit" class="icon-button delete">
+                                                <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <form method="POST" action="{{ url_for('billing_settings') }}" class="add-plan-form full-width">
+                            <input type="hidden" name="action" value="add_user">
+                            <input type="text" name="username" placeholder="Enter username" required>
+                            <select name="role">
+                                <option value="Read-Only">Read-Only</option>
+                                <option value="Editor">Editor</option>
+                                <option value="Admin">Admin</option>
+                            </select>
+                            <button type="submit">Add User</button>
+                        </form>
+                    </div>
+                    <div>
+                        <h3>Currently Logged-in Users</h3>
+                        <table class="plan-table" style="margin-top: 20px;">
+                            <thead>
+                                <tr>
+                                    <th>Username</th>
+                                    <th>Login Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user_id, user_data in active_sessions.items() %}
+                                <tr>
+                                    <td>{{ user_data.username }}</td>
+                                    <td><span class="local-time" data-utc-time="{{ user_data.login_time.isoformat() }}"></span></td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="2" style="text-align: center;">No users are currently logged in.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-                <table class="plan-table" style="overflow-x: auto; display: block;">
+            </div>
+        </div>
+
+        <div class="grid-stack-item" gs-id="billing-plans-widget" gs-y="9" gs-w="12" gs-h="8">
+            <div class="grid-stack-item-content">
+                <div class="form-section">
+                    <h2>Add New Billing Plan</h2>
+                    <form action="{{ url_for('add_billing_plan') }}" method="POST" class="add-plan-form full-width">
+                        <input type="text" name="new_plan_name" placeholder="Enter New Plan Name" required>
+                        <button type="submit">Create Plan</button>
+                    </form>
+                </div>
+
+                <div class="form-section">
+                    <h2>Default Billing Plan Settings</h2>
+                    <p>These are the default rates for each billing plan and contract term combination. Client-specific overrides can be set on each client's individual settings page.</p>
+                    {% for plan_name, plans in grouped_plans.items() %}
+                    <div class="plan-group">
+                        <form method="POST" action="{{ url_for('billing_settings_action') }}">
+                            <input type="hidden" name="plan_name" value="{{ plan_name }}">
+                            <div class="plan-group-header">
+                                <h3>{{ plan_name }}</h3>
+                                <div>
+                                    <button type="submit" name="form_action" value="save" class="icon-button save" title="Save Plan">
+                                        <svg viewBox="0 0 24 24"><path d="M17 3H5C3.89 3 3 3.9 3 5V19C3 20.1 3.89 21 5 21H19C20.1 21 21 20.1 21 19V7L17 3M19 19H5V5H16.17L19 7.83V19M12 12C10.34 12 9 13.34 9 15S10.34 18 12 18 15 16.66 15 15 13.66 12 12 12M6 6H15V10H6V6Z" /></svg>
+                                    </button>
+                                    <button type="submit" class="icon-button delete" name="form_action" value="delete" onclick="return confirm('Are you sure you want to delete the entire {{ plan_name }} plan and all its terms?');" title="Delete Plan">
+                                        <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <table class="plan-table" style="overflow-x: auto; display: block;">
+                                <thead>
+                                    <tr>
+                                        <th>Contract Term</th>
+                                        <th>Support Level</th>
+                                        <th>Per Regular User ($)</th><th>Per Workstation ($)</th>
+                                        <th>Per Server ($)</th><th>Per VM ($)</th><th>Per Switch ($)</th><th>Per Firewall ($)</th>
+                                        <th>Per Hour Ticket Cost ($)</th><th>Backup Base (Workstation) ($)</th><th>Backup Base (Server) ($)</th>
+                                        <th>Backup Included (TB)</th><th>Backup per TB ($)</th>
+                                        {% for feature_type in feature_types %}
+                                            <th>{{ feature_type }}</th>
+                                        {% endfor %}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for plan in plans %}
+                                    <tr>
+                                        <td>{{ plan.term_length }}</td>
+                                        <input type="hidden" name="plan_ids" value="{{ plan.id }}">
+                                        <td>
+                                            <select name="support_level_{{ plan.id }}">
+                                                <option value="Billed Hourly" {% if plan.support_level == 'Billed Hourly' %}selected{% endif %}>Billed Hourly</option>
+                                                <option value="Unlimited" {% if plan.support_level == 'Unlimited' %}selected{% endif %}>Unlimited</option>
+                                            </select>
+                                        </td>
+                                        <td><input type="number" step="0.01" name="per_user_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_user_cost) }}"></td>
+                                        <td><input type="number" step="0.01" name="per_workstation_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_workstation_cost) }}"></td>
+                                        <td><input type="number" step="0.01" name="per_server_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_server_cost) }}"></td>
+                                        <td><input type="number" step="0.01" name="per_vm_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_vm_cost) }}"></td>
+                                        <td><input type="number" step="0.01" name="per_switch_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_switch_cost) }}"></td>
+                                        <td><input type="number" step="0.01" name="per_firewall_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_firewall_cost) }}"></td>
+                                        <td><input type="number" step="0.01" name="per_hour_ticket_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_hour_ticket_cost) }}"></td>
+                                        <td><input type="number" step="0.01" name="backup_base_fee_workstation_{{ plan.id }}" value="{{ '%.2f'|format(plan.backup_base_fee_workstation) }}"></td>
+                                        <td><input type="number" step="0.01" name="backup_base_fee_server_{{ plan.id }}" value="{{ '%.2f'|format(plan.backup_base_fee_server) }}"></td>
+                                        <td><input type="number" step="0.01" name="backup_included_tb_{{ plan.id }}" value="{{ '%.2f'|format(plan.backup_included_tb) }}"></td>
+                                        <td><input type="number" step="0.01" name="backup_per_tb_fee_{{ plan.id }}" value="{{ '%.2f'|format(plan.backup_per_tb_fee) }}"></td>
+                                        {% for feature_type in feature_types %}
+                                        <td>
+                                            <select name="feature_{{ feature_type.lower().replace(' ', '_') }}_{{ plan.id }}">
+                                                {% for option in feature_options[feature_type] %}
+                                                <option value="{{ option.option_name }}" {% if plan['feature_' + feature_type.lower().replace(' ', '_')] == option.option_name %}selected{% endif %}>{{ option.option_name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </td>
+                                        {% endfor %}
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </form>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-stack-item" gs-id="custom-links-widget" gs-y="17" gs-w="6" gs-h="4">
+            <div class="grid-stack-item-content form-section">
+                <h2>Add Custom Links</h2>
+                <table class="plan-table">
                     <thead>
                         <tr>
-                            <th>Contract Term</th>
-                            <th>Support Level</th>
-                            <th>Per Regular User ($)</th><th>Per Workstation ($)</th>
-                            <th>Per Server ($)</th><th>Per VM ($)</th><th>Per Switch ($)</th><th>Per Firewall ($)</th>
-                            <th>Per Hour Ticket Cost ($)</th><th>Backup Base (Workstation) ($)</th><th>Backup Base (Server) ($)</th>
-                            <th>Backup Included (TB)</th><th>Backup per TB ($)</th>
-                            {% for feature_type in feature_types %}
-                                <th>{{ feature_type }}</th>
-                            {% endfor %}
+                            <th>Name</th>
+                            <th>URL</th>
+                            <th>Order</th>
+                            <th class="action-cell">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for plan in plans %}
+                        {% for link in custom_links %}
                         <tr>
-                            <td>{{ plan.term_length }}</td>
-                            <input type="hidden" name="plan_ids" value="{{ plan.id }}">
-                            <td>
-                                <select name="support_level_{{ plan.id }}">
-                                    <option value="Billed Hourly" {% if plan.support_level == 'Billed Hourly' %}selected{% endif %}>Billed Hourly</option>
-                                    <option value="Unlimited" {% if plan.support_level == 'Unlimited' %}selected{% endif %}>Unlimited</option>
-                                </select>
-                            </td>
-                            <td><input type="number" step="0.01" name="per_user_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_user_cost) }}"></td>
-                            <td><input type="number" step="0.01" name="per_workstation_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_workstation_cost) }}"></td>
-                            <td><input type="number" step="0.01" name="per_server_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_server_cost) }}"></td>
-                            <td><input type="number" step="0.01" name="per_vm_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_vm_cost) }}"></td>
-                            <td><input type="number" step="0.01" name="per_switch_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_switch_cost) }}"></td>
-                            <td><input type="number" step="0.01" name="per_firewall_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_firewall_cost) }}"></td>
-                            <td><input type="number" step="0.01" name="per_hour_ticket_cost_{{ plan.id }}" value="{{ '%.2f'|format(plan.per_hour_ticket_cost) }}"></td>
-                            <td><input type="number" step="0.01" name="backup_base_fee_workstation_{{ plan.id }}" value="{{ '%.2f'|format(plan.backup_base_fee_workstation) }}"></td>
-                            <td><input type="number" step="0.01" name="backup_base_fee_server_{{ plan.id }}" value="{{ '%.2f'|format(plan.backup_base_fee_server) }}"></td>
-                            <td><input type="number" step="0.01" name="backup_included_tb_{{ plan.id }}" value="{{ '%.2f'|format(plan.backup_included_tb) }}"></td>
-                            <td><input type="number" step="0.01" name="backup_per_tb_fee_{{ plan.id }}" value="{{ '%.2f'|format(plan.backup_per_tb_fee) }}"></td>
-                            {% for feature_type in feature_types %}
-                            <td>
-                                <select name="feature_{{ feature_type.lower().replace(' ', '_') }}_{{ plan.id }}">
-                                    {% for option in feature_options[feature_type] %}
-                                    <option value="{{ option.option_name }}" {% if plan['feature_' + feature_type.lower().replace(' ', '_')] == option.option_name %}selected{% endif %}>{{ option.option_name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </td>
-                            {% endfor %}
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </form>
-        </div>
-        {% endfor %}
-    </div>
-
-    <div class="form-section">
-        <h2>Add Custom Links</h2>
-        <table class="plan-table">
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>URL</th>
-                    <th>Order</th>
-                    <th class="action-cell">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for link in custom_links %}
-                <tr>
-                    <td>{{ link.name }}</td>
-                    <td><a href="{{ link.url }}" target="_blank">{{ link.url }}</a></td>
-                    <td>{{ link.link_order }}</td>
-                    <td class="action-cell">
-                        <button class="icon-button edit edit-link" data-link-id="{{ link.id }}" data-link-name="{{ link.name }}" data-link-url="{{ link.url }}" data-link-order="{{ link.link_order }}">
-                            <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
-                        </button>
-                        <form action="{{ url_for('delete_link', link_id=link.id) }}" method="POST" style="display: inline;">
-                            <button type="submit" class="icon-button delete">
-                                <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
-                            </button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        <form method="POST" action="{{ url_for('add_link') }}" class="add-plan-form full-width">
-            <input type="text" name="name" placeholder="Link Name" required>
-            <input type="url" name="url" placeholder="https://example.com" required>
-            <input type="number" name="order" placeholder="Order" value="0">
-            <button type="submit">Add Link</button>
-        </form>
-    </div>
-
-    <div class="form-section">
-        <h2>Add New Feature Category</h2>
-        <form method="POST" action="{{ url_for('add_feature_type') }}" class="add-plan-form full-width">
-            <input type="text" name="feature_type" placeholder="New Feature Category Name" required>
-            <button type="submit">Add Category</button>
-        </form>
-    </div>
-
-    <div class="form-section">
-        <h2>Feature Options Management</h2>
-        <div class="feature-options-grid">
-            {% for feature_type, options in feature_options.items() %}
-            <div class="feature-type-card">
-                <h4>
-                    <span>{{ feature_type }}</span>
-                    <div>
-                        <button class="icon-button add add-feature-option" data-feature-type="{{ feature_type }}">
-                            <svg viewBox="0 0 24 24"><path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" /></svg>
-                        </button>
-                        <button class="icon-button edit edit-feature-type" data-feature-type="{{ feature_type }}">
-                            <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
-                        </button>
-                        <form action="{{ url_for('delete_feature_type') }}" method="POST" onsubmit="return confirm('Are you sure?')" style="display:inline;">
-                            <input type="hidden" name="feature_type" value="{{ feature_type }}">
-                            <button type="submit" class="icon-button delete">
-                                <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
-                            </button>
-                        </form>
-                    </div>
-                </h4>
-                <table class="plan-table">
-                    <tbody>
-                        {% for option in options %}
-                        <tr>
-                            <td>{{ option.option_name }}</td>
+                            <td>{{ link.name }}</td>
+                            <td><a href="{{ link.url }}" target="_blank">{{ link.url }}</a></td>
+                            <td>{{ link.link_order }}</td>
                             <td class="action-cell">
-                                <button class="icon-button edit edit-feature-option" data-option-id="{{ option.id }}" data-option-name="{{ option.option_name }}">
+                                <button class="icon-button edit edit-link" data-link-id="{{ link.id }}" data-link-name="{{ link.name }}" data-link-url="{{ link.url }}" data-link-order="{{ link.link_order }}">
                                     <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
                                 </button>
-                                <form action="{{ url_for('delete_feature_option', option_id=option.id) }}" method="POST" onsubmit="return confirm('Are you sure?')" style="display:inline;">
+                                <form action="{{ url_for('delete_link', link_id=link.id) }}" method="POST" style="display: inline;">
                                     <button type="submit" class="icon-button delete">
                                         <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
                                     </button>
@@ -290,8 +258,66 @@
                         {% endfor %}
                     </tbody>
                 </table>
+                <form method="POST" action="{{ url_for('add_link') }}" class="add-plan-form full-width">
+                    <input type="text" name="name" placeholder="Link Name" required>
+                    <input type="url" name="url" placeholder="https://example.com" required>
+                    <input type="number" name="order" placeholder="Order" value="0">
+                    <button type="submit">Add Link</button>
+                </form>
             </div>
-            {% endfor %}
+        </div>
+
+        <div class="grid-stack-item" gs-id="feature-options-widget" gs-x="6" gs-y="17" gs-w="6" gs-h="5">
+            <div class="grid-stack-item-content form-section">
+                <h2>Add New Feature Category</h2>
+                <form method="POST" action="{{ url_for('add_feature_type') }}" class="add-plan-form full-width">
+                    <input type="text" name="feature_type" placeholder="New Feature Category Name" required>
+                    <button type="submit">Add Category</button>
+                </form>
+                <h2>Feature Options Management</h2>
+                <div class="feature-options-grid">
+                    {% for feature_type, options in feature_options.items() %}
+                    <div class="feature-type-card">
+                        <h4>
+                            <span>{{ feature_type }}</span>
+                            <div>
+                                <button class="icon-button add add-feature-option" data-feature-type="{{ feature_type }}">
+                                    <svg viewBox="0 0 24 24"><path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" /></svg>
+                                </button>
+                                <button class="icon-button edit edit-feature-type" data-feature-type="{{ feature_type }}">
+                                    <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
+                                </button>
+                                <form action="{{ url_for('delete_feature_type') }}" method="POST" onsubmit="return confirm('Are you sure?')" style="display:inline;">
+                                    <input type="hidden" name="feature_type" value="{{ feature_type }}">
+                                    <button type="submit" class="icon-button delete">
+                                        <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
+                                    </button>
+                                </form>
+                            </div>
+                        </h4>
+                        <table class="plan-table">
+                            <tbody>
+                                {% for option in options %}
+                                <tr>
+                                    <td>{{ option.option_name }}</td>
+                                    <td class="action-cell">
+                                        <button class="icon-button edit edit-feature-option" data-option-id="{{ option.id }}" data-option-name="{{ option.option_name }}">
+                                            <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
+                                        </button>
+                                        <form action="{{ url_for('delete_feature_option', option_id=option.id) }}" method="POST" onsubmit="return confirm('Are you sure?')" style="display:inline;">
+                                            <button type="submit" class="icon-button delete">
+                                                <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
         </div>
     </div>
 
@@ -386,6 +412,24 @@
 {{ super() }}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    let grid = GridStack.init();
+    const savedLayout = {{ layout|tojson|safe }};
+
+    if (savedLayout) {
+        grid.load(savedLayout);
+    }
+
+    grid.on('change', function (event, items) {
+        const layout = grid.save();
+        fetch('/save_layout/settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({layout: layout}),
+        });
+    });
+
     // Convert UTC times to local time
     document.querySelectorAll('.local-time').forEach(function(el) {
         const utcTime = new Date(el.dataset.utcTime);

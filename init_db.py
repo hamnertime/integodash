@@ -1,5 +1,4 @@
 # hamnertime/integodash/integodash-b7a03f16877fb4e6590039b6f2c0b632176ef6cd/init_db.py
-# hamnertime/integodash/integodash-fda17dde7f19ded546de5dbffc8ee99ff55ec5f3/init_db.py
 import sys
 import os
 import getpass
@@ -130,7 +129,8 @@ def import_data_to_new_db(con, data):
         'client_billing_overrides',
         'asset_billing_overrides',
         'user_billing_overrides',
-        'audit_log'
+        'audit_log',
+        'user_widget_layouts'
     ]
 
     for table_name in table_import_order:
@@ -361,6 +361,16 @@ def create_database(new_password, existing_data=None):
     cur.execute("CREATE TABLE IF NOT EXISTS audit_log (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, timestamp TEXT NOT NULL, action TEXT NOT NULL, table_name TEXT NOT NULL, record_id INTEGER, details TEXT, FOREIGN KEY (user_id) REFERENCES app_users (id))")
     cur.execute("CREATE TABLE IF NOT EXISTS custom_links (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, url TEXT NOT NULL, link_order INTEGER DEFAULT 0)")
     cur.execute("CREATE TABLE IF NOT EXISTS feature_options (id INTEGER PRIMARY KEY AUTOINCREMENT, feature_type TEXT NOT NULL, option_name TEXT NOT NULL, UNIQUE (feature_type, option_name))")
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS user_widget_layouts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            page_name TEXT NOT NULL,
+            layout TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES app_users (id) ON DELETE CASCADE,
+            UNIQUE (user_id, page_name)
+        )
+    """)
 
     print("Schema creation complete.")
 

@@ -2,6 +2,7 @@
 import os
 from flask import g, session, request, current_app
 from datetime import datetime, timezone
+import json
 
 try:
     from sqlcipher3 import dbapi2 as sqlite3
@@ -103,6 +104,30 @@ def log_page_view(response):
             (user_id, timestamp, 'PAGE_VIEW', 'N/A', details)
         )
         db.commit()
+
+def get_user_widget_layout(user_id, page_name):
+    """Fetches the widget layout for a specific user and page."""
+    layout_data = query_db(
+        "SELECT layout FROM user_widget_layouts WHERE user_id = ? AND page_name = ?",
+        [user_id, page_name],
+        one=True
+    )
+    if layout_data and layout_data['layout']:
+        return json.loads(layout_data['layout'])
+    return None
+
+def save_user_widget_layout(user_id, page_name, layout):
+    """Saves or updates the widget layout for a specific user and page."""
+    layout_json = json.dumps(layout)
+    log_and_execute(
+        """
+        INSERT INTO user_widget_layouts (user_id, page_name, layout)
+        VALUES (?, ?, ?)
+        ON CONFLICT(user_id, page_name) DO UPDATE SET
+            layout = excluded.layout
+        """,
+        (user_id, page_name, layout_json)
+    )
 
 def init_app_db(app):
     """Register database functions with the Flask app."""

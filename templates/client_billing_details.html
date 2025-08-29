@@ -1,28 +1,43 @@
 {% extends "layout.html" %}
 {% block title %}{{ client.name }}{% endblock %}
 
+{% block head %}
+<style>
+.grid-stack-item-content {
+    background-color: var(--card-bg);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    padding: 20px;
+    color: var(--text-color);
+    overflow: auto;
+}
+</style>
+{% endblock %}
+
 {% block content %}
     <h1>{{ client.name }}</h1>
 
-    <div class="billing-period-selector form-section">
-        <form method="get" action="{{ url_for('client_billing_details', account_number=client.account_number) }}">
-            <label for="billing_month"><strong>Select Billing Period:</strong></label>
-            <select name="month" id="billing_month" onchange="this.form.submit()">
-                {% for option in month_options %}
-                    <option value="{{ option.month }}" {% if option.month == selected_month %}selected{% endif %}>{{ option.name }}</option>
-                {% endfor %}
-            </select>
-            <input type="hidden" name="year" value="{{ selected_year }}">
-        </form>
-        <a href="{{ url_for('export_quickbooks_csv', account_number=client.account_number, year=selected_year, month=selected_month) }}" class="button">Export to QuickBooks (CSV)</a>
-        {% if datto_portal_url %}
-            <a href="{{ datto_portal_url }}" class="button" target="_blank">View in Datto RMM</a>
-        {% endif %}
-    </div>
+    <div class="grid-stack">
+        <div class="grid-stack-item" gs-id="billing-period-selector-widget" gs-w="12" gs-h="1">
+            <div class="grid-stack-item-content billing-period-selector form-section">
+                <form method="get" action="{{ url_for('client_billing_details', account_number=client.account_number) }}">
+                    <label for="billing_month"><strong>Select Billing Period:</strong></label>
+                    <select name="month" id="billing_month" onchange="this.form.submit()">
+                        {% for option in month_options %}
+                            <option value="{{ option.month }}" {% if option.month == selected_month %}selected{% endif %}>{{ option.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="hidden" name="year" value="{{ selected_year }}">
+                </form>
+                <a href="{{ url_for('export_quickbooks_csv', account_number=client.account_number, year=selected_year, month=selected_month) }}" class="button">Export to QuickBooks (CSV)</a>
+                {% if datto_portal_url %}
+                    <a href="{{ datto_portal_url }}" class="button" target="_blank">View in Datto RMM</a>
+                {% endif %}
+            </div>
+        </div>
 
-    <div class="grid-container">
-        <div class="left-column">
-            <div class="form-section">
+        <div class="grid-stack-item" gs-id="client-details-widget" gs-w="6" gs-h="4">
+            <div class="grid-stack-item-content">
                 <h2>Client Details</h2>
                 <p><strong>Account Number:</strong> {{ client.account_number }}</p>
                 <p><strong>Company Owner:</strong> {{ client.company_owner or 'N/A' }}</p>
@@ -33,7 +48,10 @@
                 <p><strong>Business Type:</strong> {{ client.business_type or 'N/A' }}</p>
                 <p><strong>Description:</strong> {{ client.description or 'N/A' }}</p>
             </div>
-            <div class="form-section">
+        </div>
+
+        <div class="grid-stack-item" gs-id="locations-widget" gs-w="6" gs-h="2">
+            <div class="grid-stack-item-content">
                 <h2>Locations</h2>
                 {% for location in locations %}
                     <p><strong>{{ location.location_name }}:</strong> {{ location.address or 'N/A' }}</p>
@@ -41,7 +59,10 @@
                     <p>No locations have been added for this client.</p>
                 {% endfor %}
             </div>
-            <div class="form-section">
+        </div>
+
+        <div class="grid-stack-item" gs-id="client-features-widget" gs-w="6" gs-h="3">
+            <div class="grid-stack-item-content">
                 <h2>Client Features</h2>
                 {% for feature_type, feature_value in effective_rates.items() %}
                     {% if feature_type.startswith('feature_') %}
@@ -57,8 +78,9 @@
                 {% endfor %}
             </div>
         </div>
-        <div class="right-column">
-            <div class="form-section">
+
+        <div class="grid-stack-item" gs-id="contract-details-widget" gs-w="6" gs-h="3">
+            <div class="grid-stack-item-content">
                 <h2>Contract Details</h2>
                 <p><strong>Client Start Date:</strong> {{ client.client_start_date | usa_date }}</p>
                 <p><strong>Contract Term:</strong> {{ client.contract_term_length }}</p>
@@ -70,7 +92,10 @@
                     {% endif %}
                 {% endfor %}
             </div>
-            <div class="form-section">
+        </div>
+
+        <div class="grid-stack-item" gs-id="billing-receipt-widget" gs-w="6" gs-h="5">
+            <div class="grid-stack-item-content">
                 <h2>Billing Receipt for {{ selected_billing_period }}</h2>
                 <table class="receipt-table">
 
@@ -135,65 +160,77 @@
                 </table>
             </div>
         </div>
-    </div>
 
-    <div id="notes-section" class="form-section">
-        {% include 'partials/notes_section.html' %}
-    </div>
-
-    <div id="attachments-section">
-        {% include 'partials/attachments_section.html' %}
-    </div>
-
-    <div class="form-section">
-        <h2>Ticket Breakdown for Billing Period ({{ selected_billing_period }})</h2>
-        <details>
-            <summary>View Tickets ({{ tickets_for_billing_period|length }})</summary>
-            <table>
-                <thead><tr><th>Ticket ID</th><th>Subject</th><th>Date Closed</th><th>Total Hours</th></tr></thead>
-                <tbody>
-                    {% for ticket in tickets_for_billing_period %}
-                    <tr>
-                        <td><a href="https://integotecllc.freshservice.com/a/tickets/{{ ticket.ticket_id }}" target="_blank">#{{ ticket.ticket_id }}</a></td>
-                        <td>{{ ticket.subject }}</td>
-                        <td>{{ ticket.closed_at | humanize if ticket.closed_at else 'Still Open' }}</td>
-                        <td>{{ "%.2f"|format(ticket.total_hours_spent) }}</td>
-                    </tr>
-                    {% else %}
-                    <tr><td colspan="4">No tickets with time entries found for this period.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </details>
-    </div>
-
-    <div class="form-section">
-        <h2>Tracked Assets & Users</h2>
-        <details>
-            <summary>View All Tracked Items</summary>
-            <div class="grid-container">
-                <div>
-                    <h4>Datto RMM Assets ({{ assets|length }})</h4>
-                    <table><thead><tr><th>Hostname</th><th>Billing Type</th><th>OS</th><th>Backup Usage (TB)</th></tr></thead><tbody>
-                        {% for asset in assets %}<tr><td>{{ asset.hostname }}</td><td>{{ asset.billing_type }}</td><td>{{ asset.operating_system }}</td><td>{{ "%.4f"|format(asset.backup_data_bytes / 1099511627776.0 if asset.backup_data_bytes else 0) }}</td></tr>{% else %}<tr><td colspan="4">No assets found.</td></tr>{% endfor %}
-                    </tbody></table>
-                    <h4>Manual Assets ({{ manual_assets|length }})</h4>
-                    <table><thead><tr><th>Hostname</th><th>Billing Type</th><th>Cost</th></tr></thead><tbody>
-                        {% for asset in manual_assets %}<tr><td>{{ asset.hostname }}</td><td>{{ asset.billing_type }}</td><td>${{ "%.2f"|format(asset.custom_cost) if asset.custom_cost else '0.00' }}</td></tr>{% else %}<tr><td colspan="4">No manual assets.</td></tr>{% endfor %}
-                    </tbody></table>
-                </div>
-                <div>
-                    <h4>Freshservice Users ({{ users|length }})</h4>
-                    <table><thead><tr><th>Full Name</th><th>Email</th><th>Billing Type</th></tr></thead><tbody>
-                        {% for user in users %}<tr><td>{{ user.full_name }}</td><td>{{ user.email }}</td><td>{{ user_overrides[user.id].billing_type if user_overrides[user.id] else 'Paid' }}</td></tr>{% else %}<tr><td colspan="4">No users found.</td></tr>{% endfor %}
-                    </tbody></table>
-                    <h4>Manual Users ({{ manual_users|length }})</h4>
-                    <table><thead><tr><th>Full Name</th><th>Billing Type</th><th>Cost</th></tr></thead><tbody>
-                        {% for user in manual_users %}<tr><td>{{ user.full_name }}</td><td>{{ user.billing_type }}</td><td>${{ "%.2f"|format(user.custom_cost) if user.custom_cost else '0.00' }}</td></tr>{% else %}<tr><td colspan="4">No manual users.</td></tr>{% endfor %}
-                    </tbody></table>
+        <div class="grid-stack-item" gs-id="notes-widget" gs-w="6" gs-h="4">
+            <div class="grid-stack-item-content">
+                <div id="notes-section">
+                    {% include 'partials/notes_section.html' %}
                 </div>
             </div>
-        </details>
+        </div>
+
+        <div class="grid-stack-item" gs-id="attachments-widget" gs-w="6" gs-h="4">
+            <div class="grid-stack-item-content">
+                <div id="attachments-section">
+                    {% include 'partials/attachments_section.html' %}
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-stack-item" gs-id="ticket-breakdown-widget" gs-w="12" gs-h="4">
+            <div class="grid-stack-item-content">
+                <h2>Ticket Breakdown for Billing Period ({{ selected_billing_period }})</h2>
+                <details>
+                    <summary>View Tickets ({{ tickets_for_billing_period|length }})</summary>
+                    <table>
+                        <thead><tr><th>Ticket ID</th><th>Subject</th><th>Date Closed</th><th>Total Hours</th></tr></thead>
+                        <tbody>
+                            {% for ticket in tickets_for_billing_period %}
+                            <tr>
+                                <td><a href="https://integotecllc.freshservice.com/a/tickets/{{ ticket.ticket_id }}" target="_blank">#{{ ticket.ticket_id }}</a></td>
+                                <td>{{ ticket.subject }}</td>
+                                <td>{{ ticket.closed_at | humanize if ticket.closed_at else 'Still Open' }}</td>
+                                <td>{{ "%.2f"|format(ticket.total_hours_spent) }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4">No tickets with time entries found for this period.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </details>
+            </div>
+        </div>
+
+        <div class="grid-stack-item" gs-id="tracked-assets-widget" gs-w="12" gs-h="4">
+            <div class="grid-stack-item-content">
+                <h2>Tracked Assets & Users</h2>
+                <details>
+                    <summary>View All Tracked Items</summary>
+                    <div class="grid-container">
+                        <div>
+                            <h4>Datto RMM Assets ({{ assets|length }})</h4>
+                            <table><thead><tr><th>Hostname</th><th>Billing Type</th><th>OS</th><th>Backup Usage (TB)</th></tr></thead><tbody>
+                                {% for asset in assets %}<tr><td>{{ asset.hostname }}</td><td>{{ asset.billing_type }}</td><td>{{ asset.operating_system }}</td><td>{{ "%.4f"|format(asset.backup_data_bytes / 1099511627776.0 if asset.backup_data_bytes else 0) }}</td></tr>{% else %}<tr><td colspan="4">No assets found.</td></tr>{% endfor %}
+                            </tbody></table>
+                            <h4>Manual Assets ({{ manual_assets|length }})</h4>
+                            <table><thead><tr><th>Hostname</th><th>Billing Type</th><th>Cost</th></tr></thead><tbody>
+                                {% for asset in manual_assets %}<tr><td>{{ asset.hostname }}</td><td>{{ asset.billing_type }}</td><td>${{ "%.2f"|format(asset.custom_cost) if asset.custom_cost else '0.00' }}</td></tr>{% else %}<tr><td colspan="4">No manual assets.</td></tr>{% endfor %}
+                            </tbody></table>
+                        </div>
+                        <div>
+                            <h4>Freshservice Users ({{ users|length }})</h4>
+                            <table><thead><tr><th>Full Name</th><th>Email</th><th>Billing Type</th></tr></thead><tbody>
+                                {% for user in users %}<tr><td>{{ user.full_name }}</td><td>{{ user.email }}</td><td>{{ user_overrides[user.id].billing_type if user_overrides[user.id] else 'Paid' }}</td></tr>{% else %}<tr><td colspan="4">No users found.</td></tr>{% endfor %}
+                            </tbody></table>
+                            <h4>Manual Users ({{ manual_users|length }})</h4>
+                            <table><thead><tr><th>Full Name</th><th>Billing Type</th><th>Cost</th></tr></thead><tbody>
+                                {% for user in manual_users %}<tr><td>{{ user.full_name }}</td><td>{{ user.billing_type }}</td><td>${{ "%.2f"|format(user.custom_cost) if user.custom_cost else '0.00' }}</td></tr>{% else %}<tr><td colspan="4">No manual users.</td></tr>{% endfor %}
+                            </tbody></table>
+                        </div>
+                    </div>
+                </details>
+            </div>
+        </div>
     </div>
 
     <div id="editNoteModal" class="modal">
@@ -250,6 +287,24 @@
 <script src="https://cdn.jsdelivr.net/npm/js-confetti@latest/dist/js-confetti.browser.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    let grid = GridStack.init();
+    const savedLayout = {{ layout|tojson|safe }};
+
+    if (savedLayout) {
+        grid.load(savedLayout);
+    }
+
+    grid.on('change', function (event, items) {
+        const layout = grid.save();
+        fetch('/save_layout/client_{{ client.account_number }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({layout: layout}),
+        });
+    });
+
     const platinumSpan = document.getElementById('msp-platinum-plan');
     if (platinumSpan) {
         const jsConfetti = new JSConfetti();

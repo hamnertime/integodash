@@ -19,7 +19,7 @@ import re
 from threading import Lock
 
 # Local module imports
-from database import init_app_db, get_db, query_db, log_and_execute, log_read_action, log_page_view, get_db_connection
+from database import init_app_db, get_db, query_db, log_and_execute, log_read_action, log_page_view, get_db_connection, get_user_widget_layout, save_user_widget_layout
 from scheduler import run_job
 from billing import get_billing_dashboard_data, get_client_breakdown_data
 
@@ -170,7 +170,7 @@ def log_request(response):
     if app.config.get('DB_PASSWORD') and 'user_id' in session:
         try:
             # Avoid logging the partial fetch requests to keep the audit log clean
-            if request.endpoint not in ['get_notes_partial', 'get_attachments_partial', 'get_contacts_partial', 'get_clients_partial', 'get_assets_partial']:
+            if request.endpoint not in ['get_notes_partial', 'get_attachments_partial', 'get_contacts_partial', 'get_clients_partial', 'get_assets_partial', 'save_layout']:
                 log_page_view(response)
         except Exception as e:
             # This might fail if the DB password is wrong, etc.
@@ -235,6 +235,23 @@ def logout():
     flash("You have been logged out.", "success")
     return redirect(url_for('select_user'))
 
+@app.route('/save_layout/<page_name>', methods=['POST'])
+def save_layout(page_name):
+    """Saves the GridStack layout for the current user and page."""
+    if 'user_id' not in session:
+        return jsonify({'status': 'error', 'message': 'Not logged in'}), 401
+
+    layout = request.json.get('layout')
+    if not layout:
+        return jsonify({'status': 'error', 'message': 'No layout data provided'}), 400
+
+    try:
+        save_user_widget_layout(session['user_id'], page_name, layout)
+        return jsonify({'status': 'success'})
+    except Exception as e:
+        print(f"Error saving layout: {e}", file=sys.stderr)
+        return jsonify({'status': 'error', 'message': 'Internal server error'}), 500
+
 @app.route('/')
 def billing_dashboard():
     try:
@@ -248,12 +265,15 @@ def billing_dashboard():
         if 'clients_cols' not in session:
             session['clients_cols'] = {k: v['default'] for k, v in CLIENTS_COLUMNS.items()}
 
+        layout = get_user_widget_layout(session['user_id'], 'clients')
+
         return render_template('clients.html',
             month_options=month_options,
             current_year=today.year,
             billing_plans=billing_plans,
             columns=CLIENTS_COLUMNS,
-            visible_columns=session['clients_cols']
+            visible_columns=session['clients_cols'],
+            layout=layout
         )
     except (ValueError, KeyError) as e:
         app.config['DB_PASSWORD'] = None
@@ -336,9 +356,11 @@ def delete_client(account_number):
 def assets():
     if 'assets_cols' not in session:
         session['assets_cols'] = {k: v['default'] for k, v in ASSETS_COLUMNS.items()}
+    layout = get_user_widget_layout(session['user_id'], 'assets')
     return render_template('assets.html',
         columns=ASSETS_COLUMNS,
-        visible_columns=session['assets_cols']
+        visible_columns=session['assets_cols'],
+        layout=layout
     )
 
 @app.route('/assets/partial')
@@ -409,10 +431,12 @@ def contacts():
     if 'contacts_cols' not in session:
         session['contacts_cols'] = {k: v['default'] for k, v in CONTACTS_COLUMNS.items()}
     companies = query_db("SELECT * FROM companies ORDER BY name")
+    layout = get_user_widget_layout(session['user_id'], 'contacts')
     return render_template('contacts.html',
         companies=companies,
         columns=CONTACTS_COLUMNS,
-        visible_columns=session['contacts_cols']
+        visible_columns=session['contacts_cols'],
+        layout=layout
     )
 
 @app.route('/contacts/partial')
@@ -699,6 +723,8 @@ def client_billing_details(account_number):
              month_options.append({'year': today.year if i <= today.month else today.year -1, 'month': i, 'name': datetime(today.year, i, 1).strftime('%B %Y')})
         selected_billing_period = datetime(year, month, 1).strftime('%B %Y')
 
+        layout = get_user_widget_layout(session['user_id'], f'client_{account_number}')
+
         return render_template(
             'client_billing_details.html',
             **breakdown_data,
@@ -717,7 +743,8 @@ def client_billing_details(account_number):
             attachment_total_pages=attachment_total_pages,
             sort_by=sort_by,
             sort_order=sort_order,
-            search_query=search_query
+            search_query=search_query,
+            layout=layout
         )
     except (ValueError, KeyError) as e:
         app.config['DB_PASSWORD'] = None
@@ -943,7 +970,9 @@ def client_settings(account_number):
         today = datetime.now(timezone.utc)
         month_options = [{'value': (today + timedelta(days=31*i)).strftime('%Y-%m'), 'name': (today + timedelta(days=31*i)).strftime('%B %Y')} for i in range(12)]
 
-        return render_template('client_settings.html', client=client_info, locations=locations, defaults=default_plan, overrides=dict(overrides_row) if overrides_row else {}, assets=assets, users=users, manual_assets=manual_assets, manual_users=manual_users, custom_line_items=custom_line_items, asset_overrides=asset_overrides, user_overrides=user_overrides, month_options=month_options, feature_options=feature_options, all_billing_plans=all_billing_plans)
+        layout = get_user_widget_layout(session['user_id'], f'client_settings_{account_number}')
+
+        return render_template('client_settings.html', client=client_info, locations=locations, defaults=default_plan, overrides=dict(overrides_row) if overrides_row else {}, assets=assets, users=users, manual_assets=manual_assets, manual_users=manual_users, custom_line_items=custom_line_items, asset_overrides=asset_overrides, user_overrides=user_overrides, month_options=month_options, feature_options=feature_options, all_billing_plans=all_billing_plans, layout=layout)
     except (ValueError, KeyError) as e:
         app.config['DB_PASSWORD'] = None
         session.clear()
@@ -1121,6 +1150,8 @@ def billing_settings():
         if option['feature_type'] not in feature_types:
             feature_types.append(option['feature_type'])
 
+    layout = get_user_widget_layout(session['user_id'], 'settings')
+
     return render_template('settings.html',
         grouped_plans=grouped_plans,
         scheduler_jobs=scheduler_jobs,
@@ -1128,13 +1159,15 @@ def billing_settings():
         custom_links=custom_links,
         feature_options=feature_options,
         feature_types=feature_types,
-        active_sessions=active_sessions
+        active_sessions=active_sessions,
+        layout=layout
     )
 
 @app.route('/settings/audit_log')
 def view_audit_log():
     audit_logs = query_db("SELECT al.*, au.username FROM audit_log al LEFT JOIN app_users au ON al.user_id = au.id ORDER BY al.timestamp DESC")
-    return render_template('audit_log.html', audit_logs=audit_logs)
+    layout = get_user_widget_layout(session['user_id'], 'audit_log')
+    return render_template('audit_log.html', audit_logs=audit_logs, layout=layout)
 
 @app.route('/settings/delete_user/<int:user_id>', methods=['POST'])
 def delete_user(user_id):
