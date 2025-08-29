@@ -34,9 +34,19 @@ body.dark-mode textarea::placeholder {
     opacity: 0.8;
 }
 
+body.dark-mode input[type="checkbox"] {
+    accent-color: var(--primary-color);
+}
+
+body.dark-mode input[type="number"]::-webkit-inner-spin-button,
+body.dark-mode input[type="number"]::-webkit-outer-spin-button {
+    filter: invert(1);
+}
+
+
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: var(--background-color); color: var(--text-color); margin: 0; padding: 0; }
 .navbar { background-color: var(--secondary-color); padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; color: white; border-bottom: 1px solid var(--table-border-color); }
-.navbar a { color: white; text-decoration: none; padding: 8px 15px; border-radius: 5px; transition: background-color 0.2s; }
+.navbar a { color: white; text-decoration: none; padding: 8px 15px; border-radius: 5px; transition: background-color: 0.2s; }
 .navbar a.active, .navbar a:hover { background-color: var(--primary-hover); }
 .navbar .logo { font-weight: bold; font-size: 1.2em; margin-right: auto; color: var(--primary-color); }
 .navbar .nav-links { display: flex; align-items: center; gap: 15px; }
@@ -340,7 +350,7 @@ body.dark-mode .form-grid input[readonly] {
     cursor: pointer;
     font-size: 1em;
     font-weight: 500;
-    transition: background-color 0.2s;
+    transition: background-color: 0.2s;
 }
 .login-container button:hover {
     background-color: var(--primary-hover);
@@ -478,8 +488,45 @@ body.dark-mode .form-grid input[readonly] {
     cursor: pointer;
     font-size: 1em;
     font-weight: 500;
-    transition: background-color 0.2s;
+    transition: background-color: 0.2s;
 }
 .selection-container button:hover {
     background-color: var(--primary-hover);
+}
+
+/* Easter Egg for MSP Platinum */
+@keyframes gold-fade {
+    0%, 100% {
+        color: var(--text-color);
+    }
+    50% {
+        color: #D4AF37;
+        text-shadow: 0 0 5px #f9e79f;
+    }
+}
+
+.msp-platinum-animation {
+    animation: gold-fade 4s ease-in-out;
+}
+
+/* Easter Egg for Expired Contract */
+@keyframes pulse-red {
+    0% {
+        color: var(--text-color);
+        transform: scale(1);
+    }
+    50% {
+        color: #dc3545;
+        transform: scale(1.05);
+    }
+    100% {
+        color: var(--text-color);
+        transform: scale(1);
+    }
+}
+
+.contract-expired-pulse {
+    font-size: 1.1em;
+    font-weight: bold;
+    animation: pulse-red 2s infinite ease-in-out;
 }

@@ -59,6 +59,18 @@ def humanize_time(dt_str):
     if delta.seconds >= 60: return f"{delta.seconds // 60}m ago"
     return "Just now"
 
+@app.template_filter('usa_date')
+def format_date_usa(date_str):
+    """Formats an ISO date string to MM/DD/YYYY format."""
+    if not date_str or date_str in ["N/A", "Month to Month", "Invalid Start Date"]:
+        return date_str
+    try:
+        # Handles both 'YYYY-MM-DD' and full ISO 'YYYY-MM-DDTHH:MM:SS'
+        date_obj = datetime.fromisoformat(date_str.split('T')[0])
+        return date_obj.strftime('%m/%d/%Y')
+    except (ValueError, TypeError):
+        return date_str # Return original string if parsing fails
+
 @app.template_filter('filesizeformat')
 def filesizeformat(value, binary=False):
     """Formats a file size."""
@@ -527,7 +539,7 @@ def client_settings(account_number):
                          log_and_execute("INSERT INTO asset_billing_overrides (asset_id, billing_type, custom_cost) VALUES (?, ?, ?) ON CONFLICT(asset_id) DO UPDATE SET billing_type=excluded.billing_type, custom_cost=excluded.custom_cost", [asset_id, billing_type, custom_cost if custom_cost else None])
                     else:
                         log_and_execute("DELETE FROM asset_billing_overrides WHERE asset_id = ?", [asset_id])
-                for user in query_db("SELECT id FROM users WHERE company_account_number = ?", [account_number]):
+                for user in query_db("SELECT id FROM users WHERE company_account_number = ? AND status = 'Active'", [account_number]):
                     user_id = user['id']
                     billing_type = request.form.get(f'user_billing_type_{user_id}')
                     custom_cost = request.form.get(f'user_custom_cost_{user_id}')

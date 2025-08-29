@@ -23,7 +23,7 @@
                 <h2>Client Details</h2>
                 <p><strong>Account Number:</strong> {{ client.account_number }}</p>
                 <p><strong>Company Owner:</strong> {{ client.company_owner or 'N/A' }}</p>
-                <p><strong>Assigned Plan:</strong> {{ client.billing_plan }}</p>
+                <p><strong>Assigned Plan:</strong> <span {% if client.billing_plan == 'MSP Platinum' %}id="msp-platinum-plan"{% endif %}>{{ client.billing_plan }}</span></p>
                 <p><strong>Support Level:</strong> {{ support_level_display }}</p>
                 <p><strong>Phone Number:</strong> <a href="tel:{{ client.phone_number }}">{{ client.phone_number or 'N/A' }}</a></p>
                 <p><strong>Domains:</strong> {{ client.domains or 'N/A' }}</p>
@@ -42,7 +42,14 @@
                 <h2>Client Features</h2>
                 {% for feature_type, feature_value in effective_rates.items() %}
                     {% if feature_type.startswith('feature_') %}
-                        <p><strong>{{ feature_type.replace('feature_', '').replace('_', ' ')|title }}:</strong> {{ feature_value }}</p>
+                        {% set feature_name = feature_type.replace('feature_', '').replace('_', ' ') %}
+                        <p><strong>
+                        {% if feature_name in ['soc', 'sat'] %}
+                            {{ feature_name|upper }}
+                        {% else %}
+                            {{ feature_name|title }}
+                        {% endif %}
+                        :</strong> {{ feature_value }}</p>
                     {% endif %}
                 {% endfor %}
             </div>
@@ -50,10 +57,10 @@
         <div class="right-column">
             <div class="form-section">
                 <h2>Contract Details</h2>
-                <p><strong>Client Start Date:</strong> {{ client.client_start_date or 'N/A' }}</p>
+                <p><strong>Client Start Date:</strong> {{ client.client_start_date | usa_date }}</p>
                 <p><strong>Contract Term:</strong> {{ client.contract_term_length }}</p>
-                <p><strong>Contract Start Date:</strong> {{ client.contract_start_date or 'N/A' }}</p>
-                <p><strong class="{% if contract_expired %}text-danger{% endif %}">Contract End Date:</strong> <span class="{% if contract_expired %}text-danger{% endif %}">{{ contract_end_date }}</span></p>
+                <p><strong>Contract Start Date:</strong> {{ client.contract_start_date | usa_date }}</p>
+                <p><strong>Contract End Date:</strong> <span class="{% if contract_expired %}contract-expired-pulse{% endif %}">{{ contract_end_date | usa_date }}</span></p>
                 {% for attachment in attachments %}
                     {% if attachment.category == 'Contracts' %}
                         <p><strong>Contract:</strong> <a href="#" class="preview-attachment" data-url="{{ url_for('download_file', account_number=client.account_number, filename=attachment.stored_filename) }}" data-filename="{{ attachment.original_filename }}">{{ attachment.original_filename }}</a></p>
@@ -237,8 +244,25 @@
 
 {% block scripts %}
 {{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/js-confetti@latest/dist/js-confetti.browser.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const platinumSpan = document.getElementById('msp-platinum-plan');
+    if (platinumSpan) {
+        const jsConfetti = new JSConfetti();
+        platinumSpan.classList.add('msp-platinum-animation');
+
+        jsConfetti.addConfetti({
+            confettiColors: [
+                '#D4AF37', '#b89b3c', '#f9e79f', '#f1c40f', '#f39c12',
+            ],
+            confettiNumber: 100,
+        });
+
+        setTimeout(() => {
+            platinumSpan.classList.remove('msp-platinum-animation');
+        }, 4000);
+    }
     const notesSection = document.getElementById('notes-section');
     const attachmentsSection = document.getElementById('attachments-section');
 
