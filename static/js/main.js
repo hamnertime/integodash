@@ -41,3 +41,25 @@ function initializeGrid(pageName, savedLayout, defaultLayout) {
         });
     }
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    const menuToggle = document.getElementById('menu-toggle');
+    const sidebar = document.querySelector('.sidebar');
+    const mainContent = document.querySelector('.main-content');
+
+    // Check for saved sidebar state, defaulting to collapsed
+    if (localStorage.getItem('sidebar-collapsed') === 'false') {
+        sidebar.classList.remove('collapsed');
+        mainContent.classList.remove('collapsed');
+    } else {
+        sidebar.classList.add('collapsed');
+        mainContent.classList.add('collapsed');
+    }
+
+    menuToggle.addEventListener('click', function() {
+        sidebar.classList.toggle('collapsed');
+        mainContent.classList.toggle('collapsed');
+        // Save state to localStorage
+        localStorage.setItem('sidebar-collapsed', sidebar.classList.contains('collapsed'));
+    });
+});

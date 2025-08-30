@@ -422,17 +422,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const featureTypeModal = document.getElementById('featureTypeModal');
     const linkModal = document.getElementById('linkModal');
     const userModal = document.getElementById('userModal');
+    const widgetLibraryModal = document.getElementById('widgetLibraryModal');
     const logContent = document.getElementById('log-content');
     const logModalTitle = logModal.querySelector('.modal-header h2');
     const closeButtons = document.querySelectorAll('.close-button');
 
     // Generic function to close any modal
     function closeModal() {
-        logModal.style.display = 'none';
-        featureModal.style.display = 'none';
-        featureTypeModal.style.display = 'none';
-        linkModal.style.display = 'none';
-        userModal.style.display = 'none';
+        if(logModal) logModal.style.display = 'none';
+        if(featureModal) featureModal.style.display = 'none';
+        if(featureTypeModal) featureTypeModal.style.display = 'none';
+        if(linkModal) linkModal.style.display = 'none';
+        if(userModal) userModal.style.display = 'none';
+        if(widgetLibraryModal) widgetLibraryModal.style.display = 'none';
     }
 
     closeButtons.forEach(button => {
@@ -440,7 +442,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     window.onclick = (event) => {
-        if (event.target == logModal || event.target == featureModal || event.target == featureTypeModal || event.target == linkModal || event.target == userModal) {
+        if (event.target == logModal || event.target == featureModal || event.target == featureTypeModal || event.target == linkModal || event.target == userModal || event.target == widgetLibraryModal) {
             closeModal();
         }
     }

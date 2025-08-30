@@ -573,13 +573,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const manualUserModal = document.getElementById('manualUserModal');
     const lineItemModal = document.getElementById('lineItemModal');
     const locationModal = document.getElementById('locationModal');
+    const widgetLibraryModal = document.getElementById('widgetLibraryModal');
     const closeButtons = document.querySelectorAll('.close-button');
 
     function closeModal() {
-        manualAssetModal.style.display = 'none';
-        manualUserModal.style.display = 'none';
-        lineItemModal.style.display = 'none';
-        locationModal.style.display = 'none';
+        if(manualAssetModal) manualAssetModal.style.display = 'none';
+        if(manualUserModal) manualUserModal.style.display = 'none';
+        if(lineItemModal) lineItemModal.style.display = 'none';
+        if(locationModal) locationModal.style.display = 'none';
+        if(widgetLibraryModal) widgetLibraryModal.style.display = 'none';
     }
 
     closeButtons.forEach(button => {
@@ -587,7 +589,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     window.onclick = (event) => {
-        if (event.target == manualAssetModal || event.target == manualUserModal || event.target == lineItemModal || event.target == locationModal) {
+        if (event.target == manualAssetModal || event.target == manualUserModal || event.target == lineItemModal || event.target == locationModal || event.target == widgetLibraryModal) {
             closeModal();
         }
     }
