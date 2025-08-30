@@ -5,7 +5,7 @@
             <input type="file" name="file[]" id="file-upload" required multiple>
             <label for="file-upload" class="file-upload-label">Browse...</label>
             <span id="file-name-display">No file selected</span>
-            <select name="category">
+            <select name="category" style="width: 150px;">
                 <option value="Pictures">Pictures</option>
                 <option value="Logos">Logos</option>
                 <option value="Contracts">Contracts</option>
@@ -70,13 +70,13 @@
                 {% endif %}
             {% endif %}
         </div>
-        <form method="get" action="{{ url_for('client_billing_details', account_number=client.account_number) }}">
+        <form method="get" action="{{ url_for('client_billing_details', account_number=client.account_number) }}" style="display: flex; align-items: center; gap: 10px;">
             <input type="hidden" name="year" value="{{ selected_year }}">
             <input type="hidden" name="month" value="{{ selected_month }}">
             <input type="hidden" name="search" value="{{ search_query }}">
             <input type="hidden" name="sort_by" value="{{ sort_by }}">
             <input type="hidden" name="sort_order" value="{{ sort_order }}">
-            <label for="attachment_per_page">Attachments per page:</label>
+            <label for="attachment_per_page" style="white-space: nowrap;">Attachments per page:</label>
             <select name="attachment_per_page" id="attachment_per_page">
                 <option value="10" {% if attachment_per_page == 10 %}selected{% endif %}>10</option>
                 <option value="20" {% if attachment_per_page == 20 %}selected{% endif %}>20</option>

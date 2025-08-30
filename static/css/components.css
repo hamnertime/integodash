@@ -115,6 +115,9 @@ th, td {
 .client-table tr:nth-child(even) {
     background-color: var(--background-color);
 }
+.client-table th, .client-table td {
+    white-space: nowrap;
+}
 .sort-arrow {
     margin-left: 5px;
 }
@@ -329,6 +332,10 @@ select {
 }
 body.dark-mode select {
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23f8f9fa' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+}
+.pagination form select {
+    width: auto;
+    padding-right: 2.5em; /* Make space for the arrow */
 }
 .form-grid input, .form-grid select, .form-grid textarea {
     margin-right: 0;

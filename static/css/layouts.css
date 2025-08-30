@@ -106,8 +106,27 @@
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     padding: 20px;
     color: var(--text-color);
-    overflow: auto;
     position: relative;
+    overflow: hidden; /* Changed from auto */
+}
+/* Flexbox layout for table widgets */
+.grid-stack-item[gs-id="clients-table-widget"] > .grid-stack-item-content,
+.grid-stack-item[gs-id="assets-table-widget"] > .grid-stack-item-content,
+.grid-stack-item[gs-id="contacts-table-widget"] > .grid-stack-item-content {
+    display: flex;
+    flex-direction: column;
+    padding: 0; /* Remove padding to allow scroll container to be flush */
+}
+.widget-header-controls {
+    padding: 20px; /* Add padding back to the controls area */
+    flex-shrink: 0; /* Prevent controls from shrinking */
+}
+#clients-table-container,
+#assets-table-container,
+#contacts-table-container {
+flex-grow: 1; /* Allow table container to fill remaining space */
+overflow: auto; /* Enable scrollbars on this container */
+padding: 0 20px 20px 20px;
 }
 body.dark-mode .grid-stack-item-content {
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
@@ -199,9 +218,6 @@ gap: 10px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background-color: var(--card-bg);
-    padding: 15px;
-    border-radius: 8px;
     margin-bottom: 20px;
 }
 .billing-controls .export-section {
@@ -218,9 +234,8 @@ gap: 10px;
 }
 .billing-period-selector {
     margin-bottom: 20px;
-    text-align: center;
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
     align-items: center;
     gap: 20px;
 }
@@ -243,9 +258,13 @@ gap: 10px;
 }
 .attachment-controls {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column; /* Stack items vertically */
+    gap: 15px; /* Adds space between the rows */
     margin-bottom: 20px;
+}
+.search-attachments {
+    display: flex;
+    justify-content: flex-end; /* Align the input to the right */
 }
 .search-attachments input {
     width: 250px;

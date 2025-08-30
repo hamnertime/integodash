@@ -43,10 +43,10 @@
             {% endif %}
         {% endif %}
     </div>
-    <form method="get" action="{{ url_for('client_billing_details', account_number=client.account_number) }}">
+    <form method="get" action="{{ url_for('client_billing_details', account_number=client.account_number) }}" style="display: flex; align-items: center; gap: 10px;">
         <input type="hidden" name="year" value="{{ selected_year }}">
         <input type="hidden" name="month" value="{{ selected_month }}">
-        <label for="per_page">Notes per page:</label>
+        <label for="per_page" style="white-space: nowrap;">Notes per page:</label>
         <select name="per_page" id="per_page">
             <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
             <option value="20" {% if per_page == 20 %}selected{% endif %}>20</option>
