@@ -442,9 +442,28 @@ details summary {
     cursor: pointer;
     font-weight: bold;
     margin-bottom: 10px;
-    list-style: revert;
     font-size:0.9em;
     color:var(--text-color);
+}
+details summary:hover {
+    color: var(--primary-color);
+}
+summary.collapsible-header {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    list-style: none;
+}
+summary.collapsible-header::-webkit-details-marker {
+    display: none;
+}
+.collapsible-header-content {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+}
+.collapsible-content {
+    padding-left: 20px;
 }
 .note {
     border-left: 4px solid var(--primary-color);

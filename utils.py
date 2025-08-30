@@ -1,9 +1,11 @@
 # utils.py
 import markdown
 import bleach
+import sys
 from datetime import datetime, timezone
-from flask import session
+from flask import session, current_app
 from database import query_db
+from urllib.parse import quote_plus
 
 def humanize_time(dt_str):
     if not dt_str: return "N/A"
@@ -44,18 +46,23 @@ def to_markdown(text):
     clean_html = bleach.clean(html, tags=allowed_tags, attributes=allowed_attrs)
     return clean_html
 
+def urlencode(text):
+    """URL-encodes a string for use in URLs."""
+    return quote_plus(text)
+
 def register_template_filters(app):
     app.template_filter('humanize')(humanize_time)
     app.template_filter('usa_date')(format_date_usa)
     app.template_filter('filesizeformat')(filesizeformat)
     app.template_filter('markdown')(to_markdown)
+    app.template_filter('urlencode')(urlencode)
 
 def inject_custom_links():
-    from main import app
-    if app.config.get('DB_PASSWORD') and 'user_id' in session:
+    if current_app.config.get('DB_PASSWORD') and 'user_id' in session:
         try:
             links = query_db("SELECT * FROM custom_links ORDER BY link_order")
             return dict(custom_links=links)
-        except Exception:
+        except Exception as e:
+            print(f"Error fetching custom links for sidebar: {e}", file=sys.stderr)
             return dict(custom_links=[])
     return dict(custom_links=[])

@@ -48,7 +48,11 @@
             <div class="grid-stack-item-content">
                 <h2>Locations</h2>
                 {% for location in locations %}
-                    <p><strong>{{ location.location_name }}:</strong> {{ location.address or 'N/A' }}</p>
+                    <p><strong>{{ location.location_name }}:</strong>
+                        <a href="https://www.google.com/maps/search/?api=1&query={{ location.address | urlencode }}" target="_blank">
+                            {{ location.address or 'N/A' }}
+                        </a>
+                    </p>
                 {% else %}
                     <p>No locations have been added for this client.</p>
                 {% endfor %}
@@ -139,17 +143,31 @@
                     </td></tr>
 
                     <tr><td class="label" style="padding-top:10px;"><strong>Ticket Charges</strong></td><td class="value" style="padding-top:10px;"><strong>${{ "%.2f"|format(receipt_data.ticket_charge) }}</strong></td></tr>
-                    <tr class="itemized-detail"><td class="label">Total Hours This Period ({{ "%.2f"|format(receipt_data.hours_for_billing_period) }} hours)</td><td class="value"></td></tr>
-                    <tr class="itemized-detail"><td class="label">Pre-paid Monthly Hours</td><td class="value">-{{ "%.2f"|format(receipt_data.prepaid_hours_monthly) }} hours</td></tr>
-                    <tr class="itemized-detail"><td class="label">Pre-paid Yearly Hours (Remaining)</td><td class="value">-{{ "%.2f"|format(remaining_yearly_hours) }} hours</td></tr>
-                    <tr class="itemized-detail"><td class="label">Billable Hours ({{ "%.2f"|format(receipt_data.billable_hours) }} hours × ${{ "%.2f"|format(effective_rates.per_hour_ticket_cost) }})</td><td class="value">${{ "%.2f"|format(receipt_data.ticket_charge) }}</td></tr>
+                    <tr><td colspan="2" style="padding-left: 40px;">
+                        <details open>
+                            <summary>View Details</summary>
+                            <table style="width:100%; border:none; box-shadow:none; margin-top: -10px;">
+                                <tr class="itemized-detail"><td class="label" style="border:none;">Total Hours This Period ({{ "%.2f"|format(receipt_data.hours_for_billing_period) }} hours)</td><td class="value" style="border:none;"></td></tr>
+                                <tr class="itemized-detail"><td class="label" style="border:none;">Pre-paid Monthly Hours</td><td class="value" style="border:none;">-{{ "%.2f"|format(receipt_data.prepaid_hours_monthly) }} hours</td></tr>
+                                <tr class="itemized-detail"><td class="label" style="border:none;">Pre-paid Yearly Hours (Remaining)</td><td class="value" style="border:none;">-{{ "%.2f"|format(remaining_yearly_hours) }} hours</td></tr>
+                                <tr class="itemized-detail"><td class="label" style="border:none;">Billable Hours ({{ "%.2f"|format(receipt_data.billable_hours) }} hours × ${{ "%.2f"|format(effective_rates.per_hour_ticket_cost) }})</td><td class="value" style="border:none;">${{ "%.2f"|format(receipt_data.ticket_charge) }}</td></tr>
+                            </table>
+                        </details>
+                    </td></tr>
 
                     <tr><td class="label"><strong>Backup Charge</strong></td><td class="value"><strong>${{ "%.2f"|format(receipt_data.backup_charge) }}</strong></td></tr>
-                    <tr class="itemized-detail"><td class="label">Workstation Backup Base Fee ({{ backup_info.backed_up_workstations }} devices × ${{ "%.2f"|format(effective_rates.backup_base_fee_workstation) }})</td><td class="value">${{ "%.2f"|format(receipt_data.backup_base_workstation) }}</td></tr>
-                    <tr class="itemized-detail"><td class="label">Server Backup Base Fee ({{ backup_info.backed_up_servers }} devices × ${{ "%.2f"|format(effective_rates.backup_base_fee_server) }})</td><td class="value">${{ "%.2f"|format(receipt_data.backup_base_server) }}</td></tr>
-                    <tr class="itemized-detail"><td class="label">Total Included Storage</td><td class="value">{{ "%.2f"|format(receipt_data.total_included_tb) }} TB</td></tr>
-                    <tr class="itemized-detail"><td class="label">Total Used Storage</td><td class="value">{{ "%.2f"|format(total_backup_tb) }} TB</td></tr>
-                    <tr class="itemized-detail"><td class="label">Storage Overage ({{ "%.2f"|format(receipt_data.overage_tb) }} TB × ${{ "%.2f"|format(effective_rates.backup_per_tb_fee) }})</td><td class="value">${{ "%.2f"|format(receipt_data.overage_charge) }}</td></tr>
+                    <tr><td colspan="2" style="padding-left: 40px;">
+                        <details open>
+                            <summary>View Details</summary>
+                            <table style="width:100%; border:none; box-shadow:none; margin-top: -10px;">
+                                <tr class="itemized-detail"><td class="label" style="border:none;">Workstation Backup Base Fee ({{ backup_info.backed_up_workstations }} devices × ${{ "%.2f"|format(effective_rates.backup_base_fee_workstation) }})</td><td class="value" style="border:none;">${{ "%.2f"|format(receipt_data.backup_base_workstation) }}</td></tr>
+                                <tr class="itemized-detail"><td class="label" style="border:none;">Server Backup Base Fee ({{ backup_info.backed_up_servers }} devices × ${{ "%.2f"|format(effective_rates.backup_base_fee_server) }})</td><td class="value" style="border:none;">${{ "%.2f"|format(receipt_data.backup_base_server) }}</td></tr>
+                                <tr class="itemized-detail"><td class="label" style="border:none;">Total Included Storage</td><td class="value" style="border:none;">{{ "%.2f"|format(receipt_data.total_included_tb) }} TB</td></tr>
+                                <tr class="itemized-detail"><td class="label" style="border:none;">Total Used Storage</td><td class="value" style="border:none;">{{ "%.2f"|format(total_backup_tb) }} TB</td></tr>
+                                <tr class="itemized-detail"><td class="label" style="border:none;">Storage Overage ({{ "%.2f"|format(receipt_data.overage_tb) }} TB × ${{ "%.2f"|format(effective_rates.backup_per_tb_fee) }})</td><td class="value" style="border:none;">${{ "%.2f"|format(receipt_data.overage_charge) }}</td></tr>
+                            </table>
+                        </details>
+                    </td></tr>
                     <tr class="total-row"><td class="label">Estimated Total</td><td class="value">${{ "%.2f"|format(receipt_data.total) }}</td></tr>
                 </table>
             </div>
@@ -157,16 +175,47 @@
 
         <div class="grid-stack-item" gs-id="notes-widget" gs-w="6" gs-h="4">
             <div class="grid-stack-item-content">
-                <div id="notes-section">
-                    {% include 'partials/notes_section.html' %}
+                <h2>Client Notes</h2>
+                <form method="POST" action="{{ url_for('clients.client_billing_details', account_number=client.account_number) }}">
+                     <textarea name="note_content" rows="3" placeholder="Add a new client note..." style="width: 100%; padding: 8px; border: 1px solid var(--input-border); border-radius: 4px; box-sizing: border-box; background-color: var(--input-bg); color: var(--text-color);"></textarea>
+                     <div style="text-align: right; margin-top: 10px;">
+                         <button type="submit" name="action" value="add_note">Add Note</button>
+                     </div>
+                </form>
+                <div class="search-attachments" style="margin-top: 15px; text-align: right;">
+                    <input type="text" id="notes-search" placeholder="Search notes..." value="{{ search_notes_query }}">
+                </div>
+                <hr style="margin: 20px 0;">
+                <div id="notes-table-container">
+                    {# Notes list will be loaded here by JavaScript #}
                 </div>
             </div>
         </div>
 
         <div class="grid-stack-item" gs-id="attachments-widget" gs-w="6" gs-h="4">
             <div class="grid-stack-item-content">
-                <div id="attachments-section">
-                    {% include 'partials/attachments_section.html' %}
+                <div class="form-section">
+                    <h2>Client Attachments</h2>
+                    <div class="attachment-controls">
+                        <form method="POST" action="{{ url_for('clients.upload_file', account_number=client.account_number) }}" enctype="multipart/form-data" class="upload-form">
+                            <input type="file" name="file[]" id="file-upload" required multiple>
+                            <label for="file-upload" class="file-upload-label">Browse...</label>
+                            <span id="file-name-display">No file selected</span>
+                            <select name="category" style="width: 150px;">
+                                <option value="Pictures">Pictures</option>
+                                <option value="Logos">Logos</option>
+                                <option value="Contracts">Contracts</option>
+                                <option value="Other">Other</option>
+                            </select>
+                            <button type="submit" class="button">Upload File</button>
+                        </form>
+                        <div class="search-attachments">
+                            <input type="text" id="attachment-search" placeholder="Search attachments..." value="{{ search_query }}">
+                        </div>
+                    </div>
+                    <div id="attachments-table-container">
+                        {# Attachments table will be loaded here by JavaScript #}
+                    </div>
                 </div>
             </div>
         </div>
@@ -174,7 +223,7 @@
         <div class="grid-stack-item" gs-id="ticket-breakdown-widget" gs-w="12" gs-h="4">
             <div class="grid-stack-item-content">
                 <h2>Ticket Breakdown for Billing Period ({{ selected_billing_period }})</h2>
-                <details>
+                <details open>
                     <summary>View Tickets ({{ tickets_for_billing_period|length }})</summary>
                     <table>
                         <thead><tr><th>Ticket ID</th><th>Subject</th><th>Date Closed</th><th>Total Hours</th></tr></thead>
@@ -198,7 +247,7 @@
         <div class="grid-stack-item" gs-id="tracked-assets-widget" gs-w="12" gs-h="4">
             <div class="grid-stack-item-content">
                 <h2>Tracked Assets & Users</h2>
-                <details>
+                <details open>
                     <summary>View All Tracked Items</summary>
                     <div class="grid-container">
                         <div>
@@ -231,7 +280,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Edit Note</h2>
-                <span class="close-button">&times;</span>
+                <span class="close-button">×</span>
             </div>
             <form id="editNoteForm" method="POST">
                 <textarea name="note_content" id="modalNoteContent" rows="5"></textarea>
@@ -246,7 +295,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Edit Attachment</h2>
-                <span class="close-button">&times;</span>
+                <span class="close-button">×</span>
             </div>
             <form id="editAttachmentForm" class="simple-form" method="POST">
                 <label for="modalOriginalFilename">Filename:</label>
@@ -269,7 +318,7 @@
         <div class="modal-content preview">
             <div class="modal-header">
                 <h2 id="previewModalTitle"></h2>
-                <span class="close-button">&times;</span>
+                <span class="close-button">×</span>
             </div>
             <div id="previewModalContent"></div>
         </div>
@@ -303,19 +352,24 @@ document.addEventListener('DOMContentLoaded', function() {
             platinumSpan.classList.remove('msp-platinum-animation');
         }, 4000);
     }
-    const notesSection = document.getElementById('notes-section');
-    const attachmentsSection = document.getElementById('attachments-section');
+
+    const notesTableContainer = document.getElementById('notes-table-container');
+    const notesSearchInput = document.getElementById('notes-search');
+    const attachmentsTableContainer = document.getElementById('attachments-table-container');
+    const attachmentSearchInput = document.getElementById('attachment-search');
+    let notesSearchTimeout;
+    let attachmentsSearchTimeout;
 
     let notesState = {
         page: 1,
         per_page: 10,
-        search_query: ''
+        search_query: '{{ search_notes_query }}'
     };
 
     let attachmentsState = {
         page: 1,
         per_page: 10,
-        search_query: '',
+        search_query: '{{ search_query }}',
         sort_by: 'uploaded_at',
         sort_order: 'desc'
     };
@@ -332,10 +386,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = await fetch(url);
             if (!response.ok) throw new Error('Network response was not ok');
             const html = await response.text();
-            notesSection.innerHTML = html;
+            notesTableContainer.innerHTML = html;
         } catch (error) {
             console.error('Failed to fetch notes:', error);
-            notesSection.innerHTML = '<p class="flash-error">Error loading notes. Please try refreshing the page.</p>';
+            notesTableContainer.innerHTML = '<p class="flash-error">Error loading notes. Please try refreshing the page.</p>';
         }
     };
 
@@ -353,74 +407,83 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = await fetch(url);
             if (!response.ok) throw new Error('Network response was not ok');
             const html = await response.text();
-            attachmentsSection.innerHTML = html;
+            attachmentsTableContainer.innerHTML = html;
         } catch (error) {
             console.error('Failed to fetch attachments:', error);
-            attachmentsSection.innerHTML = '<p class="flash-error">Error loading attachments. Please try refreshing the page.</p>';
+            attachmentsTableContainer.innerHTML = '<p class="flash-error">Error loading attachments. Please try refreshing the page.</p>';
         }
     };
 
-    notesSection.addEventListener('click', function(event) {
-        const target = event.target.closest('a');
-        if (target && target.closest('.pagination')) {
-            event.preventDefault();
-            const url = new URL(target.href);
-            notesState.page = new URLSearchParams(url.search).get('page');
-            fetchNotes();
-        }
-    });
+    if (notesSearchInput) {
+        notesSearchInput.addEventListener('input', function(event) {
+            clearTimeout(notesSearchTimeout);
+            notesSearchTimeout = setTimeout(() => {
+                notesState.search_query = event.target.value;
+                notesState.page = 1;
+                fetchNotes();
+            }, 300);
+        });
+    }
 
-    notesSection.addEventListener('change', function(event) {
-        if (event.target.id === 'per_page') {
-            notesState.per_page = event.target.value;
-            notesState.page = 1;
-            fetchNotes();
-        }
-    });
-
-    notesSection.addEventListener('input', function(event) {
-        if (event.target.id === 'notes-search') {
-            notesState.search_query = event.target.value;
-            notesState.page = 1;
-            fetchNotes();
-        }
-    });
-
-    attachmentsSection.addEventListener('click', function(event) {
-        const target = event.target.closest('a');
-        if (target && target.classList.contains('sort-link')) {
-            event.preventDefault();
-            const column = target.dataset.sort;
-            if (attachmentsState.sort_by === column) {
-                attachmentsState.sort_order = attachmentsState.sort_order === 'asc' ? 'desc' : 'asc';
-            } else {
-                attachmentsState.sort_by = column;
-                attachmentsState.sort_order = 'asc';
+    if (notesTableContainer) {
+        notesTableContainer.addEventListener('click', function(event) {
+            const target = event.target.closest('a');
+            if (target && target.closest('.pagination')) {
+                event.preventDefault();
+                const url = new URL(target.href);
+                notesState.page = new URLSearchParams(url.search).get('page');
+                fetchNotes();
             }
-            fetchAttachments();
-        } else if (target && target.closest('.pagination')) {
-            event.preventDefault();
-            const url = new URL(target.href);
-            attachmentsState.page = new URLSearchParams(url.search).get('attachment_page');
-            fetchAttachments();
-        }
-    });
+        });
+        notesTableContainer.addEventListener('change', function(event) {
+            if (event.target.id === 'per_page') {
+                notesState.per_page = event.target.value;
+                notesState.page = 1;
+                fetchNotes();
+            }
+        });
+    }
 
-    attachmentsSection.addEventListener('change', function(event) {
-        if (event.target.id === 'attachment_per_page') {
-            attachmentsState.per_page = event.target.value;
-            attachmentsState.page = 1;
-            fetchAttachments();
-        }
-    });
+    if (attachmentSearchInput) {
+        attachmentSearchInput.addEventListener('input', function(event) {
+            clearTimeout(attachmentsSearchTimeout);
+            attachmentsSearchTimeout = setTimeout(() => {
+                attachmentsState.search_query = event.target.value;
+                attachmentsState.page = 1;
+                fetchAttachments();
+            }, 300);
+        });
+    }
 
-    attachmentsSection.addEventListener('input', function(event) {
-        if (event.target.id === 'attachment-search') {
-            attachmentsState.search_query = event.target.value;
-            attachmentsState.page = 1;
-            fetchAttachments();
-        }
-    });
+    if (attachmentsTableContainer) {
+        attachmentsTableContainer.addEventListener('click', function(event) {
+            const target = event.target.closest('a');
+            if (target && target.classList.contains('sort-link')) {
+                event.preventDefault();
+                const column = target.dataset.sort;
+                if (attachmentsState.sort_by === column) {
+                    attachmentsState.sort_order = attachmentsState.sort_order === 'asc' ? 'desc' : 'asc';
+                } else {
+                    attachmentsState.sort_by = column;
+                    attachmentsState.sort_order = 'asc';
+                }
+                fetchAttachments();
+            } else if (target && target.closest('.pagination')) {
+                event.preventDefault();
+                const url = new URL(target.href);
+                attachmentsState.page = new URLSearchParams(url.search).get('attachment_page');
+                fetchAttachments();
+            }
+        });
+
+        attachmentsTableContainer.addEventListener('change', function(event) {
+            if (event.target.id === 'attachment_per_page') {
+                attachmentsState.per_page = event.target.value;
+                attachmentsState.page = 1;
+                fetchAttachments();
+            }
+        });
+    }
 
     fetchNotes();
     fetchAttachments();
@@ -431,7 +494,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const editNoteForm = document.getElementById('editNoteForm');
         const modalNoteContent = document.getElementById('modalNoteContent');
 
-        notesSection.addEventListener('click', function(e) {
+        document.getElementById('notes-widget').addEventListener('click', function(e) {
             const editButton = e.target.closest('.edit-note');
             if (editButton) {
                 e.preventDefault();
@@ -461,7 +524,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const modalOriginalFilename = document.getElementById('modalOriginalFilename');
     const modalCategory = document.getElementById('modalCategory');
 
-    attachmentsSection.addEventListener('click', function(e) {
+    document.getElementById('attachments-widget').addEventListener('click', function(e) {
         const editButton = e.target.closest('.edit-attachment');
         if (editButton) {
             e.preventDefault();
@@ -491,7 +554,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const previewModalContent = document.getElementById('previewModalContent');
     const closePreviewButton = attachmentPreviewModal.querySelector('.close-button');
 
-    attachmentsSection.addEventListener('click', function(e) {
+    document.getElementById('attachments-widget').addEventListener('click', function(e) {
         const previewLink = e.target.closest('.preview-attachment');
         if (previewLink) {
             e.preventDefault();
@@ -548,7 +611,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    attachmentsSection.addEventListener('change', function(event) {
+    document.getElementById('attachments-widget').addEventListener('change', function(event) {
         if (event.target.id === 'file-upload') {
             const fileNameDisplay = document.getElementById('file-name-display');
             const files = event.target.files;

@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', function() {
         { id: 'billing-period-selector-widget', title: 'Billing Period Selector', default: {w: 12, h: 1} },
         { id: 'client-details-widget', title: 'Client Details', default: {w: 6, h: 4} },
         { id: 'locations-widget', title: 'Locations', default: {w: 6, h: 2} },
+        { id: 'locations-settings-widget', title: 'Locations Settings', default: {w: 12, h: 4} },
         { id: 'client-features-widget', title: 'Client Features', default: {w: 6, h: 3} },
         { id: 'contract-details-widget', title: 'Contract Details', default: {w: 6, h: 3} },
         { id: 'billing-receipt-widget', title: 'Billing Receipt', default: {w: 6, h: 5} },

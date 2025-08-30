@@ -112,7 +112,8 @@
 /* Flexbox layout for table widgets */
 .grid-stack-item[gs-id="clients-table-widget"] > .grid-stack-item-content,
 .grid-stack-item[gs-id="assets-table-widget"] > .grid-stack-item-content,
-.grid-stack-item[gs-id="contacts-table-widget"] > .grid-stack-item-content {
+.grid-stack-item[gs-id="contacts-table-widget"] > .grid-stack-item-content,
+.grid-stack-item[gs-id="attachments-widget"] > .grid-stack-item-content {
     display: flex;
     flex-direction: column;
     padding: 0; /* Remove padding to allow scroll container to be flush */
@@ -127,6 +128,11 @@
 flex-grow: 1; /* Allow table container to fill remaining space */
 overflow: auto; /* Enable scrollbars on this container */
 padding: 0 20px 20px 20px;
+}
+#attachments-section {
+flex-grow: 1;
+overflow: auto;
+padding: 20px;
 }
 body.dark-mode .grid-stack-item-content {
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);

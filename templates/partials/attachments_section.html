@@ -1,88 +1,68 @@
-<div class="form-section">
-    <h2>Client Attachments</h2>
-    <div class="attachment-controls">
-        <form method="POST" action="{{ url_for('clients.upload_file', account_number=client.account_number) }}" enctype="multipart/form-data" class="upload-form">
-            <input type="file" name="file[]" id="file-upload" required multiple>
-            <label for="file-upload" class="file-upload-label">Browse...</label>
-            <span id="file-name-display">No file selected</span>
-            <select name="category" style="width: 150px;">
-                <option value="Pictures">Pictures</option>
-                <option value="Logos">Logos</option>
-                <option value="Contracts">Contracts</option>
-                <option value="Other">Other</option>
-            </select>
-            <button type="submit" class="button">Upload File</button>
-        </form>
-        <div class="search-attachments">
-            <input type="text" id="attachment-search" placeholder="Search attachments..." value="{{ search_query }}">
-        </div>
-    </div>
-    <table class="item-table" style="margin-top: 20px;">
-        <thead>
-            <tr>
-                <th class="filename-column"><a href="#" class="sort-link" data-sort="original_filename">Filename<span class="sort-arrow"></span></a></th>
-                <th><a href="#" class="sort-link" data-sort="category">Category<span class="sort-arrow"></span></a></th>
-                <th><a href="#" class="sort-link" data-sort="file_size">Size<span class="sort-arrow"></span></a></th>
-                <th><a href="#" class="sort-link" data-sort="uploaded_at">Uploaded<span class="sort-arrow"></span></a></th>
-                <th class="actions-column">Actions</th>
-            </tr>
-        </thead>
-        <tbody id="attachment-table-body">
-        {% for attachment in attachments %}
-            <tr>
-                <td data-sort-value="{{ attachment.original_filename }}"><a href="#" class="preview-attachment" data-url="{{ url_for('clients.download_file', account_number=client.account_number, filename=attachment.stored_filename) }}" data-filename="{{ attachment.original_filename }}">{{ attachment.original_filename }}</a></td>
-                <td data-sort-value="{{ attachment.category }}">{{ attachment.category }}</td>
-                <td data-sort-value="{{ attachment.file_size }}">{{ attachment.file_size | filesizeformat }}</td>
-                <td data-sort-value="{{ attachment.uploaded_at }}">{{ attachment.uploaded_at | humanize }}</td>
-                <td class="actions-column">
-                    <div class="action-buttons">
-                        <a href="{{ url_for('clients.download_file', account_number=client.account_number, filename=attachment.stored_filename) }}" class="icon-button download" title="Download">
-                            <svg viewBox="0 0 24 24"><path d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z" /></svg>
-                        </a>
-                        <button type="button" class="icon-button edit edit-attachment"
-                            data-attachment-id="{{ attachment.id }}"
-                            data-original-filename="{{ attachment.original_filename }}"
-                            data-category="{{ attachment.category }}">
-                            <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
-                        </button>
-                        <a href="{{ url_for('clients.delete_attachment', account_number=client.account_number, attachment_id=attachment.id) }}" class="icon-button delete" onclick="return confirm('Are you sure?')">
-                            <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
-                        </a>
-                    </div>
-                </td>
-            </tr>
-        {% else %}
-            <tr><td colspan="5">No attachments for this client.</td></tr>
-        {% endfor %}
-        </tbody>
-    </table>
-    <div class="pagination" style="margin-top: 20px; text-align: center; display: flex; justify-content: space-between; align-items: center;">
-        <div>
-            {% if attachment_total_pages > 1 %}
-                {% if attachment_page > 1 %}
-                    <a href="{{ url_for('clients.client_billing_details', account_number=client.account_number, year=selected_year, month=selected_month, attachment_page=attachment_page-1, attachment_per_page=attachment_per_page, search=search_query, sort_by=sort_by, sort_order=sort_order) }}" class="button">&laquo; Previous</a>
-                {% endif %}
-
-                <span style="margin: 0 15px;">Page {{ attachment_page }} of {{ attachment_total_pages }}</span>
-
-                {% if attachment_page < attachment_total_pages %}
-                    <a href="{{ url_for('clients.client_billing_details', account_number=client.account_number, year=selected_year, month=selected_month, attachment_page=attachment_page+1, attachment_per_page=attachment_per_page, search=search_query, sort_by=sort_by, sort_order=sort_order) }}" class="button">Next &raquo;</a>
-                {% endif %}
+<table class="item-table" style="margin-top: 20px;">
+    <thead>
+        <tr>
+            <th class="filename-column"><a href="#" class="sort-link" data-sort="original_filename">Filename<span class="sort-arrow"></span></a></th>
+            <th><a href="#" class="sort-link" data-sort="category">Category<span class="sort-arrow"></span></a></th>
+            <th><a href="#" class="sort-link" data-sort="file_size">Size<span class="sort-arrow"></span></a></th>
+            <th><a href="#" class="sort-link" data-sort="uploaded_at">Uploaded<span class="sort-arrow"></span></a></th>
+            <th class="actions-column">Actions</th>
+        </tr>
+    </thead>
+    <tbody id="attachment-table-body">
+    {% for attachment in attachments %}
+        <tr>
+            <td data-sort-value="{{ attachment.original_filename }}"><a href="#" class="preview-attachment" data-url="{{ url_for('clients.download_file', account_number=client.account_number, filename=attachment.stored_filename) }}" data-filename="{{ attachment.original_filename }}">{{ attachment.original_filename }}</a></td>
+            <td data-sort-value="{{ attachment.category }}">{{ attachment.category }}</td>
+            <td data-sort-value="{{ attachment.file_size }}">{{ attachment.file_size | filesizeformat }}</td>
+            <td data-sort-value="{{ attachment.uploaded_at }}">{{ attachment.uploaded_at | humanize }}</td>
+            <td class="actions-column">
+                <div class="action-buttons">
+                    <a href="{{ url_for('clients.download_file', account_number=client.account_number, filename=attachment.stored_filename) }}" class="icon-button download" title="Download">
+                        <svg viewBox="0 0 24 24"><path d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z" /></svg>
+                    </a>
+                    <button type="button" class="icon-button edit edit-attachment"
+                        data-attachment-id="{{ attachment.id }}"
+                        data-original-filename="{{ attachment.original_filename }}"
+                        data-category="{{ attachment.category }}">
+                        <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
+                    </button>
+                    <a href="{{ url_for('clients.delete_attachment', account_number=client.account_number, attachment_id=attachment.id) }}" class="icon-button delete" onclick="return confirm('Are you sure?')">
+                        <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
+                    </a>
+                </div>
+            </td>
+        </tr>
+    {% else %}
+        <tr><td colspan="5">No attachments for this client.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+<div class="pagination" style="margin-top: 20px; text-align: center; display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        {% if attachment_total_pages > 1 %}
+            {% if attachment_page > 1 %}
+                <a href="{{ url_for('clients.client_billing_details', account_number=client.account_number, year=selected_year, month=selected_month, attachment_page=attachment_page-1, attachment_per_page=attachment_per_page, search=search_query, sort_by=sort_by, sort_order=sort_order) }}" class="button">&laquo; Previous</a>
             {% endif %}
-        </div>
-        <form method="get" action="{{ url_for('clients.client_billing_details', account_number=client.account_number) }}" style="display: flex; align-items: center; gap: 10px;">
-            <input type="hidden" name="year" value="{{ selected_year }}">
-            <input type="hidden" name="month" value="{{ selected_month }}">
-            <input type="hidden" name="search" value="{{ search_query }}">
-            <input type="hidden" name="sort_by" value="{{ sort_by }}">
-            <input type="hidden" name="sort_order" value="{{ sort_order }}">
-            <label for="attachment_per_page" style="white-space: nowrap;">Attachments per page:</label>
-            <select name="attachment_per_page" id="attachment_per_page">
-                <option value="10" {% if attachment_per_page == 10 %}selected{% endif %}>10</option>
-                <option value="20" {% if attachment_per_page == 20 %}selected{% endif %}>20</option>
-                <option value="50" {% if attachment_per_page == 50 %}selected{% endif %}>50</option>
-                <option value="100" {% if attachment_per_page == 100 %}selected{% endif %}>100</option>
-            </select>
-        </form>
+
+            <span style="margin: 0 15px;">Page {{ attachment_page }} of {{ attachment_total_pages }}</span>
+
+            {% if attachment_page < attachment_total_pages %}
+                <a href="{{ url_for('clients.client_billing_details', account_number=client.account_number, year=selected_year, month=selected_month, attachment_page=attachment_page+1, attachment_per_page=attachment_per_page, search=search_query, sort_by=sort_by, sort_order=sort_order) }}" class="button">Next &raquo;</a>
+            {% endif %}
+        {% endif %}
     </div>
+    <form method="get" action="{{ url_for('clients.client_billing_details', account_number=client.account_number) }}" style="display: flex; align-items: center; gap: 10px;">
+        <input type="hidden" name="year" value="{{ selected_year }}">
+        <input type="hidden" name="month" value="{{ selected_month }}">
+        <input type="hidden" name="search" value="{{ search_query }}">
+        <input type="hidden" name="sort_by" value="{{ sort_by }}">
+        <input type="hidden" name="sort_order" value="{{ sort_order }}">
+        <label for="attachment_per_page" style="white-space: nowrap;">Attachments per page:</label>
+        <select name="attachment_per_page" id="attachment_per_page">
+            <option value="10" {% if attachment_per_page == 10 %}selected{% endif %}>10</option>
+            <option value="20" {% if attachment_per_page == 20 %}selected{% endif %}>20</option>
+            <option value="50" {% if attachment_per_page == 50 %}selected{% endif %}>50</option>
+            <option value="100" {% if attachment_per_page == 100 %}selected{% endif %}>100</option>
+        </select>
+    </form>
 </div>
