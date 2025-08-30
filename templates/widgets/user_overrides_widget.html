@@ -1,0 +1,60 @@
+<div class="grid-stack-item-content form-section">
+    <h2>User Billing Overrides</h2>
+    <form method="POST" action="{{ url_for('client_settings', account_number=client.account_number) }}">
+        <table class="item-table">
+            <thead><tr><th>Full Name</th><th>Employment Type</th><th>Billing Type</th><th>Custom Cost ($)</th></tr></thead>
+            <tbody>
+            {% for user in users %}
+                <tr>
+                    <td>{{ user.full_name }} ({{ user.email }})</td>
+                    <td>
+                        <select name="user_employment_type_{{ user.id }}">
+                            <option value="" {% if not user_overrides[user.id] or not user_overrides[user.id].employment_type %}selected{% endif %}>-- Default ({{ user.default_employment_type or 'Full Time' }}) --</option>
+                            <option value="Full Time" {% if user_overrides[user.id] and user_overrides[user.id].employment_type == 'Full Time' %}selected{% endif %}>Full Time</option>
+                            <option value="Part Time" {% if user_overrides[user.id] and user_overrides[user.id].employment_type == 'Part Time' %}selected{% endif %}>Part Time</option>
+                        </select>
+                    </td>
+                    <td>
+                        <select name="user_billing_type_{{ user.id }}">
+                            <option value="" {% if not user_overrides[user.id] %}selected{% endif %}>-- Default (Paid) --</option>
+                            <option value="Paid" {% if user_overrides[user.id] and user_overrides[user.id].billing_type == 'Paid' %}selected{% endif %}>Paid</option>
+                            <option value="No Charge" {% if user_overrides[user.id] and user_overrides[user.id].billing_type == 'No Charge' %}selected{% endif %}>No Charge</option>
+                            <option value="Custom" {% if user_overrides[user.id] and user_overrides[user.id].billing_type == 'Custom' %}selected{% endif %}>Custom Cost</option>
+                        </select>
+                    </td>
+                    <td><input type="number" step="0.01" name="user_custom_cost_{{ user.id }}" placeholder="0.00" value="{{ user_overrides[user.id].custom_cost if user_overrides[user.id] and user_overrides[user.id].custom_cost is not none }}"></td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <h3 style="margin-top: 20px;">Manually Added Users</h3>
+        <table class="item-table">
+             <thead><tr><th>Full Name</th><th>Source</th><th>Billing Type</th><th>Cost</th><th>Actions</th></tr></thead>
+            <tbody>
+            {% for user in manual_users %}
+                <tr>
+                    <td>{{ user.full_name }}</td>
+                    <td>MANUAL</td>
+                    <td>{{ user.billing_type }}</td>
+                    <td>${{ "%.2f"|format(user.custom_cost|float) if user.custom_cost is not none else '0.00' }}</td>
+                    <td>
+                        <button type="button" class="icon-button edit edit-manual-user"
+                            data-user-id="{{ user.id }}"
+                            data-full-name="{{ user.full_name }}"
+                            data-billing-type="{{ user.billing_type }}"
+                            data-custom-cost="{{ user.custom_cost if user.custom_cost is not none else '' }}">
+                            <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
+                        </button>
+                         <a href="{{ url_for('client_settings', account_number=client.account_number, delete_manual_user=user.id) }}" class="icon-button delete" onclick="return confirm('Are you sure?')">
+                            <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
+                        </a>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+         </table>
+         <div class="button-container">
+            <button type="submit" name="action" value="save_overrides">Save All Overrides</button>
+        </div>
+    </form>
+</div>

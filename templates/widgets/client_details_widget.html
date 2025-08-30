@@ -1,0 +1,11 @@
+<div class="grid-stack-item-content">
+    <h2>Client Details</h2>
+    <p><strong>Account Number:</strong> {{ client.account_number }}</p>
+    <p><strong>Company Owner:</strong> {{ client.company_owner or 'N/A' }}</p>
+    <p><strong>Assigned Plan:</strong> <span {% if client.billing_plan == 'MSP Platinum' %}id="msp-platinum-plan"{% endif %}>{{ client.billing_plan }}</span></p>
+    <p><strong>Support Level:</strong> {{ support_level_display }}</p>
+    <p><strong>Phone Number:</strong> <a href="tel:{{ client.phone_number }}">{{ client.phone_number or 'N/A' }}</a></p>
+    <p><strong>Domains:</strong> {{ client.domains or 'N/A' }}</p>
+    <p><strong>Business Type:</strong> {{ client.business_type or 'N/A' }}</p>
+    <p><strong>Description:</strong> {{ client.description or 'N/A' }}</p>
+</div>

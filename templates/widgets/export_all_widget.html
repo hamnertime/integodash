@@ -1,0 +1,13 @@
+<div class="grid-stack-item-content">
+    <h2>Export All Invoices</h2>
+    <form action="{{ url_for('export_all_bills_zip') }}" method="POST">
+        <strong>Export for:</strong>
+        <select name="month">
+            {% for month in month_options %}
+                <option value="{{ month.value }}">{{ month.name }}</option>
+            {% endfor %}
+        </select>
+        <input type="number" name="year" value="{{ current_year }}" style="width: 80px;">
+        <button type="submit" class="button">Download ZIP</button>
+    </form>
+</div>

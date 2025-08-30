@@ -1,0 +1,56 @@
+<div class="grid-stack-item-content form-section">
+    <h2>Asset Billing Overrides</h2>
+    <form method="POST" action="{{ url_for('client_settings', account_number=client.account_number) }}">
+        <table class="item-table">
+            <thead><tr><th>Hostname</th><th>Detected Type</th><th>Billing Type</th><th>Custom Cost ($)</th></tr></thead>
+            <tbody>
+            {% for asset in assets %}
+                <tr>
+                    <td>{{ asset.hostname }}</td>
+                    <td>{{ asset.billing_type }}</td>
+                    <td>
+                        <select name="asset_billing_type_{{ asset.id }}">
+                            <option value="" {% if not asset_overrides[asset.id] %}selected{% endif %}>-- Use Detected ({{ asset.billing_type }}) --</option>
+                            <option value="Workstation" {% if asset_overrides[asset.id] and asset_overrides[asset.id].billing_type == 'Workstation' %}selected{% endif %}>Workstation</option>
+                            <option value="Server" {% if asset_overrides[asset.id] and asset_overrides[asset.id].billing_type == 'Server' %}selected{% endif %}>Server</option>
+                            <option value="VM" {% if asset_overrides[asset.id] and asset_overrides[asset.id].billing_type == 'VM' %}selected{% endif %}>VM</option>
+                            <option value="No Charge" {% if asset_overrides[asset.id] and asset_overrides[asset.id].billing_type == 'No Charge' %}selected{% endif %}>No Charge</option>
+                            <option value="Custom" {% if asset_overrides[asset.id] and asset_overrides[asset.id].billing_type == 'Custom' %}selected{% endif %}>Custom Cost</option>
+                        </select>
+                    </td>
+                    <td><input type="number" step="0.01" name="asset_custom_cost_{{ asset.id }}" placeholder="0.00" value="{{ asset_overrides[asset.id].custom_cost if asset_overrides[asset.id] and asset_overrides[asset.id].custom_cost is not none }}"></td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <h3 style="margin-top: 20px;">Manually Added Assets</h3>
+         <table class="item-table">
+            <thead><tr><th>Hostname</th><th>Source</th><th>Billing Type</th><th>Cost</th><th>Actions</th></tr></thead>
+            <tbody>
+            {% for asset in manual_assets %}
+                <tr>
+                    <td>{{ asset.hostname }}</td>
+                    <td>MANUAL</td>
+                    <td>{{ asset.billing_type }}</td>
+                    <td>${{ "%.2f"|format(asset.custom_cost|float) if asset.custom_cost is not none else '0.00' }}</td>
+                    <td>
+                         <button type="button" class="icon-button edit edit-manual-asset"
+                            data-asset-id="{{ asset.id }}"
+                            data-hostname="{{ asset.hostname }}"
+                            data-billing-type="{{ asset.billing_type }}"
+                            data-custom-cost="{{ asset.custom_cost if asset.custom_cost is not none else '' }}">
+                            <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
+                        </button>
+                        <a href="{{ url_for('client_settings', account_number=client.account_number, delete_manual_asset=asset.id) }}" class="icon-button delete" onclick="return confirm('Are you sure?')">
+                            <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
+                        </a>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+         </table>
+         <div class="button-container">
+            <button type="submit" name="action" value="save_overrides">Save All Overrides</button>
+        </div>
+    </form>
+</div>

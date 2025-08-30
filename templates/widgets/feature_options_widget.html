@@ -1,0 +1,50 @@
+<div class="grid-stack-item-content form-section">
+    <h2>Add New Feature Category</h2>
+    <form method="POST" action="{{ url_for('add_feature_type') }}" class="add-plan-form full-width">
+        <input type="text" name="feature_type" placeholder="New Feature Category Name" required>
+        <button type="submit">Add Category</button>
+    </form>
+    <h2>Feature Options Management</h2>
+    <div class="feature-options-grid">
+        {% for feature_type, options in feature_options.items() %}
+        <div class="feature-type-card">
+            <h4>
+                <span>{{ feature_type }}</span>
+                <div>
+                    <button class="icon-button add add-feature-option" data-feature-type="{{ feature_type }}">
+                        <svg viewBox="0 0 24 24"><path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" /></svg>
+                    </button>
+                    <button class="icon-button edit edit-feature-type" data-feature-type="{{ feature_type }}">
+                        <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
+                    </button>
+                    <form action="{{ url_for('delete_feature_type') }}" method="POST" onsubmit="return confirm('Are you sure?')" style="display:inline;">
+                        <input type="hidden" name="feature_type" value="{{ feature_type }}">
+                        <button type="submit" class="icon-button delete">
+                            <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
+                        </button>
+                    </form>
+                </div>
+            </h4>
+            <table class="plan-table">
+                <tbody>
+                    {% for option in options %}
+                    <tr>
+                        <td>{{ option.option_name }}</td>
+                        <td class="action-cell">
+                            <button class="icon-button edit edit-feature-option" data-option-id="{{ option.id }}" data-option-name="{{ option.option_name }}">
+                                <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
+                            </button>
+                            <form action="{{ url_for('delete_feature_option', option_id=option.id) }}" method="POST" onsubmit="return confirm('Are you sure?')" style="display:inline;">
+                                <button type="submit" class="icon-button delete">
+                                    <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
+    </div>
+</div>

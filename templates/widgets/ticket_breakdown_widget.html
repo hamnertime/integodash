@@ -1,0 +1,21 @@
+<div class="grid-stack-item-content">
+    <h2>Ticket Breakdown for Billing Period ({{ selected_billing_period }})</h2>
+    <details>
+        <summary>View Tickets ({{ tickets_for_billing_period|length }})</summary>
+        <table>
+            <thead><tr><th>Ticket ID</th><th>Subject</th><th>Date Closed</th><th>Total Hours</th></tr></thead>
+            <tbody>
+                {% for ticket in tickets_for_billing_period %}
+                <tr>
+                    <td><a href="https://integotecllc.freshservice.com/a/tickets/{{ ticket.ticket_id }}" target="_blank">#{{ ticket.ticket_id }}</a></td>
+                    <td>{{ ticket.subject }}</td>
+                    <td>{{ ticket.closed_at | humanize if ticket.closed_at else 'Still Open' }}</td>
+                    <td>{{ "%.2f"|format(ticket.total_hours_spent) }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4">No tickets with time entries found for this period.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </details>
+</div>

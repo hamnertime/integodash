@@ -1,0 +1,35 @@
+div class=grid-stack-item-content form-section
+    h2Automated Sync Schedulerh2
+    pConfigure and monitor the background data sync jobs. strongNotestrong You must restart the application for changes to interval or enabled status to take effect.p
+    table class=plan-table
+        thead
+            tr
+                th style=text-align left;Job Nameth
+                thSchedule (minutes)th
+                thEnabledth
+                thLast Runth
+                thStatusth
+                th class=action-cellActionsth
+            tr
+        thead
+        tbody
+            {% for job in scheduler_jobs %}
+            tr
+                td style=text-align left;{{ job.job_name }}td
+                form action={{ url_for('update_scheduler_job', job_id=job.id) }} method=post style=display contents;
+                    tdinput type=number name=interval_minutes value={{ job.interval_minutes }} style=width 80px; text-align center;td
+                    tdinput type=checkbox name=enabled {% if job.enabled %}checked{% endif %} onchange=this.form.submit()td
+                form
+                td{{ job.last_run or 'Never' }}td
+                td style=font-weight bold; color {{ 'green' if job.last_status == 'Success' else '#dc3545' }}{{ job.last_status or 'NA' }}td
+                td class=action-cell
+                    form action={{ url_for('run_now', job_id=job.id) }} method=post style=displayinline-block; margin-right 10px;
+                        button type=submitRun Nowbutton
+                    form
+                    button class=view-log data-job-id={{ job.id }} data-job-name={{ job.job_name }}View Logbutton
+                td
+            tr
+            {% endfor %}
+        tbody
+    table
+div

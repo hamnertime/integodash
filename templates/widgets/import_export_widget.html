@@ -1,0 +1,13 @@
+<div class="grid-stack-item-content form-section">
+    <h2>Import / Export Settings</h2>
+    <p>You can export all default billing plans and client-specific overrides to a single JSON file. This is useful for backups or migrating to a new instance. Importing will overwrite all existing settings.</p>
+    <div style="display: flex; gap: 20px; margin-top: 20px;">
+        <a href="{{ url_for('export_settings') }}" class="button">Export All Settings</a>
+        <form action="{{ url_for('import_settings') }}" method="post" enctype="multipart/form-data" onsubmit="return confirm('Are you sure you want to import settings? This will overwrite all existing billing plans and client overrides.');" class="upload-form">
+            <input type="file" name="file" id="file-import" accept=".json" required>
+            <label for="file-import" class="file-upload-label">Browse...</label>
+            <span id="file-name-display">No file selected</span>
+            <button type="submit" class="button danger">Import Settings</button>
+        </form>
+    </div>
+</div>

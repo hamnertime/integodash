@@ -1,0 +1,8 @@
+<div class="grid-stack-item-content">
+    <h2>Locations</h2>
+    {% for location in locations %}
+        <p><strong>{{ location.location_name }}:</strong> {{ location.address or 'N/A' }}</p>
+    {% else %}
+        <p>No locations have been added for this client.</p>
+    {% endfor %}
+</div>
