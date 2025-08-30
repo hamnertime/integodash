@@ -1,15 +1,27 @@
 function initializeGrid(pageName, savedLayout, defaultLayout) {
     const grid = GridStack.init({
         minW: 2,
-        minH: 2
+        minH: 2,
+        // Prevent dragging from starting on elements with the 'gs-no-drag' class
+        draggable: {
+            cancel: '.gs-no-drag'
+        }
     });
     window.grid = grid; // Make it global for other scripts to access
 
-    if (savedLayout) {
-        grid.load(savedLayout, true);
-    } else if (defaultLayout) {
-        grid.load(defaultLayout, true);
+    try {
+        if (savedLayout) {
+            grid.load(savedLayout, true);
+        } else if (defaultLayout) {
+            grid.load(defaultLayout, true);
+        }
+    } catch (error) {
+        console.error("Error loading saved layout. Falling back to default.", error);
+        if (defaultLayout) {
+            grid.load(defaultLayout, true);
+        }
     }
+
 
     const saveGridState = () => {
         const layout = grid.save(false);
