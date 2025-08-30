@@ -194,7 +194,7 @@
 
         <div class="grid-stack-item" gs-id="attachments-widget" gs-w="6" gs-h="4">
             <div class="grid-stack-item-content">
-                <div class="form-section">
+                <div class="form-section" id="attachments-section">
                     <h2>Client Attachments</h2>
                     <div class="attachment-controls">
                         <form method="POST" action="{{ url_for('clients.upload_file', account_number=client.account_number) }}" enctype="multipart/form-data" class="upload-form">
@@ -425,25 +425,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    if (notesTableContainer) {
-        notesTableContainer.addEventListener('click', function(event) {
-            const target = event.target.closest('a');
-            if (target && target.closest('.pagination')) {
-                event.preventDefault();
-                const url = new URL(target.href);
-                notesState.page = new URLSearchParams(url.search).get('page');
-                fetchNotes();
-            }
-        });
-        notesTableContainer.addEventListener('change', function(event) {
-            if (event.target.id === 'per_page') {
-                notesState.per_page = event.target.value;
-                notesState.page = 1;
-                fetchNotes();
-            }
-        });
-    }
-
     if (attachmentSearchInput) {
         attachmentSearchInput.addEventListener('input', function(event) {
             clearTimeout(attachmentsSearchTimeout);
@@ -455,12 +436,54 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    const editNoteModal = document.getElementById('editNoteModal');
+    const editAttachmentModal = document.getElementById('editAttachmentModal');
+    const attachmentPreviewModal = document.getElementById('attachmentPreviewModal');
+
+    if (notesTableContainer) {
+        notesTableContainer.addEventListener('click', function(event) {
+            const paginationLink = event.target.closest('.pagination a');
+            const editButton = event.target.closest('.edit-note');
+
+            if (paginationLink) {
+                event.preventDefault();
+                const url = new URL(paginationLink.href);
+                notesState.page = new URLSearchParams(url.search).get('page');
+                fetchNotes();
+            }
+
+            if (editButton) {
+                event.preventDefault();
+                const noteId = editButton.dataset.noteId;
+                const noteContent = editButton.dataset.noteContent;
+                const editNoteForm = document.getElementById('editNoteForm');
+                const modalNoteContent = document.getElementById('modalNoteContent');
+
+                editNoteForm.action = `{{ url_for('clients.edit_note', account_number=client.account_number, note_id=0) }}`.replace('0', noteId);
+                modalNoteContent.value = noteContent;
+                editNoteModal.style.display = 'block';
+            }
+        });
+
+        notesTableContainer.addEventListener('change', function(event) {
+            if (event.target.id === 'per_page') {
+                notesState.per_page = event.target.value;
+                notesState.page = 1;
+                fetchNotes();
+            }
+        });
+    }
+
     if (attachmentsTableContainer) {
         attachmentsTableContainer.addEventListener('click', function(event) {
-            const target = event.target.closest('a');
-            if (target && target.classList.contains('sort-link')) {
+            const sortLink = event.target.closest('a.sort-link');
+            const paginationLink = event.target.closest('.pagination a');
+            const editButton = event.target.closest('.edit-attachment');
+            const previewLink = event.target.closest('.preview-attachment');
+
+            if (sortLink) {
                 event.preventDefault();
-                const column = target.dataset.sort;
+                const column = sortLink.dataset.sort;
                 if (attachmentsState.sort_by === column) {
                     attachmentsState.sort_order = attachmentsState.sort_order === 'asc' ? 'desc' : 'asc';
                 } else {
@@ -468,11 +491,67 @@ document.addEventListener('DOMContentLoaded', function() {
                     attachmentsState.sort_order = 'asc';
                 }
                 fetchAttachments();
-            } else if (target && target.closest('.pagination')) {
+            } else if (paginationLink) {
                 event.preventDefault();
-                const url = new URL(target.href);
+                const url = new URL(paginationLink.href);
                 attachmentsState.page = new URLSearchParams(url.search).get('attachment_page');
                 fetchAttachments();
+            } else if (editButton) {
+                event.preventDefault();
+                const editAttachmentForm = document.getElementById('editAttachmentForm');
+                const modalOriginalFilename = document.getElementById('modalOriginalFilename');
+                const modalCategory = document.getElementById('modalCategory');
+                const attachmentId = editButton.dataset.attachmentId;
+                const originalFilename = editButton.dataset.originalFilename;
+                const category = editButton.dataset.category;
+
+                editAttachmentForm.action = `{{ url_for('clients.edit_attachment', account_number=client.account_number, attachment_id=0) }}`.replace('0', attachmentId);
+                modalOriginalFilename.value = originalFilename;
+                modalCategory.value = category;
+                editAttachmentModal.style.display = 'block';
+            } else if (previewLink) {
+                event.preventDefault();
+                const previewModalTitle = document.getElementById('previewModalTitle');
+                const previewModalContent = document.getElementById('previewModalContent');
+                const url = previewLink.dataset.url;
+                const filename = previewLink.dataset.filename;
+                const fileExtension = filename.split('.').pop().toLowerCase();
+                const imageExtensions = ['png', 'jpg', 'jpeg', 'gif'];
+
+                previewModalTitle.textContent = filename;
+                previewModalContent.innerHTML = '';
+
+                if (imageExtensions.includes(fileExtension)) {
+                    const img = document.createElement('img');
+                    img.src = url;
+                    img.style.maxWidth = '100%';
+                    img.style.maxHeight = '80vh';
+                    previewModalContent.appendChild(img);
+                } else if (fileExtension === 'txt') {
+                    fetch(url)
+                        .then(response => response.text())
+                        .then(text => {
+                            const pre = document.createElement('pre');
+                            pre.textContent = text;
+                            previewModalContent.appendChild(pre);
+                        });
+                } else if (fileExtension === 'pdf') {
+                    fetch(url)
+                        .then(response => response.blob())
+                        .then(blob => {
+                            const objectUrl = URL.createObjectURL(blob);
+                            const iframe = document.createElement('iframe');
+                            iframe.src = objectUrl;
+                            iframe.style.width = '100%';
+                            iframe.style.height = '80vh';
+                            iframe.frameborder = "0";
+                            previewModalContent.appendChild(iframe);
+                        });
+                } else {
+                    window.open(url, '_blank');
+                    return;
+                }
+                attachmentPreviewModal.style.display = 'block';
             }
         });
 
@@ -488,128 +567,21 @@ document.addEventListener('DOMContentLoaded', function() {
     fetchNotes();
     fetchAttachments();
 
-    const editNoteModal = document.getElementById('editNoteModal');
-    if (editNoteModal) {
-        const closeButton = editNoteModal.querySelector('.close-button');
-        const editNoteForm = document.getElementById('editNoteForm');
-        const modalNoteContent = document.getElementById('modalNoteContent');
-
-        document.getElementById('notes-widget').addEventListener('click', function(e) {
-            const editButton = e.target.closest('.edit-note');
-            if (editButton) {
-                e.preventDefault();
-                const noteId = editButton.dataset.noteId;
-                const noteContent = editButton.dataset.noteContent;
-
-                editNoteForm.action = `{{ url_for('clients.edit_note', account_number=client.account_number, note_id=0) }}`.replace('0', noteId);
-                modalNoteContent.value = noteContent;
-                editNoteModal.style.display = 'block';
-            }
-        });
-
-        closeButton.onclick = function() {
-            editNoteModal.style.display = 'none';
-        }
-
-        window.onclick = function(event) {
-            if (event.target == editNoteModal) {
-                editNoteModal.style.display = 'none';
-            }
-        }
-    }
-
-    const editAttachmentModal = document.getElementById('editAttachmentModal');
-    const closeAttachmentButton = editAttachmentModal.querySelector('.close-button');
-    const editAttachmentForm = document.getElementById('editAttachmentForm');
-    const modalOriginalFilename = document.getElementById('modalOriginalFilename');
-    const modalCategory = document.getElementById('modalCategory');
-
-    document.getElementById('attachments-widget').addEventListener('click', function(e) {
-        const editButton = e.target.closest('.edit-attachment');
-        if (editButton) {
-            e.preventDefault();
-            const attachmentId = editButton.dataset.attachmentId;
-            const originalFilename = editButton.dataset.originalFilename;
-            const category = editButton.dataset.category;
-
-            editAttachmentForm.action = `{{ url_for('clients.edit_attachment', account_number=client.account_number, attachment_id=0) }}`.replace('0', attachmentId);
-            modalOriginalFilename.value = originalFilename;
-            modalCategory.value = category;
-            editAttachmentModal.style.display = 'block';
+    // Generic Modal Closing Logic
+    document.querySelectorAll('.modal').forEach(modal => {
+        const closeButton = modal.querySelector('.close-button');
+        if (closeButton) {
+            closeButton.addEventListener('click', () => {
+                modal.style.display = 'none';
+            });
         }
     });
 
-    closeAttachmentButton.onclick = function() {
-        editAttachmentModal.style.display = 'none';
-    }
-
-    window.onclick = function(event) {
-        if (event.target == editAttachmentModal) {
-            editAttachmentModal.style.display = 'none';
-        }
-    }
-
-    const attachmentPreviewModal = document.getElementById('attachmentPreviewModal');
-    const previewModalTitle = document.getElementById('previewModalTitle');
-    const previewModalContent = document.getElementById('previewModalContent');
-    const closePreviewButton = attachmentPreviewModal.querySelector('.close-button');
-
-    document.getElementById('attachments-widget').addEventListener('click', function(e) {
-        const previewLink = e.target.closest('.preview-attachment');
-        if (previewLink) {
-            e.preventDefault();
-            const url = previewLink.dataset.url;
-            const filename = previewLink.dataset.filename;
-            const fileExtension = filename.split('.').pop().toLowerCase();
-            const imageExtensions = ['png', 'jpg', 'jpeg', 'gif'];
-
-            previewModalTitle.textContent = filename;
-            previewModalContent.innerHTML = '';
-
-            if (imageExtensions.includes(fileExtension)) {
-                const img = document.createElement('img');
-                img.src = url;
-                img.style.maxWidth = '100%';
-                img.style.maxHeight = '80vh';
-                previewModalContent.appendChild(img);
-            } else if (fileExtension === 'txt') {
-                fetch(url)
-                    .then(response => response.text())
-                    .then(text => {
-                        const pre = document.createElement('pre');
-                        pre.textContent = text;
-                        previewModalContent.appendChild(pre);
-                    });
-            } else if (fileExtension === 'pdf') {
-                fetch(url)
-                    .then(response => response.blob())
-                    .then(blob => {
-                        const objectUrl = URL.createObjectURL(blob);
-                        const iframe = document.createElement('iframe');
-                        iframe.src = objectUrl;
-                        iframe.style.width = '100%';
-                        iframe.style.height = '80vh';
-                        iframe.frameborder = "0";
-                        previewModalContent.appendChild(iframe);
-                    });
-            } else {
-                window.open(url, '_blank');
-                return;
-            }
-
-            attachmentPreviewModal.style.display = 'block';
+    window.addEventListener('click', (event) => {
+        if (event.target.classList.contains('modal')) {
+            event.target.style.display = 'none';
         }
     });
-
-    closePreviewButton.onclick = function() {
-        attachmentPreviewModal.style.display = 'none';
-    }
-
-    window.onclick = function(event) {
-        if (event.target == attachmentPreviewModal) {
-            attachmentPreviewModal.style.display = 'none';
-        }
-    }
 
     document.getElementById('attachments-widget').addEventListener('change', function(event) {
         if (event.target.id === 'file-upload') {
