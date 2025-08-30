@@ -1,0 +1,61 @@
+# utils.py
+import markdown
+import bleach
+from datetime import datetime, timezone
+from flask import session
+from database import query_db
+
+def humanize_time(dt_str):
+    if not dt_str: return "N/A"
+    try:
+        dt = datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
+    except (ValueError, TypeError):
+        return dt_str
+    now = datetime.now(timezone.utc)
+    delta = now - dt
+    if delta.days > 0: return f"{delta.days}d ago"
+    if delta.seconds >= 3600: return f"{delta.seconds // 3600}h ago"
+    if delta.seconds >= 60: return f"{delta.seconds // 60}m ago"
+    return "Just now"
+
+def format_date_usa(date_str):
+    """Formats an ISO date string to MM/DD/YYYY format."""
+    if not date_str or date_str in ["N/A", "Month to Month", "Invalid Start Date"]:
+        return date_str
+    try:
+        date_obj = datetime.fromisoformat(date_str.split('T')[0])
+        return date_obj.strftime('%m/%d/%Y')
+    except (ValueError, TypeError):
+        return date_str
+
+def filesizeformat(value, binary=False):
+    """Formats a file size."""
+    if value is None:
+        return '0 Bytes'
+    return '{:.1f} {}'.format(value / 1024, 'KiB') if value < 1024*1024 else '{:.1f} {}'.format(value / (1024*1024), 'MiB')
+
+def to_markdown(text):
+    """Converts a string of text to markdown and sanitizes it."""
+    if not text:
+        return ""
+    allowed_tags = ['p', 'b', 'i', 'strong', 'em', 'br', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'pre', 'code', 'a', 'blockquote']
+    allowed_attrs = {'a': ['href', 'title']}
+    html = markdown.markdown(text, extensions=['fenced_code', 'tables'])
+    clean_html = bleach.clean(html, tags=allowed_tags, attributes=allowed_attrs)
+    return clean_html
+
+def register_template_filters(app):
+    app.template_filter('humanize')(humanize_time)
+    app.template_filter('usa_date')(format_date_usa)
+    app.template_filter('filesizeformat')(filesizeformat)
+    app.template_filter('markdown')(to_markdown)
+
+def inject_custom_links():
+    from main import app
+    if app.config.get('DB_PASSWORD') and 'user_id' in session:
+        try:
+            links = query_db("SELECT * FROM custom_links ORDER BY link_order")
+            return dict(custom_links=links)
+        except Exception:
+            return dict(custom_links=[])
+    return dict(custom_links=[])

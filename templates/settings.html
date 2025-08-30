@@ -16,8 +16,8 @@
                 <h2>Import / Export Settings</h2>
                 <p>You can export all default billing plans and client-specific overrides to a single JSON file. This is useful for backups or migrating to a new instance. Importing will overwrite all existing settings.</p>
                 <div style="display: flex; gap: 20px; margin-top: 20px;">
-                    <a href="{{ url_for('export_settings') }}" class="button">Export All Settings</a>
-                    <form action="{{ url_for('import_settings') }}" method="post" enctype="multipart/form-data" onsubmit="return confirm('Are you sure you want to import settings? This will overwrite all existing billing plans and client overrides.');" class="upload-form">
+                    <a href="{{ url_for('settings.export_settings') }}" class="button">Export All Settings</a>
+                    <form action="{{ url_for('settings.import_settings') }}" method="post" enctype="multipart/form-data" onsubmit="return confirm('Are you sure you want to import settings? This will overwrite all existing billing plans and client overrides.');" class="upload-form">
                         <input type="file" name="file" id="file-import" accept=".json" required>
                         <label for="file-import" class="file-upload-label">Browse...</label>
                         <span id="file-name-display">No file selected</span>
@@ -46,14 +46,14 @@
                         {% for job in scheduler_jobs %}
                         <tr>
                             <td style="text-align: left;">{{ job.job_name }}</td>
-                            <form action="{{ url_for('update_scheduler_job', job_id=job.id) }}" method="post" style="display: contents;">
+                            <form action="{{ url_for('settings.update_scheduler_job', job_id=job.id) }}" method="post" style="display: contents;">
                                 <td><input type="number" name="interval_minutes" value="{{ job.interval_minutes }}" style="width: 80px; text-align: center;"></td>
                                 <td><input type="checkbox" name="enabled" {% if job.enabled %}checked{% endif %} onchange="this.form.submit()"></td>
                             </form>
                             <td>{{ job.last_run or 'Never' }}</td>
                             <td style="font-weight: bold; color: {{ 'green' if job.last_status == 'Success' else '#dc3545' }}">{{ job.last_status or 'N/A' }}</td>
                             <td class="action-cell">
-                                <form action="{{ url_for('run_now', job_id=job.id) }}" method="post" style="display:inline-block; margin-right: 10px;">
+                                <form action="{{ url_for('settings.run_now', job_id=job.id) }}" method="post" style="display:inline-block; margin-right: 10px;">
                                     <button type="submit">Run Now</button>
                                 </form>
                                 <button class="view-log" data-job-id="{{ job.id }}" data-job-name="{{ job.job_name }}">View Log</button>
@@ -68,7 +68,7 @@
         <div class="grid-stack-item" gs-id="users-auditing-widget" gs-y="4" gs-w="12" gs-h="5">
             <div class="grid-stack-item-content form-section">
                 <h2>Application Users & Auditing</h2>
-                <a href="{{ url_for('view_audit_log') }}" class="button">View Full Audit Log</a>
+                <a href="{{ url_for('settings.view_audit_log') }}" class="button">View Full Audit Log</a>
                 <div class="user-management-grid">
                     <div>
                         <h3>User Accounts</h3>
@@ -85,7 +85,7 @@
                                            <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
                                         </button>
                                         {% if user.id != session.user_id %}
-                                        <form action="{{ url_for('delete_user', user_id=user.id) }}" method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this user?');">
+                                        <form action="{{ url_for('settings.delete_user', user_id=user.id) }}" method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this user?');">
                                             <button type="submit" class="icon-button delete">
                                                 <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
                                             </button>
@@ -97,7 +97,7 @@
                                 {% endfor %}
                             </tbody>
                         </table>
-                        <form method="POST" action="{{ url_for('billing_settings') }}" class="add-plan-form full-width">
+                        <form method="POST" action="{{ url_for('settings.billing_settings') }}" class="add-plan-form full-width">
                             <input type="hidden" name="action" value="add_user">
                             <input type="text" name="username" placeholder="Enter username" required>
                             <select name="role">
@@ -139,7 +139,7 @@
             <div class="grid-stack-item-content">
                 <div class="form-section">
                     <h2>Add New Billing Plan</h2>
-                    <form action="{{ url_for('add_billing_plan') }}" method="POST" class="add-plan-form full-width">
+                    <form action="{{ url_for('settings.add_billing_plan') }}" method="POST" class="add-plan-form full-width">
                         <input type="text" name="new_plan_name" placeholder="Enter New Plan Name" required>
                         <button type="submit">Create Plan</button>
                     </form>
@@ -150,7 +150,7 @@
                     <p>These are the default rates for each billing plan and contract term combination. Client-specific overrides can be set on each client's individual settings page.</p>
                     {% for plan_name, plans in grouped_plans.items() %}
                     <div class="plan-group">
-                        <form method="POST" action="{{ url_for('billing_settings_action') }}">
+                        <form method="POST" action="{{ url_for('settings.billing_settings_action') }}">
                             <input type="hidden" name="plan_name" value="{{ plan_name }}">
                             <div class="plan-group-header">
                                 <h3>{{ plan_name }}</h3>
@@ -241,7 +241,7 @@
                                 <button class="icon-button edit edit-link" data-link-id="{{ link.id }}" data-link-name="{{ link.name }}" data-link-url="{{ link.url }}" data-link-order="{{ link.link_order }}">
                                     <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
                                 </button>
-                                <form action="{{ url_for('delete_link', link_id=link.id) }}" method="POST" style="display: inline;">
+                                <form action="{{ url_for('settings.delete_link', link_id=link.id) }}" method="POST" style="display: inline;">
                                     <button type="submit" class="icon-button delete">
                                         <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
                                     </button>
@@ -251,7 +251,7 @@
                         {% endfor %}
                     </tbody>
                 </table>
-                <form method="POST" action="{{ url_for('add_link') }}" class="add-plan-form full-width">
+                <form method="POST" action="{{ url_for('settings.add_link') }}" class="add-plan-form full-width">
                     <input type="text" name="name" placeholder="Link Name" required>
                     <input type="url" name="url" placeholder="https://example.com" required>
                     <input type="number" name="order" placeholder="Order" value="0">
@@ -263,7 +263,7 @@
         <div class="grid-stack-item" gs-id="feature-options-widget" gs-x="6" gs-y="17" gs-w="6" gs-h="5">
             <div class="grid-stack-item-content form-section">
                 <h2>Add New Feature Category</h2>
-                <form method="POST" action="{{ url_for('add_feature_type') }}" class="add-plan-form full-width">
+                <form method="POST" action="{{ url_for('settings.add_feature_type') }}" class="add-plan-form full-width">
                     <input type="text" name="feature_type" placeholder="New Feature Category Name" required>
                     <button type="submit">Add Category</button>
                 </form>
@@ -280,7 +280,7 @@
                                 <button class="icon-button edit edit-feature-type" data-feature-type="{{ feature_type }}">
                                     <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
                                 </button>
-                                <form action="{{ url_for('delete_feature_type') }}" method="POST" onsubmit="return confirm('Are you sure?')" style="display:inline;">
+                                <form action="{{ url_for('settings.delete_feature_type') }}" method="POST" onsubmit="return confirm('Are you sure?')" style="display:inline;">
                                     <input type="hidden" name="feature_type" value="{{ feature_type }}">
                                     <button type="submit" class="icon-button delete">
                                         <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
@@ -297,7 +297,7 @@
                                         <button class="icon-button edit edit-feature-option" data-option-id="{{ option.id }}" data-option-name="{{ option.option_name }}">
                                             <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>
                                         </button>
-                                        <form action="{{ url_for('delete_feature_option', option_id=option.id) }}" method="POST" onsubmit="return confirm('Are you sure?')" style="display:inline;">
+                                        <form action="{{ url_for('settings.delete_feature_option', option_id=option.id) }}" method="POST" onsubmit="return confirm('Are you sure?')" style="display:inline;">
                                             <button type="submit" class="icon-button delete">
                                                 <svg viewBox="0 0 24 24"><path d="M9,3V4H4V6H5V19C5,20.1 5.9,21 7,21H17C18.1,21 19,20.1 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z" /></svg>
                                             </button>
@@ -386,7 +386,7 @@
             </div>
             <form id="userModalForm" method="POST">
                 <label for="userModalName">Username:</label>
-                <input type="text" name="username" id="userModalName" required style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--input-border); background--color: var(--input-bg); color: var(--text-color); margin-bottom: 10px;">
+                <input type="text" name="username" id="userModalName" required style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--input-border); background-color: var(--input-bg); color: var(--text-color); margin-bottom: 10px;">
                 <label for="userModalRole">Role:</label>
                 <select name="role" id="userModalRole" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--input-border); background-color: var(--input-bg); color: var(--text-color);">
                     <option value="Read-Only">Read-Only</option>
@@ -455,7 +455,7 @@ document.addEventListener('DOMContentLoaded', function() {
             logModalTitle.textContent = `Log for: ${jobName}`;
             logContent.textContent = 'Loading log...';
             logModal.style.display = 'block';
-            fetch(`/scheduler/log/${jobId}`)
+            fetch(`{{ url_for('settings.get_log', job_id=0) }}`.replace('0', jobId))
                 .then(response => response.ok ? response.json() : Promise.reject(response))
                 .then(data => { logContent.textContent = data.log || 'Log is empty or an error occurred.'; })
                 .catch(error => { logContent.textContent = 'Failed to load log: ' + error; });
@@ -466,7 +466,7 @@ document.addEventListener('DOMContentLoaded', function() {
         button.addEventListener('click', function() {
             const featureType = this.dataset.featureType;
             document.getElementById('featureModalTitle').textContent = `Add New ${featureType} Option`;
-            document.getElementById('featureModalForm').action = "{{ url_for('add_feature_option') }}";
+            document.getElementById('featureModalForm').action = "{{ url_for('settings.add_feature_option') }}";
             document.getElementById('featureModalType').value = featureType;
             document.getElementById('featureModalName').value = '';
             featureModal.style.display = 'block';
@@ -478,7 +478,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const optionId = this.dataset.optionId;
             const optionName = this.dataset.optionName;
             document.getElementById('featureModalTitle').textContent = `Edit Option: ${optionName}`;
-            document.getElementById('featureModalForm').action = `/settings/features/edit/${optionId}`;
+            document.getElementById('featureModalForm').action = `{{ url_for('settings.edit_feature_option', option_id=0) }}`.replace('0', optionId);
             document.getElementById('featureModalName').value = optionName;
             featureModal.style.display = 'block';
         });
@@ -488,7 +488,7 @@ document.addEventListener('DOMContentLoaded', function() {
         button.addEventListener('click', function() {
             const featureType = this.dataset.featureType;
             document.getElementById('featureTypeModalTitle').textContent = `Edit Category: ${featureType}`;
-            document.getElementById('featureTypeModalForm').action = "{{ url_for('edit_feature_type') }}";
+            document.getElementById('featureTypeModalForm').action = "{{ url_for('settings.edit_feature_type') }}";
             document.getElementById('originalFeatureType').value = featureType;
             document.getElementById('newFeatureType').value = featureType;
             featureTypeModal.style.display = 'block';
@@ -498,7 +498,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.edit-link').forEach(button => {
         button.addEventListener('click', function() {
             const linkId = this.dataset.linkId;
-            document.getElementById('linkModalForm').action = `/settings/links/edit/${linkId}`;
+            document.getElementById('linkModalForm').action = `{{ url_for('settings.edit_link', link_id=0) }}`.replace('0', linkId);
             document.getElementById('linkModalName').value = this.dataset.linkName;
             document.getElementById('linkModalUrl').value = this.dataset.linkUrl;
             document.getElementById('linkModalOrder').value = this.dataset.linkOrder;
@@ -509,7 +509,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.edit-user').forEach(button => {
         button.addEventListener('click', function() {
             const userId = this.dataset.userId;
-            document.getElementById('userModalForm').action = `/settings/user/edit/${userId}`;
+            document.getElementById('userModalForm').action = `{{ url_for('settings.edit_user', user_id=0) }}`.replace('0', userId);
             document.getElementById('userModalTitle').textContent = `Edit User: ${this.dataset.userName}`;
             document.getElementById('userModalName').value = this.dataset.userName;
             document.getElementById('userModalRole').value = this.dataset.userRole;

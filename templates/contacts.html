@@ -158,24 +158,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const columnChooserModal = document.getElementById('columnChooserModal');
     let searchTimeout;
 
-    function closeModal(modal) {
-        if (modal) {
-            modal.style.display = 'none';
-        }
-    }
-
-    document.querySelectorAll('.close-button').forEach(button => {
-        button.addEventListener('click', (e) => {
-            closeModal(e.target.closest('.modal'));
-        });
-    });
-
-    window.addEventListener('click', (event) => {
-        if (event.target.classList.contains('modal')) {
-            closeModal(event.target);
-        }
-    });
-
     let contactsState = {
         page: 1,
         per_page: 50,
@@ -184,31 +166,38 @@ document.addEventListener('DOMContentLoaded', function () {
         sort_order: 'asc'
     };
 
+    function closeModal(modal) {
+        if (modal) modal.style.display = 'none';
+    }
+
+    document.querySelectorAll('.close-button').forEach(button => {
+        button.addEventListener('click', (e) => closeModal(e.target.closest('.modal')));
+    });
+
+    window.addEventListener('click', (event) => {
+        if (event.target.classList.contains('modal')) closeModal(event.target);
+    });
+
     const fetchContacts = async () => {
-        const url = new URL(`${window.location.origin}/contacts/partial`);
-        url.searchParams.set('page', contactsState.page);
-        url.searchParams.set('per_page', contactsState.per_page);
-        url.searchParams.set('search', contactsState.search_query);
-        url.searchParams.set('sort_by', contactsState.sort_by);
-        url.searchParams.set('sort_order', contactsState.sort_order);
+        // CORRECTED: Construct URL with url_for, but do not wrap in new URL() constructor
+        let url = "{{ url_for('contacts.get_contacts_partial') }}";
+        const params = new URLSearchParams({
+            page: contactsState.page,
+            per_page: contactsState.per_page,
+            search: contactsState.search_query,
+            sort_by: contactsState.sort_by,
+            sort_order: contactsState.sort_order
+        });
+        url = `${url}?${params.toString()}`;
 
         try {
             const response = await fetch(url);
-            if (!response.ok) throw new Error('Network response was not ok');
+            if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
             const html = await response.text();
-
-            const searchInputIsFocused = (document.activeElement === contactSearch);
-            const cursorPosition = contactSearch.selectionStart;
-
             contactsContainer.innerHTML = html;
-
-            if (searchInputIsFocused) {
-                contactSearch.focus();
-                contactSearch.setSelectionRange(cursorPosition, cursorPosition);
-            }
         } catch (error) {
             console.error('Failed to fetch contacts:', error);
-            contactsContainer.innerHTML = '<p class="flash-error">Error loading contacts. Please try refreshing the page.</p>';
+            contactsContainer.innerHTML = `<p class="flash-error">Error loading contacts: ${error.message}. Please try refreshing the page.</p>`;
         }
     };
 
@@ -217,9 +206,7 @@ document.addEventListener('DOMContentLoaded', function () {
             contactsState.search_query = e.target.value;
             contactsState.page = 1;
             clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
-                fetchContacts();
-            }, 300);
+            searchTimeout = setTimeout(() => fetchContacts(), 300);
         });
     }
 
@@ -227,7 +214,7 @@ document.addEventListener('DOMContentLoaded', function () {
         e.preventDefault();
         const formData = new FormData(this);
         try {
-            const response = await fetch('/save_column_prefs/contacts', {
+            const response = await fetch("{{ url_for('settings.save_column_prefs', page_name='contacts') }}", {
                 method: 'POST',
                 body: formData
             });
@@ -249,24 +236,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (event.target.closest('#add-contact-btn')) {
             modalTitle.textContent = 'Add New Contact';
-            form.action = "{{ url_for('add_contact') }}";
+            form.action = "{{ url_for('contacts.add_contact') }}";
             form.reset();
             modal.style.display = 'block';
         }
 
-        if (event.target.closest('#column-chooser-btn')) {
-            columnChooserModal.style.display = 'block';
-        }
-
-        if (event.target.closest('#refresh-btn')) {
-            fetchContacts();
-        }
+        if (event.target.closest('#column-chooser-btn')) columnChooserModal.style.display = 'block';
+        if (event.target.closest('#refresh-btn')) fetchContacts();
 
         if (contactsContainer.contains(event.target)) {
             const sortLink = event.target.closest('.sort-link');
-            const paginationLink = event.target.closest('.pagination-link');
-            const editButton = event.target.closest('.edit-contact');
-
             if (sortLink) {
                 event.preventDefault();
                 const column = sortLink.dataset.sort;
@@ -277,13 +256,19 @@ document.addEventListener('DOMContentLoaded', function () {
                     contactsState.sort_order = 'asc';
                 }
                 fetchContacts();
-            } else if (paginationLink) {
+            }
+
+            const paginationLink = event.target.closest('.pagination-link');
+            if (paginationLink) {
                 event.preventDefault();
                 contactsState.page = paginationLink.dataset.page;
                 fetchContacts();
-            } else if (editButton) {
+            }
+
+            const editButton = event.target.closest('.edit-contact');
+            if (editButton) {
                 modalTitle.textContent = 'Edit Contact';
-                form.action = `/contacts/edit/${editButton.dataset.contactId}`;
+                form.action = `{{ url_for('contacts.edit_contact', contact_id=0) }}`.replace('0', editButton.dataset.contactId);
                 document.getElementById('first_name').value = editButton.dataset.firstName;
                 document.getElementById('last_name').value = editButton.dataset.lastName;
                 document.getElementById('email').value = editButton.dataset.email;
@@ -309,6 +294,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    // Initial load of the table data
     fetchContacts();
 });
 </script>

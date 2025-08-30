@@ -16,7 +16,7 @@
                     <a href="{{ datto_portal_url }}" class="button" target="_blank">View in Datto RMM</a>
                 {% endif %}
                 <div style="display: flex; align-items: center; gap: 10px; margin-left: auto;">
-                    <form method="get" action="{{ url_for('client_billing_details', account_number=client.account_number) }}" style="display: flex; align-items: center; gap: 10px; flex-wrap: nowrap;">
+                    <form method="get" action="{{ url_for('clients.client_billing_details', account_number=client.account_number) }}" style="display: flex; align-items: center; gap: 10px; flex-wrap: nowrap;">
                         <label for="billing_month" style="white-space: nowrap;"><strong>Select Billing Period:</strong></label>
                         <select name="month" id="billing_month" onchange="this.form.submit()">
                             {% for option in month_options %}
@@ -25,7 +25,7 @@
                         </select>
                         <input type="hidden" name="year" value="{{ selected_year }}">
                     </form>
-                    <a href="{{ url_for('export_quickbooks_csv', account_number=client.account_number, year=selected_year, month=selected_month) }}" class="button">Export to QuickBooks (CSV)</a>
+                    <a href="{{ url_for('clients.export_quickbooks_csv', account_number=client.account_number, year=selected_year, month=selected_month) }}" class="button">Export to QuickBooks (CSV)</a>
                 </div>
             </div>
         </div>
@@ -82,7 +82,7 @@
                 <p><strong>Contract End Date:</strong> <span class="{% if contract_expired %}contract-expired-pulse{% endif %}">{{ contract_end_date | usa_date }}</span></p>
                 {% for attachment in attachments %}
                     {% if attachment.category == 'Contracts' %}
-                        <p><strong>Contract:</strong> <a href="#" class="preview-attachment" data-url="{{ url_for('download_file', account_number=client.account_number, filename=attachment.stored_filename) }}" data-filename="{{ attachment.original_filename }}">{{ attachment.original_filename }}</a></p>
+                        <p><strong>Contract:</strong> <a href="#" class="preview-attachment" data-url="{{ url_for('clients.download_file', account_number=client.account_number, filename=attachment.stored_filename) }}" data-filename="{{ attachment.original_filename }}">{{ attachment.original_filename }}</a></p>
                     {% endif %}
                 {% endfor %}
             </div>
@@ -321,29 +321,18 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     const fetchNotes = async () => {
-        const url = new URL(`${window.location.origin}/client/{{ client.account_number }}/notes`);
-        url.searchParams.set('page', notesState.page);
-        url.searchParams.set('per_page', notesState.per_page);
-        url.searchParams.set('search_notes', notesState.search_query);
+        let url = `{{ url_for('clients.get_notes_partial', account_number=client.account_number) }}`;
+        const params = new URLSearchParams({
+            page: notesState.page,
+            per_page: notesState.per_page,
+            search_notes: notesState.search_query
+        });
+        url = `${url}?${params.toString()}`;
         try {
             const response = await fetch(url);
             if (!response.ok) throw new Error('Network response was not ok');
             const html = await response.text();
-            const searchInput = notesSection.querySelector('#notes-search');
-            const currentSearchValue = searchInput ? searchInput.value : '';
-            const cursorPosition = searchInput ? searchInput.selectionStart : 0;
-            const searchInputIsFocused = (document.activeElement === searchInput);
-
             notesSection.innerHTML = html;
-
-            const newSearchInput = notesSection.querySelector('#notes-search');
-            if (newSearchInput) {
-                newSearchInput.value = currentSearchValue;
-                if (searchInputIsFocused) {
-                    newSearchInput.focus();
-                    newSearchInput.setSelectionRange(cursorPosition, cursorPosition);
-                }
-            }
         } catch (error) {
             console.error('Failed to fetch notes:', error);
             notesSection.innerHTML = '<p class="flash-error">Error loading notes. Please try refreshing the page.</p>';
@@ -351,31 +340,20 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     const fetchAttachments = async () => {
-        const url = new URL(`${window.location.origin}/client/{{ client.account_number }}/attachments`);
-        url.searchParams.set('attachment_page', attachmentsState.page);
-        url.searchParams.set('attachment_per_page', attachmentsState.per_page);
-        url.searchParams.set('search', attachmentsState.search_query);
-        url.searchParams.set('sort_by', attachmentsState.sort_by);
-        url.searchParams.set('sort_order', attachmentsState.sort_order);
+        let url = `{{ url_for('clients.get_attachments_partial', account_number=client.account_number) }}`;
+        const params = new URLSearchParams({
+            attachment_page: attachmentsState.page,
+            attachment_per_page: attachmentsState.per_page,
+            search: attachmentsState.search_query,
+            sort_by: attachmentsState.sort_by,
+            sort_order: attachmentsState.sort_order
+        });
+        url = `${url}?${params.toString()}`;
         try {
             const response = await fetch(url);
             if (!response.ok) throw new Error('Network response was not ok');
             const html = await response.text();
-            const searchInput = attachmentsSection.querySelector('#attachment-search');
-            const currentSearchValue = searchInput ? searchInput.value : '';
-            const cursorPosition = searchInput ? searchInput.selectionStart : 0;
-            const searchInputIsFocused = (document.activeElement === searchInput);
-
             attachmentsSection.innerHTML = html;
-
-            const newSearchInput = attachmentsSection.querySelector('#attachment-search');
-            if (newSearchInput) {
-                newSearchInput.value = currentSearchValue;
-                if (searchInputIsFocused) {
-                    newSearchInput.focus();
-                    newSearchInput.setSelectionRange(cursorPosition, cursorPosition);
-                }
-            }
         } catch (error) {
             console.error('Failed to fetch attachments:', error);
             attachmentsSection.innerHTML = '<p class="flash-error">Error loading attachments. Please try refreshing the page.</p>';
@@ -444,11 +422,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Initial load
     fetchNotes();
     fetchAttachments();
 
-    // The rest of your existing JavaScript for modals
     const editNoteModal = document.getElementById('editNoteModal');
     if (editNoteModal) {
         const closeButton = editNoteModal.querySelector('.close-button');
@@ -462,7 +438,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const noteId = editButton.dataset.noteId;
                 const noteContent = editButton.dataset.noteContent;
 
-                editNoteForm.action = `/client/{{ client.account_number }}/note/${noteId}/edit`;
+                editNoteForm.action = `{{ url_for('clients.edit_note', account_number=client.account_number, note_id=0) }}`.replace('0', noteId);
                 modalNoteContent.value = noteContent;
                 editNoteModal.style.display = 'block';
             }
@@ -493,7 +469,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const originalFilename = editButton.dataset.originalFilename;
             const category = editButton.dataset.category;
 
-            editAttachmentForm.action = `/client/{{ client.account_number }}/edit_attachment/${attachmentId}`;
+            editAttachmentForm.action = `{{ url_for('clients.edit_attachment', account_number=client.account_number, attachment_id=0) }}`.replace('0', attachmentId);
             modalOriginalFilename.value = originalFilename;
             modalCategory.value = category;
             editAttachmentModal.style.display = 'block';

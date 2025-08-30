@@ -1,4 +1,3 @@
-<!-- templates/partials/assets_table.html -->
 <table class="client-table">
     <thead>
         <tr>
@@ -18,7 +17,7 @@
         {% for asset in assets %}
         <tr>
             {% if visible_columns.hostname %}<td>{% if asset.portal_url %}<a href="{{ asset.portal_url }}" target="_blank">{{ asset.hostname }}</a>{% else %}{{ asset.hostname }}{% endif %}</td>{% endif %}
-            {% if visible_columns.company %}<td><a href="{{ url_for('client_billing_details', account_number=asset.company_account_number) }}">{{ asset.company_name }}</a></td>{% endif %}
+            {% if visible_columns.company %}<td><a href="{{ url_for('clients.client_billing_details', account_number=asset.company_account_number) }}">{{ asset.company_name }}</a></td>{% endif %}
             {% if visible_columns.device_type %}<td>{{ asset.device_type }}</td>{% endif %}
             {% if visible_columns.os %}<td>{{ asset.operating_system }}</td>{% endif %}
             {% if visible_columns.internal_ip %}<td>{{ asset.internal_ip }}</td>{% endif %}

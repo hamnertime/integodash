@@ -1,23 +1,20 @@
 {% extends "layout.html" %}
 {% block title %}Clients{% endblock %}
 
-{% block head %}
-{% endblock %}
-
 {% block content %}
 <div class="page-header">
     <h1>All Clients</h1>
     <button id="restore-layout-btn" class="button">Restore Default Layout</button>
 </div>
 <div class="grid-stack">
-    <div class="grid-stack-item" gs-id="export-all-widget" gs-w="4" gs-h="2">
+    <div class="grid-stack-item" gs-id="export-all-widget" gs-w="12" gs-h="2">
         <div class="grid-stack-item-content">
             <h2>Export All Invoices</h2>
-            <form action="{{ url_for('export_all_bills_zip') }}" method="POST" style="display: flex; align-items: center; gap: 10px;">
+            <form action="{{ url_for('clients.export_all_bills_zip') }}" method="POST" style="display: flex; align-items: center; gap: 10px;">
                 <strong style="white-space: nowrap;">Export for:</strong>
                 <select name="month" style="width: 150px;">
                     {% for month in month_options %}
-                        <option value="{{ month.value }}">{{ month.name }}</option>
+                        <option value="{{ month.value }}" {% if month.value == current_month %}selected{% endif %}>{{ month.name }}</option>
                     {% endfor %}
                 </select>
                 <input type="number" name="year" value="{{ current_year }}" style="width: 80px;">
@@ -59,7 +56,7 @@
             <h2>Add New Client</h2>
             <span class="close-button">&times;</span>
         </div>
-        <form id="addClientForm" method="POST" action="{{ url_for('add_client') }}">
+        <form id="addClientForm" method="POST" action="{{ url_for('clients.add_client') }}">
             <div class="form-grid" style="grid-template-columns: auto 1fr;">
                 <label for="account_number">Account Number</label>
                 <input type="text" id="account_number" name="account_number" required>
@@ -117,25 +114,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const addClientModal = document.getElementById('addClientModal');
     const columnChooserModal = document.getElementById('columnChooserModal');
-
-    function closeModal(modal) {
-        if (modal) {
-            modal.style.display = 'none';
-        }
-    }
-
-    document.querySelectorAll('.close-button').forEach(button => {
-        button.addEventListener('click', (e) => {
-            closeModal(e.target.closest('.modal'));
-        });
-    });
-
-    window.addEventListener('click', (event) => {
-        if (event.target.classList.contains('modal')) {
-            closeModal(event.target);
-        }
-    });
-
     const clientsContainer = document.getElementById('clients-table-container');
     const clientSearch = document.getElementById('client-search');
     let searchTimeout;
@@ -148,32 +126,38 @@ document.addEventListener('DOMContentLoaded', function () {
         sort_order: 'asc'
     };
 
+    function closeModal(modal) {
+        if (modal) modal.style.display = 'none';
+    }
+
+    document.querySelectorAll('.close-button').forEach(button => {
+        button.addEventListener('click', (e) => closeModal(e.target.closest('.modal')));
+    });
+
+    window.addEventListener('click', (event) => {
+        if (event.target.classList.contains('modal')) closeModal(event.target);
+    });
+
     const fetchClients = async () => {
-        const url = new URL(`${window.location.origin}/clients/partial`);
-        url.searchParams.set('page', clientsState.page);
-        url.searchParams.set('per_page', clientsState.per_page);
-        url.searchParams.set('search', clientsState.search_query);
-        url.searchParams.set('sort_by', clientsState.sort_by);
-        url.searchParams.set('sort_order', clientsState.sort_order);
+        // CORRECTED: Construct URL with url_for, but do not wrap in new URL() constructor
+        let url = "{{ url_for('clients.get_clients_partial') }}";
+        const params = new URLSearchParams({
+            page: clientsState.page,
+            per_page: clientsState.per_page,
+            search: clientsState.search_query,
+            sort_by: clientsState.sort_by,
+            sort_order: clientsState.sort_order
+        });
+        url = `${url}?${params.toString()}`;
 
         try {
             const response = await fetch(url);
-            if (!response.ok) throw new Error('Network response was not ok');
+            if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
             const html = await response.text();
-
-            const searchInputIsFocused = (document.activeElement === clientSearch);
-            const cursorPosition = clientSearch ? clientSearch.selectionStart : 0;
-
             clientsContainer.innerHTML = html;
-
-            if (searchInputIsFocused) {
-                const newClientSearch = document.getElementById('client-search');
-                newClientSearch.focus();
-                newClientSearch.setSelectionRange(cursorPosition, cursorPosition);
-            }
         } catch (error) {
             console.error('Failed to fetch clients:', error);
-            clientsContainer.innerHTML = '<p class="flash-error">Error loading clients. Please try refreshing the page.</p>';
+            clientsContainer.innerHTML = `<p class="flash-error">Error loading clients: ${error.message}. Please try refreshing the page.</p>`;
         }
     };
 
@@ -182,9 +166,7 @@ document.addEventListener('DOMContentLoaded', function () {
             clientsState.search_query = e.target.value;
             clientsState.page = 1;
             clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
-                fetchClients();
-            }, 300);
+            searchTimeout = setTimeout(() => fetchClients(), 300);
         });
     }
 
@@ -192,13 +174,13 @@ document.addEventListener('DOMContentLoaded', function () {
         e.preventDefault();
         const formData = new FormData(this);
         try {
-            const response = await fetch('/save_column_prefs/clients', {
+            const response = await fetch("{{ url_for('settings.save_column_prefs', page_name='clients') }}", {
                 method: 'POST',
                 body: formData
             });
             if (response.ok) {
                 closeModal(columnChooserModal);
-                location.reload(); // Reload to apply new column settings
+                location.reload();
             } else {
                 alert('Failed to save preferences.');
             }
@@ -208,21 +190,13 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     document.addEventListener('click', function(event) {
-        if (event.target.closest('#add-client-btn')) {
-            addClientModal.style.display = 'block';
-        }
-        if (event.target.closest('#column-chooser-btn')) {
-            columnChooserModal.style.display = 'block';
-        }
-        if (event.target.closest('#refresh-btn')) {
-            fetchClients();
-        }
+        if (event.target.closest('#add-client-btn')) addClientModal.style.display = 'block';
+        if (event.target.closest('#column-chooser-btn')) columnChooserModal.style.display = 'block';
+        if (event.target.closest('#refresh-btn')) fetchClients();
     });
 
     clientsContainer.addEventListener('click', function(event) {
         const sortLink = event.target.closest('.sort-link');
-        const paginationLink = event.target.closest('.pagination-link');
-
         if (sortLink) {
             event.preventDefault();
             const column = sortLink.dataset.sort;
@@ -233,7 +207,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 clientsState.sort_order = 'asc';
             }
             fetchClients();
-        } else if (paginationLink) {
+        }
+
+        const paginationLink = event.target.closest('.pagination-link');
+        if (paginationLink) {
             event.preventDefault();
             clientsState.page = paginationLink.dataset.page;
             fetchClients();
@@ -248,6 +225,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    // Initial load of the table data
     fetchClients();
 });
 </script>

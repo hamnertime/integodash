@@ -74,24 +74,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const columnChooserModal = document.getElementById('columnChooserModal');
     let searchTimeout;
 
-    function closeModal(modal) {
-        if (modal) {
-            modal.style.display = 'none';
-        }
-    }
-
-    document.querySelectorAll('.close-button').forEach(button => {
-        button.addEventListener('click', (e) => {
-            closeModal(e.target.closest('.modal'));
-        });
-    });
-
-    window.addEventListener('click', (event) => {
-        if (event.target.classList.contains('modal')) {
-            closeModal(event.target);
-        }
-    });
-
     let assetsState = {
         page: 1,
         per_page: 50,
@@ -100,32 +82,38 @@ document.addEventListener('DOMContentLoaded', function () {
         sort_order: 'asc'
     };
 
+    function closeModal(modal) {
+        if (modal) modal.style.display = 'none';
+    }
+
+    document.querySelectorAll('.close-button').forEach(button => {
+        button.addEventListener('click', (e) => closeModal(e.target.closest('.modal')));
+    });
+
+    window.addEventListener('click', (event) => {
+        if (event.target.classList.contains('modal')) closeModal(event.target);
+    });
+
     const fetchAssets = async () => {
-        const url = new URL(`${window.location.origin}/assets/partial`);
-        url.searchParams.set('page', assetsState.page);
-        url.searchParams.set('per_page', assetsState.per_page);
-        url.searchParams.set('search', assetsState.search_query);
-        url.searchParams.set('sort_by', assetsState.sort_by);
-        url.searchParams.set('sort_order', assetsState.sort_order);
+        // CORRECTED: Construct URL with url_for, but do not wrap in new URL() constructor
+        let url = "{{ url_for('assets.get_assets_partial') }}";
+        const params = new URLSearchParams({
+            page: assetsState.page,
+            per_page: assetsState.per_page,
+            search: assetsState.search_query,
+            sort_by: assetsState.sort_by,
+            sort_order: assetsState.sort_order
+        });
+        url = `${url}?${params.toString()}`;
 
         try {
             const response = await fetch(url);
-            if (!response.ok) throw new Error('Network response was not ok');
+            if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
             const html = await response.text();
-
-            const searchInputIsFocused = (document.activeElement === assetSearch);
-            const cursorPosition = assetSearch.selectionStart;
-
             assetsContainer.innerHTML = html;
-
-            if (searchInputIsFocused) {
-                assetSearch.focus();
-                assetSearch.setSelectionRange(cursorPosition, cursorPosition);
-            }
-
         } catch (error) {
             console.error('Failed to fetch assets:', error);
-            assetsContainer.innerHTML = '<p class="flash-error">Error loading assets. Please try refreshing the page.</p>';
+            assetsContainer.innerHTML = `<p class="flash-error">Error loading assets: ${error.message}. Please try refreshing the page.</p>`;
         }
     };
 
@@ -134,9 +122,7 @@ document.addEventListener('DOMContentLoaded', function () {
             assetsState.search_query = e.target.value;
             assetsState.page = 1;
             clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
-                fetchAssets();
-            }, 300);
+            searchTimeout = setTimeout(() => fetchAssets(), 300);
         });
     }
 
@@ -144,7 +130,7 @@ document.addEventListener('DOMContentLoaded', function () {
         e.preventDefault();
         const formData = new FormData(this);
         try {
-            const response = await fetch('/save_column_prefs/assets', {
+            const response = await fetch("{{ url_for('settings.save_column_prefs', page_name='assets') }}", {
                 method: 'POST',
                 body: formData
             });
@@ -160,18 +146,12 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     document.addEventListener('click', function(event) {
-        if (event.target.closest('#column-chooser-btn')) {
-            columnChooserModal.style.display = 'block';
-        }
-        if (event.target.closest('#refresh-btn')) {
-            fetchAssets();
-        }
+        if (event.target.closest('#column-chooser-btn')) columnChooserModal.style.display = 'block';
+        if (event.target.closest('#refresh-btn')) fetchAssets();
     });
 
     assetsContainer.addEventListener('click', function(event) {
         const sortLink = event.target.closest('.sort-link');
-        const paginationLink = event.target.closest('.pagination-link');
-
         if (sortLink) {
             event.preventDefault();
             const column = sortLink.dataset.sort;
@@ -182,7 +162,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 assetsState.sort_order = 'asc';
             }
             fetchAssets();
-        } else if (paginationLink) {
+        }
+
+        const paginationLink = event.target.closest('.pagination-link');
+        if (paginationLink) {
             event.preventDefault();
             assetsState.page = paginationLink.dataset.page;
             fetchAssets();
@@ -197,6 +180,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    // Initial load of the table data
     fetchAssets();
 });
 </script>
