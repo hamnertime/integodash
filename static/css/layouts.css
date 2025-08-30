@@ -1,0 +1,315 @@
+/* static/css/layouts.css */
+
+/* --- Main Layout & Sidebar --- */
+.sidebar {
+    width: var(--sidebar-width);
+    height: 100vh;
+    background-color: var(--secondary-color);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    left: 0;
+    top: 0;
+    transition: width 0.3s ease;
+    z-index: 1001;
+}
+.sidebar.collapsed {
+    width: var(--sidebar-width-collapsed);
+}
+.sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--table-border-color);
+    height: 60px; /* Set a fixed height */
+    box-sizing: border-box;
+}
+.sidebar.collapsed .logo {
+    display: none;
+}
+.sidebar.collapsed .sidebar-header {
+    justify-content: center;
+    padding: 10px 0;
+}
+.sidebar .logo {
+    font-weight: bold;
+    font-size: 1.2em;
+    color: var(--primary-color);
+}
+.main-content {
+    margin-left: var(--sidebar-width);
+    width: calc(100% - var(--sidebar-width));
+    transition: margin-left 0.3s ease, width 0.3s ease;
+    padding: 20px;
+}
+.main-content.collapsed {
+    margin-left: var(--sidebar-width-collapsed);
+    width: calc(100% - var(--sidebar-width-collapsed));
+}
+.container {
+    padding: 20px;
+    max-width: 95%;
+    margin: 0 auto;
+}
+
+/* --- Sidebar Navigation --- */
+.nav-links {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1; /* Allows the bottom links to push to the bottom */
+    gap: 5px;
+    padding: 15px 0;
+}
+.nav-links-top {
+    flex-grow: 1;
+}
+.nav-links-bottom {
+    margin-bottom: 15px;
+}
+.nav-links a, .nav-links #widget-library-btn {
+    display: flex;
+    align-items: center;
+    padding: 12px 20px;
+    color: white;
+    text-decoration: none;
+    gap: 15px;
+    white-space: nowrap;
+    overflow: hidden;
+    background-color: transparent; /* Ensure button background is consistent */
+    width: 100%;
+    text-align: left;
+    box-sizing: border-box;
+}
+.nav-links a svg, .nav-links #widget-library-btn svg {
+    width: 24px;
+    height: 24px;
+    fill: currentColor;
+    flex-shrink: 0; /* Prevent icon from shrinking */
+}
+.sidebar.collapsed .nav-links span {
+    display: none;
+}
+.sidebar.collapsed .nav-links a, .sidebar.collapsed .nav-links #widget-library-btn {
+    justify-content: center;
+    padding: 12px 0;
+}
+.nav-links a:hover, .nav-links a.active, .nav-links #widget-library-btn:hover {
+    background-color: var(--primary-hover);
+}
+
+/* --- GridStack & Widgets --- */
+.grid-stack-item-content {
+    background-color: var(--card-bg);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    padding: 20px;
+    color: var(--text-color);
+    overflow: auto;
+    position: relative;
+}
+body.dark-mode .grid-stack-item-content {
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+body.dark-mode .grid-stack-item.ui-draggable-dragging .grid-stack-item-content {
+    box-shadow: 0 8px 25px rgba(255, 255, 255, 0.1);
+}
+body.dark-mode .grid-stack-placeholder > .placeholder-content {
+    background-color: rgba(212, 175, 55, 0.15);
+    border: 1px dashed var(--primary-color);
+}
+#widget-library-list {
+display: flex;
+flex-wrap: wrap;
+gap: 10px;
+}
+.remove-widget-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: none;
+    border: none;
+    color: var(--text-color);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+}
+.grid-stack-item-content:hover .remove-widget-btn {
+    opacity: 1;
+}
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+@keyframes highlight {
+    from { background-color: var(--primary-color); }
+    to { background-color: var(--card-bg); }
+}
+.widget-highlight > .grid-stack-item-content {
+    animation: highlight 1s ease-in-out;
+}
+
+/* --- Page-Specific Layouts & Containers --- */
+.login-container, .selection-container, .error-container {
+    max-width: 400px;
+    margin: 50px auto;
+    padding: 30px;
+    background-color: var(--card-bg);
+    border: 1px solid var(--table-border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    text-align: center;
+}
+.login-container h1, .selection-container h1 {
+    margin-bottom: 25px;
+    color: var(--header-text-color);
+}
+.login-container p, .selection-container p {
+    margin-bottom: 20px;
+    color: var(--text-color-secondary);
+}
+.login-container input[type="password"] {
+    width: calc(100% - 24px); /* Account for padding */
+    margin-bottom: 20px;
+}
+.selection-container select {
+    width: 100%;
+    margin-bottom: 20px;
+}
+.login-container button, .selection-container button {
+    width: 100%;
+    padding: 10px 20px;
+    font-weight: 500;
+}
+.error-container h1 {
+    color: #dc3545;
+    margin-bottom: 20px;
+}
+.error-container p {
+    font-size: 1.1em;
+    margin-bottom: 25px;
+}
+.billing-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--card-bg);
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+.billing-controls .export-section {
+    margin-bottom: 0;
+    padding: 0;
+    background-color: transparent;
+    text-align: left;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+.billing-controls .search-clients input {
+    width: 250px;
+}
+.billing-period-selector {
+    margin-bottom: 20px;
+    text-align: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+}
+.grid-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    align-items: start;
+}
+.user-management-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin-top: 20px;
+}
+.feature-options-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+.attachment-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+.search-attachments input {
+    width: 250px;
+}
+.plan-group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+.plan-group-header h3 {
+    margin: 0;
+    border: none;
+}
+.action-cell {
+    text-align: right !important;
+}
+.add-plan-form {
+    margin-top: 30px;
+    padding-top: 20px;
+}
+.add-plan-form.full-width {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+.add-plan-form.full-width input {
+    flex-grow: 1;
+}
+.client-table .icon-button.delete {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+}
+.client-table .icon-button.delete svg {
+    width: 18px;
+    height: 18px;
+}
+.column-chooser-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+}
+.column-chooser-grid label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.table-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 10px;
+    gap: 5px;
+}
+.table-actions .icon-button {
+    color: var(--text-color);
+}
+.client-table th.actions-header {
+    vertical-align: middle;
+}
+.client-table td.actions-cell {
+    text-align: right;
+}
