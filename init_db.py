@@ -16,55 +16,23 @@ except ImportError:
 
 
 DB_FILE = "brainhair.db"
+CONFIG_FILE = "config.json"
 UPLOAD_FOLDER = 'uploads'
+
+def load_config():
+    """Loads the configuration from the JSON file."""
+    if not os.path.exists(CONFIG_FILE):
+        print(f"Error: Configuration file '{CONFIG_FILE}' not found.", file=sys.stderr)
+        sys.exit(1)
+    with open(CONFIG_FILE, 'r') as f:
+        return json.load(f)
 
 # --- Default Billing Plan Data ---
 # This data is used to populate a fresh database. It is ignored during migration.
-default_plans_data = [
-    # plan, term, puc, psc, pwc, pvc, pswitchc, pfirewallc, phtc, bbfw, bbfs, bit, bpt, support_level, antivirus, soc, password_manager, sat, network_management
-    ('Break Fix', '1-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 90.00, 25.00, 50.00, 1.0, 15.00, 'Billed Hourly', 'Not Included', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
-    ('Break Fix', '2-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 90.00, 25.00, 50.00, 1.0, 15.00, 'Billed Hourly', 'Not Included', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
-    ('Break Fix', '3-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 90.00, 25.00, 50.00, 1.0, 15.00, 'Billed Hourly', 'Not Included', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
-    ('Break Fix', 'Month to Month', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 100.00, 25.00, 50.00, 1.0, 15.00, 'Billed Hourly', 'Not Included', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
-    ('MSP Advanced', '1-Year', 0.00, 125.00, 25.00, 100.00, 25.00, 25.00, 90.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly', 'SentinelOne', 'RocketCyber', 'Not Included', 'Not Included', 'Not Included'),
-    ('MSP Advanced', '2-Year', 0.00, 125.00, 25.00, 100.00, 25.00, 25.00, 90.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly', 'SentinelOne', 'RocketCyber', 'Not Included', 'Not Included', 'Not Included'),
-    ('MSP Advanced', '3-Year', 0.00, 125.00, 25.00, 100.00, 25.00, 25.00, 90.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly', 'SentinelOne', 'RocketCyber', 'Not Included', 'Not Included', 'Not Included'),
-    ('MSP Advanced', 'Month to Month', 0.00, 125.00, 25.00, 100.00, 25.00, 25.00, 100.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly', 'SentinelOne', 'RocketCyber', 'Not Included', 'Not Included', 'Not Included'),
-    ('MSP Basic', '1-Year', 0.00, 125.00, 10.00, 100.00, 25.00, 25.00, 90.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly', 'Datto EDR', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
-    ('MSP Basic', '2-Year', 0.00, 125.00, 10.00, 100.00, 25.00, 25.00, 90.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly', 'Datto EDR', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
-    ('MSP Basic', '3-Year', 0.00, 125.00, 10.00, 100.00, 25.00, 25.00, 90.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly', 'Datto EDR', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
-    ('MSP Basic', 'Month to Month', 0.00, 125.00, 10.00, 100.00, 25.00, 25.00, 100.00, 25.00, 0.00, 1.0, 15.00, 'Billed Hourly', 'Datto EDR', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
-    ('MSP Legacy', '1-Year', 0.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited', 'Datto EDR', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
-    ('MSP Legacy', '2-Year', 0.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited', 'Datto EDR', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
-    ('MSP Legacy', '3-Year', 0.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited', 'Datto EDR', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
-    ('MSP Legacy', 'Month to Month', 0.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited', 'Datto EDR', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
-    ('MSP Platinum', '1-Year', 120.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited', 'SentinelOne', 'RocketCyber', 'Keeper', 'BSN', 'Not Included'),
-    ('MSP Platinum', '2-Year', 115.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited', 'SentinelOne', 'RocketCyber', 'Keeper', 'BSN', 'Not Included'),
-    ('MSP Platinum', '3-Year', 110.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited', 'SentinelOne', 'RocketCyber', 'Keeper', 'BSN', 'Not Included'),
-    ('MSP Platinum', 'Month to Month', 125.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited', 'SentinelOne', 'RocketCyber', 'Keeper', 'BSN', 'Not Included'),
-    ('MSP Premium', '1-Year', 95.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited', 'Datto EDR', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
-    ('MSP Premium', '2-Year', 90.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited', 'Datto EDR', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
-    ('MSP Premium', '3-Year', 85.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited', 'Datto EDR', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
-    ('MSP Premium', 'Month to Month', 100.00, 125.00, 0.00, 100.00, 25.00, 25.00, 0.00, 25.00, 0.00, 1.0, 15.00, 'Unlimited', 'Datto EDR', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
-    ('Pro Services', '1-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 120.00, 25.00, 50.00, 1.0, 15.00, 'Billed Hourly', 'Not Included', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
-    ('Pro Services', '2-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 120.00, 25.00, 50.00, 1.0, 15.00, 'Billed Hourly', 'Not Included', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
-    ('Pro Services', '3-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 120.00, 25.00, 50.00, 1.0, 15.00, 'Billed Hourly', 'Not Included', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
-    ('Pro Services', 'Month to Month', 0.00, 0.00, 0.00, 25.00, 25.00, 0.00, 120.00, 25.00, 50.00, 1.0, 15.00, 'Billed Hourly', 'Not Included', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
-    ('MSP Network', '1-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 120.00, 25.00, 50.00, 1.0, 15.00, 'Billed Hourly', 'Not Included', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
-    ('MSP Network', '2-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 120.00, 25.00, 50.00, 1.0, 15.00, 'Billed Hourly', 'Not Included', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
-    ('MSP Network', '3-Year', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 120.00, 25.00, 50.00, 1.0, 15.00, 'Billed Hourly', 'Not Included', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
-    ('MSP Network', 'Month to Month', 0.00, 0.00, 0.00, 0.00, 25.00, 25.00, 120.00, 25.00, 50.00, 1.0, 15.00, 'Billed Hourly', 'Not Included', 'Not Included', 'Not Included', 'Not Included', 'Not Included'),
-]
-
-default_features = [
-    ('Antivirus', 'Not Included'), ('Antivirus', 'Datto EDR'), ('Antivirus', 'SentinelOne'),
-    ('SOC', 'Not Included'), ('SOC', 'RocketCyber'),
-    ('Email', 'No Business Email'), ('Email', 'Google Workspace'), ('Email', 'Microsoft 365'), ('Email', 'Other Business Email'),
-    ('Phone', 'No Business Phone'), ('Phone', 'Zoom'), ('Phone', 'DFN'), ('Phone', 'Spectrum'), ('Phone', 'RingCentral'), ('Phone', 'Personal Cell'),
-    ('SAT', 'Not Included'), ('SAT', 'BSN'),
-    ('Password Manager', 'Not Included'), ('Password Manager', 'Keeper'),
-    ('Network Management', 'Not Included'), ('Network Management', 'Auvik'),
-]
+config = load_config()
+default_plans_data = config.get('default_plans_data', [])
+default_features = config.get('default_features', [])
+default_users = config.get('default_users', [])
 
 default_widget_layouts = {
     "client_details": [
@@ -462,16 +430,6 @@ def create_database(new_password, existing_data=None):
         cur.executemany("INSERT INTO feature_options (feature_type, option_name) VALUES (?, ?)", default_features)
 
         print("Adding default application users...")
-        default_users = [
-            ('Admin', 'Admin'),
-            ('David Hamner', 'Admin'),
-            ('Jamie Lowe', 'Read-Only'),
-            ('Jesse Bassett', 'Read-Only'),
-            ('Matt Carter', 'Admin'),
-            ('Omar Flores-Lozano', 'Editor'),
-            ('Tasha Carter', 'Read-Only'),
-            ('Troy Pound', 'Admin')
-        ]
         cur.executemany("INSERT INTO app_users (username, role) VALUES (?, ?)", default_users)
 
         # This is a fresh install, so we must get the API keys
