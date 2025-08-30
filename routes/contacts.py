@@ -1,6 +1,6 @@
 # routes/contacts.py
-from flask import Blueprint, render_template, session, request, flash, redirect, url_for
-from database import query_db, log_and_execute, get_user_widget_layout, default_widget_layouts
+from flask import Blueprint, render_template, session, request, flash, redirect, url_for, jsonify
+from database import query_db, log_and_execute, get_user_widget_layout, default_widget_layouts, get_db
 
 contacts_bp = Blueprint('contacts', __name__)
 
@@ -13,6 +13,7 @@ CONTACTS_COLUMNS = {
     'mobile_phone': {'label': 'Mobile Phone', 'default': False},
     'employment_type': {'label': 'Employment Type', 'default': False},
     'status': {'label': 'Status', 'default': True},
+    'associated_assets': {'label': 'Associated Assets', 'default': True},
     'actions': {'label': 'Actions', 'default': True}
 }
 
@@ -42,14 +43,22 @@ def get_contacts_partial():
     base_query = """
         FROM contacts c
         LEFT JOIN companies co ON c.company_account_number = co.account_number
+        LEFT JOIN (
+            SELECT
+                acl.contact_id,
+                '[' || GROUP_CONCAT(json_object('hostname', a.hostname, 'portal_url', a.portal_url)) || ']' as assets
+            FROM asset_contact_links acl
+            JOIN assets a ON acl.asset_id = a.id
+            GROUP BY acl.contact_id
+        ) as linked_assets ON c.id = linked_assets.contact_id
     """
     params = []
     where_clauses = []
 
     if search_query:
-        where_clauses.append("(c.first_name LIKE ? OR c.last_name LIKE ? OR c.email LIKE ? OR co.name LIKE ? OR c.title LIKE ?)")
+        where_clauses.append("(c.first_name LIKE ? OR c.last_name LIKE ? OR c.email LIKE ? OR co.name LIKE ? OR c.title LIKE ? OR linked_assets.assets LIKE ?)")
         search_param = f'%{search_query}%'
-        params.extend([search_param, search_param, search_param, search_param, search_param])
+        params.extend([search_param, search_param, search_param, search_param, search_param, search_param])
 
     if where_clauses:
         base_query += " WHERE " + " AND ".join(where_clauses)
@@ -66,7 +75,8 @@ def get_contacts_partial():
         'mobile_phone': 'c.mobile_phone',
         'status': 'c.status',
         'title': 'c.title',
-        'employment_type': 'c.employment_type'
+        'employment_type': 'c.employment_type',
+        'associated_assets': 'linked_assets.assets'
     }
     sort_column = allowed_sort_columns.get(sort_by, 'c.first_name')
 
@@ -75,7 +85,7 @@ def get_contacts_partial():
 
     offset = (page - 1) * per_page
     contacts_query = f"""
-        SELECT c.*, co.name as company_name
+        SELECT c.*, co.name as company_name, linked_assets.assets as associated_assets
         {base_query}
         ORDER BY {sort_column} {sort_order}
         LIMIT ? OFFSET ?
@@ -95,52 +105,94 @@ def get_contacts_partial():
 
 @contacts_bp.route('/add', methods=['POST'])
 def add_contact():
-    log_and_execute("""
-        INSERT INTO contacts (first_name, last_name, email, title, company_account_number, work_phone, mobile_phone, employment_type, status, other_emails, address, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, [
-        request.form.get('first_name'),
-        request.form.get('last_name'),
-        request.form.get('email'),
-        request.form.get('title'),
-        request.form.get('company_account_number'),
-        request.form.get('work_phone'),
-        request.form.get('mobile_phone'),
-        request.form.get('employment_type'),
-        request.form.get('status'),
-        request.form.get('other_emails'),
-        request.form.get('address'),
-        request.form.get('notes')
-    ])
-    flash('Contact added successfully.', 'success')
+    db = get_db()
+    try:
+        with db:
+            cur = log_and_execute("""
+                INSERT INTO contacts (first_name, last_name, email, title, company_account_number, work_phone, mobile_phone, employment_type, status, other_emails, address, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, [
+                request.form.get('first_name'),
+                request.form.get('last_name'),
+                request.form.get('email'),
+                request.form.get('title'),
+                request.form.get('company_account_number'),
+                request.form.get('work_phone'),
+                request.form.get('mobile_phone'),
+                request.form.get('employment_type'),
+                request.form.get('status'),
+                request.form.get('other_emails'),
+                request.form.get('address'),
+                request.form.get('notes')
+            ])
+            contact_id = cur.lastrowid
+            linked_assets = request.form.getlist('linked_assets')
+            if linked_assets:
+                for asset_id in linked_assets:
+                    db.execute("INSERT INTO asset_contact_links (contact_id, asset_id) VALUES (?, ?)", (contact_id, asset_id))
+        flash('Contact added successfully.', 'success')
+    except Exception as e:
+        flash(f'Error adding contact: {e}', 'error')
+
     return redirect(url_for('contacts.contacts'))
 
 @contacts_bp.route('/edit/<int:contact_id>', methods=['POST'])
 def edit_contact(contact_id):
-    log_and_execute("""
-        UPDATE contacts
-        SET first_name = ?, last_name = ?, email = ?, title = ?, company_account_number = ?, work_phone = ?, mobile_phone = ?, employment_type = ?, status = ?, other_emails = ?, address = ?, notes = ?
-        WHERE id = ?
-    """, [
-        request.form.get('first_name'),
-        request.form.get('last_name'),
-        request.form.get('email'),
-        request.form.get('title'),
-        request.form.get('company_account_number'),
-        request.form.get('work_phone'),
-        request.form.get('mobile_phone'),
-        request.form.get('employment_type'),
-        request.form.get('status'),
-        request.form.get('other_emails'),
-        request.form.get('address'),
-        request.form.get('notes'),
-        contact_id
-    ])
-    flash('Contact updated successfully.', 'success')
+    # This operation involves multiple steps, so we manage the transaction manually.
+    db = get_db()
+    try:
+        with db: # Start a transaction
+            # Step 1: Update the main contact details
+            log_and_execute("""
+                UPDATE contacts
+                SET first_name = ?, last_name = ?, email = ?, title = ?, company_account_number = ?, work_phone = ?, mobile_phone = ?, employment_type = ?, status = ?, other_emails = ?, address = ?, notes = ?
+                WHERE id = ?
+            """, [
+                request.form.get('first_name'),
+                request.form.get('last_name'),
+                request.form.get('email'),
+                request.form.get('title'),
+                request.form.get('company_account_number'),
+                request.form.get('work_phone'),
+                request.form.get('mobile_phone'),
+                request.form.get('employment_type'),
+                request.form.get('status'),
+                request.form.get('other_emails'),
+                request.form.get('address'),
+                request.form.get('notes'),
+                contact_id
+            ])
+
+            # Step 2: Update the asset links
+            linked_assets = request.form.getlist('linked_assets')
+            # First, remove all existing links for this contact
+            db.execute("DELETE FROM asset_contact_links WHERE contact_id = ?", [contact_id])
+            # Then, add the new links from the form
+            if linked_assets:
+                for asset_id in linked_assets:
+                    db.execute("INSERT INTO asset_contact_links (contact_id, asset_id) VALUES (?, ?)", (contact_id, asset_id))
+
+        flash('Contact and associated assets updated successfully.', 'success')
+    except Exception as e:
+        flash(f'An error occurred during update: {e}', 'error')
+
     return redirect(url_for('contacts.contacts'))
+
 
 @contacts_bp.route('/delete/<int:contact_id>')
 def delete_contact(contact_id):
     log_and_execute("DELETE FROM contacts WHERE id = ?", [contact_id])
     flash('Contact deleted successfully.', 'success')
     return redirect(url_for('contacts.contacts'))
+
+@contacts_bp.route('/api/get_assets_for_company/<account_number>')
+def get_assets_for_company(account_number):
+    """API endpoint to fetch assets for a given company."""
+    assets = query_db("SELECT id, hostname FROM assets WHERE company_account_number = ? ORDER BY hostname", [account_number])
+    return jsonify([dict(row) for row in assets])
+
+@contacts_bp.route('/api/get_linked_assets/<int:contact_id>')
+def get_linked_assets(contact_id):
+    """API endpoint to fetch assets already linked to a contact."""
+    linked_assets = query_db("SELECT asset_id FROM asset_contact_links WHERE contact_id = ?", [contact_id])
+    return jsonify([row['asset_id'] for row in linked_assets])

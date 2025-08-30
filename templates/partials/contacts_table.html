@@ -9,6 +9,7 @@
             {% if visible_columns.mobile_phone %}<th><a href="#" class="sort-link" data-sort="mobile_phone">Mobile Phone<span class="sort-arrow">{% if sort_by == 'mobile_phone' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
             {% if visible_columns.employment_type %}<th><a href="#" class="sort-link" data-sort="employment_type">Employment Type<span class="sort-arrow">{% if sort_by == 'employment_type' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
             {% if visible_columns.status %}<th><a href="#" class="sort-link" data-sort="status">Status<span class="sort-arrow">{% if sort_by == 'status' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.associated_assets %}<th><a href="#" class="sort-link" data-sort="associated_assets">Associated Assets<span class="sort-arrow">{% if sort_by == 'associated_assets' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
             {% if visible_columns.actions %}<th>Actions</th>{% endif %}
         </tr>
     </thead>
@@ -23,6 +24,21 @@
             {% if visible_columns.mobile_phone %}<td>{{ contact.mobile_phone }}</td>{% endif %}
             {% if visible_columns.employment_type %}<td>{{ contact.employment_type }}</td>{% endif %}
             {% if visible_columns.status %}<td>{{ contact.status }}</td>{% endif %}
+            {% if visible_columns.associated_assets %}
+            <td>
+                {% if contact.associated_assets %}
+                    {% set assets = contact.associated_assets | fromjson %}
+                    {% for asset in assets %}
+                        {% if asset.portal_url %}
+                            <a href="{{ asset.portal_url }}" target="_blank">{{ asset.hostname }}</a>
+                        {% else %}
+                            {{ asset.hostname }}
+                        {% endif %}
+                        {% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                {% endif %}
+            </td>
+            {% endif %}
             {% if visible_columns.actions %}
             <td class="actions-cell">
                 <button class="icon-button edit edit-contact"

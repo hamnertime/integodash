@@ -185,11 +185,12 @@
             <div class="grid-stack-item-content form-section">
                 <h2>Asset Billing Overrides</h2>
                 <table class="item-table">
-                    <thead><tr><th>Hostname</th><th>Detected Type</th><th>Billing Type</th><th>Custom Cost ($)</th></tr></thead>
+                    <thead><tr><th>Hostname</th><th>Associated Contacts</th><th>Detected Type</th><th>Billing Type</th><th>Custom Cost ($)</th></tr></thead>
                     <tbody>
                     {% for asset in assets %}
                         <tr>
                             <td>{{ asset.hostname }}</td>
+                            <td>{{ asset.associated_contacts }}</td>
                             <td>{{ asset.billing_type }}</td>
                             <td>
                                 <select name="asset_billing_type_{{ asset.id }}">
@@ -239,11 +240,26 @@
             <div class="grid-stack-item-content form-section">
                 <h2>User Billing Overrides</h2>
                 <table class="item-table">
-                    <thead><tr><th>Full Name</th><th>Employment Type</th><th>Billing Type</th><th>Custom Cost ($)</th></tr></thead>
+                    <thead><tr><th>Full Name</th><th>Associated Assets</th><th>Employment Type</th><th>Billing Type</th><th>Custom Cost ($)</th></tr></thead>
                     <tbody>
                     {% for user in users %}
                         <tr>
                             <td>{{ user.full_name }} ({{ user.email }})</td>
+                            <td>
+                                {% if user.associated_assets %}
+                                    {% set assets = user.associated_assets | fromjson %}
+                                    {% for asset in assets %}
+                                        {% if asset.hostname %}
+                                            {% if asset.portal_url %}
+                                                <a href="{{ asset.portal_url }}" target="_blank">{{ asset.hostname }}</a>
+                                            {% else %}
+                                                {{ asset.hostname }}
+                                            {% endif %}
+                                            {% if not loop.last %}, {% endif %}
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endif %}
+                            </td>
                             <td>
                                 <select name="user_employment_type_{{ user.id }}">
                                     <option value="" {% if not user_overrides[user.id] or not user_overrides[user.id].employment_type %}selected{% endif %}>-- Default ({{ user.default_employment_type or 'Full Time' }}) --</option>

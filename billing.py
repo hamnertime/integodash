@@ -35,9 +35,26 @@ def get_billing_data_for_client(account_number, year, month):
 
     # --- 1. Fetch all raw data from the database ---
     locations = [dict(r) for r in query_db("SELECT * FROM client_locations WHERE company_account_number = ? ORDER BY location_name", [account_number])]
-    assets = [dict(r) for r in query_db("SELECT * FROM assets WHERE company_account_number = ? ORDER BY hostname", [account_number])]
+    assets = [dict(r) for r in query_db("""
+        SELECT a.*, GROUP_CONCAT(c.first_name || ' ' || c.last_name, ', ') as associated_contacts
+        FROM assets a
+        LEFT JOIN asset_contact_links acl ON a.id = acl.asset_id
+        LEFT JOIN contacts c ON acl.contact_id = c.id
+        WHERE a.company_account_number = ?
+        GROUP BY a.id
+        ORDER BY a.hostname
+    """, [account_number])]
     manual_assets = [dict(r) for r in query_db("SELECT * FROM manual_assets WHERE company_account_number = ? ORDER BY hostname", [account_number])]
-    users = [dict(r) for r in query_db("SELECT * FROM users WHERE company_account_number = ? AND status = 'Active' ORDER BY full_name", [account_number])]
+    users = [dict(r) for r in query_db("""
+        SELECT u.*, '[' || GROUP_CONCAT(json_object('hostname', a.hostname, 'portal_url', a.portal_url)) || ']' as associated_assets
+        FROM users u
+        LEFT JOIN contacts c ON u.email = c.email
+        LEFT JOIN asset_contact_links acl ON c.id = acl.contact_id
+        LEFT JOIN assets a ON acl.asset_id = a.id
+        WHERE u.company_account_number = ? AND u.status = 'Active'
+        GROUP BY u.id
+        ORDER BY u.full_name
+    """, [account_number])]
     manual_users = [dict(r) for r in query_db("SELECT * FROM manual_users WHERE company_account_number = ? ORDER BY full_name", [account_number])]
     custom_line_items = [dict(r) for r in query_db("SELECT * FROM custom_line_items WHERE company_account_number = ? ORDER BY name", [account_number])]
 

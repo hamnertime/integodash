@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from flask import session, current_app
 from database import query_db
 from urllib.parse import quote_plus
+import json
 
 def humanize_time(dt_str):
     if not dt_str: return "N/A"
@@ -46,6 +47,15 @@ def to_markdown(text):
     clean_html = bleach.clean(html, tags=allowed_tags, attributes=allowed_attrs)
     return clean_html
 
+def from_json(json_string):
+    """Parses a JSON string into a Python object."""
+    if not json_string:
+        return None
+    try:
+        return json.loads(json_string)
+    except (json.JSONDecodeError, TypeError):
+        return None
+
 def urlencode(text):
     """URL-encodes a string for use in URLs."""
     return quote_plus(text)
@@ -56,6 +66,7 @@ def register_template_filters(app):
     app.template_filter('filesizeformat')(filesizeformat)
     app.template_filter('markdown')(to_markdown)
     app.template_filter('urlencode')(urlencode)
+    app.template_filter('fromjson')(from_json)
 
 def inject_custom_links():
     if current_app.config.get('DB_PASSWORD') and 'user_id' in session:

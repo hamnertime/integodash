@@ -7,6 +7,7 @@ assets_bp = Blueprint('assets', __name__)
 ASSETS_COLUMNS = {
     'hostname': {'label': 'Hostname', 'default': True},
     'company': {'label': 'Company', 'default': True},
+    'associated_contacts': {'label': 'Associated Contacts', 'default': True},
     'device_type': {'label': 'Device Type', 'default': False},
     'os': {'label': 'Operating System', 'default': True},
     'internal_ip': {'label': 'Internal IP', 'default': False},
@@ -41,14 +42,22 @@ def get_assets_partial():
     base_query = """
         FROM assets a
         LEFT JOIN companies c ON a.company_account_number = c.account_number
+        LEFT JOIN (
+            SELECT
+                acl.asset_id,
+                GROUP_CONCAT(con.first_name || ' ' || con.last_name, ', ') as contacts
+            FROM asset_contact_links acl
+            JOIN contacts con ON acl.contact_id = con.id
+            GROUP BY acl.asset_id
+        ) as linked_contacts ON a.id = linked_contacts.asset_id
     """
     params = []
     where_clauses = []
 
     if search_query:
-        where_clauses.append("(a.hostname LIKE ? OR a.operating_system LIKE ? OR a.last_logged_in_user LIKE ? OR c.name LIKE ? OR a.internal_ip LIKE ? OR a.external_ip LIKE ?)")
+        where_clauses.append("(a.hostname LIKE ? OR a.operating_system LIKE ? OR a.last_logged_in_user LIKE ? OR c.name LIKE ? OR a.internal_ip LIKE ? OR a.external_ip LIKE ? OR linked_contacts.contacts LIKE ?)")
         search_param = f'%{search_query}%'
-        params.extend([search_param] * 6)
+        params.extend([search_param] * 7)
 
     if where_clauses:
         base_query += " WHERE " + " AND ".join(where_clauses)
@@ -66,7 +75,8 @@ def get_assets_partial():
         'device_type': 'a.device_type',
         'internal_ip': 'a.internal_ip',
         'external_ip': 'a.external_ip',
-        'last_seen': 'a.last_seen'
+        'last_seen': 'a.last_seen',
+        'associated_contacts': 'linked_contacts.contacts'
     }
     sort_column = allowed_sort_columns.get(sort_by, 'a.hostname')
 
@@ -75,7 +85,7 @@ def get_assets_partial():
 
     offset = (page - 1) * per_page
     assets_query = f"""
-        SELECT a.*, c.name as company_name
+        SELECT a.*, c.name as company_name, linked_contacts.contacts as associated_contacts
         {base_query}
         ORDER BY {sort_column} {sort_order}
         LIMIT ? OFFSET ?

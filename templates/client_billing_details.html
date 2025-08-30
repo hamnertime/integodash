@@ -252,22 +252,52 @@
                     <div class="grid-container">
                         <div>
                             <h4>Datto RMM Assets ({{ assets|length }})</h4>
-                            <table><thead><tr><th>Hostname</th><th>Billing Type</th><th>OS</th><th>Backup Usage (TB)</th></tr></thead><tbody>
-                                {% for asset in assets %}<tr><td>{{ asset.hostname }}</td><td>{{ asset.billing_type }}</td><td>{{ asset.operating_system }}</td><td>{{ "%.4f"|format(asset.backup_data_bytes / 1099511627776.0 if asset.backup_data_bytes else 0) }}</td></tr>{% else %}<tr><td colspan="4">No assets found.</td></tr>{% endfor %}
+                            <table><thead><tr><th>Hostname</th><th>Associated Contacts</th><th>Billing Type</th><th>OS</th><th>Backup Usage (TB)</th></tr></thead><tbody>
+                                {% for asset in assets %}
+                                <tr>
+                                    <td>
+                                        {% if asset.portal_url %}
+                                            <a href="{{ asset.portal_url }}" target="_blank">{{ asset.hostname }}</a>
+                                        {% else %}
+                                            {{ asset.hostname }}
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ asset.associated_contacts }}</td>
+                                    <td>{{ asset.billing_type }}</td>
+                                    <td>{{ asset.operating_system }}</td>
+                                    <td>{{ "%.4f"|format(asset.backup_data_bytes / 1099511627776.0 if asset.backup_data_bytes else 0) }}</td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="5">No assets found.</td></tr>
+                                {% endfor %}
                             </tbody></table>
                             <h4>Manual Assets ({{ manual_assets|length }})</h4>
                             <table><thead><tr><th>Hostname</th><th>Billing Type</th><th>Cost</th></tr></thead><tbody>
-                                {% for asset in manual_assets %}<tr><td>{{ asset.hostname }}</td><td>{{ asset.billing_type }}</td><td>${{ "%.2f"|format(asset.custom_cost) if asset.custom_cost else '0.00' }}</td></tr>{% else %}<tr><td colspan="4">No manual assets.</td></tr>{% endfor %}
+                                {% for asset in manual_assets %}<tr><td>{{ asset.hostname }}</td><td>{{ asset.billing_type }}</td><td>${{ "%.2f"|format(asset.custom_cost) if asset.custom_cost else '0.00' }}</td></tr>{% else %}<tr><td colspan="3">No manual assets.</td></tr>{% endfor %}
                             </tbody></table>
                         </div>
                         <div>
                             <h4>Freshservice Users ({{ users|length }})</h4>
-                            <table><thead><tr><th>Full Name</th><th>Email</th><th>Billing Type</th></tr></thead><tbody>
-                                {% for user in users %}<tr><td>{{ user.full_name }}</td><td>{{ user.email }}</td><td>{{ user_overrides[user.id].billing_type if user_overrides[user.id] else 'Paid' }}</td></tr>{% else %}<tr><td colspan="4">No users found.</td></tr>{% endfor %}
+                            <table><thead><tr><th>Full Name</th><th>Associated Assets</th><th>Email</th><th>Billing Type</th></tr></thead><tbody>
+                                {% for user in users %}<tr><td>{{ user.full_name }}</td><td>
+                                {% if user.associated_assets %}
+                                    {% set assets = user.associated_assets | fromjson %}
+                                    {% for asset in assets %}
+                                        {% if asset.hostname %}
+                                            {% if asset.portal_url %}
+                                                <a href="{{ asset.portal_url }}" target="_blank">{{ asset.hostname }}</a>
+                                            {% else %}
+                                                {{ asset.hostname }}
+                                            {% endif %}
+                                            {% if not loop.last %}, {% endif %}
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endif %}
+                                </td><td>{{ user.email }}</td><td>{{ user_overrides[user.id].billing_type if user_overrides[user.id] else 'Paid' }}</td></tr>{% else %}<tr><td colspan="4">No users found.</td></tr>{% endfor %}
                             </tbody></table>
                             <h4>Manual Users ({{ manual_users|length }})</h4>
                             <table><thead><tr><th>Full Name</th><th>Billing Type</th><th>Cost</th></tr></thead><tbody>
-                                {% for user in manual_users %}<tr><td>{{ user.full_name }}</td><td>{{ user.billing_type }}</td><td>${{ "%.2f"|format(user.custom_cost) if user.custom_cost else '0.00' }}</td></tr>{% else %}<tr><td colspan="4">No manual users.</td></tr>{% endfor %}
+                                {% for user in manual_users %}<tr><td>{{ user.full_name }}</td><td>{{ user.billing_type }}</td><td>${{ "%.2f"|format(user.custom_cost) if user.custom_cost else '0.00' }}</td></tr>{% else %}<tr><td colspan="3">No manual users.</td></tr>{% endfor %}
                             </tbody></table>
                         </div>
                     </div>
@@ -479,7 +509,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const sortLink = event.target.closest('a.sort-link');
             const paginationLink = event.target.closest('.pagination a');
             const editButton = event.target.closest('.edit-attachment');
-            const previewLink = event.target.closest('.preview-attachment');
 
             if (sortLink) {
                 event.preventDefault();
@@ -509,49 +538,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 modalOriginalFilename.value = originalFilename;
                 modalCategory.value = category;
                 editAttachmentModal.style.display = 'block';
-            } else if (previewLink) {
-                event.preventDefault();
-                const previewModalTitle = document.getElementById('previewModalTitle');
-                const previewModalContent = document.getElementById('previewModalContent');
-                const url = previewLink.dataset.url;
-                const filename = previewLink.dataset.filename;
-                const fileExtension = filename.split('.').pop().toLowerCase();
-                const imageExtensions = ['png', 'jpg', 'jpeg', 'gif'];
-
-                previewModalTitle.textContent = filename;
-                previewModalContent.innerHTML = '';
-
-                if (imageExtensions.includes(fileExtension)) {
-                    const img = document.createElement('img');
-                    img.src = url;
-                    img.style.maxWidth = '100%';
-                    img.style.maxHeight = '80vh';
-                    previewModalContent.appendChild(img);
-                } else if (fileExtension === 'txt') {
-                    fetch(url)
-                        .then(response => response.text())
-                        .then(text => {
-                            const pre = document.createElement('pre');
-                            pre.textContent = text;
-                            previewModalContent.appendChild(pre);
-                        });
-                } else if (fileExtension === 'pdf') {
-                    fetch(url)
-                        .then(response => response.blob())
-                        .then(blob => {
-                            const objectUrl = URL.createObjectURL(blob);
-                            const iframe = document.createElement('iframe');
-                            iframe.src = objectUrl;
-                            iframe.style.width = '100%';
-                            iframe.style.height = '80vh';
-                            iframe.frameborder = "0";
-                            previewModalContent.appendChild(iframe);
-                        });
-                } else {
-                    window.open(url, '_blank');
-                    return;
-                }
-                attachmentPreviewModal.style.display = 'block';
             }
         });
 
@@ -580,6 +566,54 @@ document.addEventListener('DOMContentLoaded', function() {
     window.addEventListener('click', (event) => {
         if (event.target.classList.contains('modal')) {
             event.target.style.display = 'none';
+        }
+    });
+
+    document.addEventListener('click', function(event) {
+        const previewLink = event.target.closest('.preview-attachment');
+        if (previewLink) {
+            event.preventDefault();
+            const previewModalTitle = document.getElementById('previewModalTitle');
+            const previewModalContent = document.getElementById('previewModalContent');
+            const url = previewLink.dataset.url;
+            const filename = previewLink.dataset.filename;
+            const fileExtension = filename.split('.').pop().toLowerCase();
+            const imageExtensions = ['png', 'jpg', 'jpeg', 'gif'];
+
+            previewModalTitle.textContent = filename;
+            previewModalContent.innerHTML = '';
+
+            if (imageExtensions.includes(fileExtension)) {
+                const img = document.createElement('img');
+                img.src = url;
+                img.style.maxWidth = '100%';
+                img.style.maxHeight = '80vh';
+                previewModalContent.appendChild(img);
+            } else if (fileExtension === 'txt') {
+                fetch(url)
+                    .then(response => response.text())
+                    .then(text => {
+                        const pre = document.createElement('pre');
+                        pre.textContent = text;
+                        previewModalContent.appendChild(pre);
+                    });
+            } else if (fileExtension === 'pdf') {
+                fetch(url)
+                    .then(response => response.blob())
+                    .then(blob => {
+                        const objectUrl = URL.createObjectURL(blob);
+                        const iframe = document.createElement('iframe');
+                        iframe.src = objectUrl;
+                        iframe.style.width = '100%';
+                        iframe.style.height = '80vh';
+                        iframe.frameborder = "0";
+                        previewModalContent.appendChild(iframe);
+                    });
+            } else {
+                window.open(url, '_blank');
+                return;
+            }
+            attachmentPreviewModal.style.display = 'block';
         }
     });
 

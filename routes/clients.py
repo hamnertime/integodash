@@ -144,7 +144,7 @@ def client_billing_details(account_number):
                 note_content = request.form.get('note_content')
                 if note_content:
                     log_and_execute("INSERT INTO billing_notes (company_account_number, note_content, created_at, author) VALUES (?, ?, ?, ?)",
-                               [account_number, note_content, datetime.now(timezone.utc).isoformat(), session.get('username')])
+                               [account_number, datetime.now(timezone.utc).isoformat(), session.get('username')])
                     flash('Note added successfully.', 'success')
                 else:
                     flash('Note content cannot be empty.', 'error')
@@ -589,8 +589,26 @@ def client_settings(account_number):
         locations = query_db("SELECT * FROM client_locations WHERE company_account_number = ?", [account_number])
         default_plan = query_db("SELECT * FROM billing_plans WHERE billing_plan = ? AND term_length = ?", [client_info['billing_plan'], client_info['contract_term_length']], one=True)
         overrides_row = query_db("SELECT * FROM client_billing_overrides WHERE company_account_number = ?", [account_number], one=True)
-        assets = query_db("SELECT * FROM assets WHERE company_account_number = ?", [account_number])
-        users = query_db("SELECT u.*, c.employment_type as default_employment_type FROM users u LEFT JOIN contacts c ON u.email = c.email WHERE u.company_account_number = ? AND u.status = 'Active' ORDER BY u.full_name", [account_number])
+        assets = query_db("""
+            SELECT a.*, GROUP_CONCAT(c.first_name || ' ' || c.last_name, ', ') as associated_contacts
+            FROM assets a
+            LEFT JOIN asset_contact_links acl ON a.id = acl.asset_id
+            LEFT JOIN contacts c ON acl.contact_id = c.id
+            WHERE a.company_account_number = ?
+            GROUP BY a.id
+            ORDER BY a.hostname
+        """, [account_number])
+        users = query_db("""
+            SELECT u.*, c.employment_type as default_employment_type,
+                   '[' || GROUP_CONCAT(json_object('hostname', a.hostname, 'portal_url', a.portal_url)) || ']' as associated_assets
+            FROM users u
+            LEFT JOIN contacts c ON u.email = c.email
+            LEFT JOIN asset_contact_links acl ON c.id = acl.contact_id
+            LEFT JOIN assets a ON acl.asset_id = a.id
+            WHERE u.company_account_number = ? AND u.status = 'Active'
+            GROUP BY u.id
+            ORDER BY u.full_name
+        """, [account_number])
         manual_assets = query_db("SELECT * FROM manual_assets WHERE company_account_number = ?", [account_number])
         manual_users = query_db("SELECT * FROM manual_users WHERE company_account_number = ?", [account_number])
         custom_line_items = query_db("SELECT * FROM custom_line_items WHERE company_account_number = ?", [account_number])

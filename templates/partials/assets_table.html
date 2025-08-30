@@ -3,6 +3,7 @@
         <tr>
             {% if visible_columns.hostname %}<th><a href="#" class="sort-link" data-sort="hostname">Hostname<span class="sort-arrow">{% if sort_by == 'hostname' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
             {% if visible_columns.company %}<th><a href="#" class="sort-link" data-sort="company">Company<span class="sort-arrow">{% if sort_by == 'company' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.associated_contacts %}<th><a href="#" class="sort-link" data-sort="associated_contacts">Associated Contacts<span class="sort-arrow">{% if sort_by == 'associated_contacts' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
             {% if visible_columns.device_type %}<th><a href="#" class="sort-link" data-sort="device_type">Device Type<span class="sort-arrow">{% if sort_by == 'device_type' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
             {% if visible_columns.os %}<th><a href="#" class="sort-link" data-sort="os">Operating System<span class="sort-arrow">{% if sort_by == 'os' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
             {% if visible_columns.internal_ip %}<th><a href="#" class="sort-link" data-sort="internal_ip">Internal IP<span class="sort-arrow">{% if sort_by == 'internal_ip' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
@@ -18,6 +19,7 @@
         <tr>
             {% if visible_columns.hostname %}<td>{% if asset.portal_url %}<a href="{{ asset.portal_url }}" target="_blank">{{ asset.hostname }}</a>{% else %}{{ asset.hostname }}{% endif %}</td>{% endif %}
             {% if visible_columns.company %}<td><a href="{{ url_for('clients.client_billing_details', account_number=asset.company_account_number) }}">{{ asset.company_name }}</a></td>{% endif %}
+            {% if visible_columns.associated_contacts %}<td>{{ asset.associated_contacts }}</td>{% endif %}
             {% if visible_columns.device_type %}<td>{{ asset.device_type }}</td>{% endif %}
             {% if visible_columns.os %}<td>{{ asset.operating_system }}</td>{% endif %}
             {% if visible_columns.internal_ip %}<td>{{ asset.internal_ip }}</td>{% endif %}
