@@ -42,20 +42,15 @@ pip install Flask requests sqlcipher3-wheels cryptography APScheduler Markdown b
 
 ### **3\. Generate SSL Certificate**
 
-This application uses SSL to encrypt all web traffic. Run the provided Python script to generate a self-signed certificate.
-
+This application uses SSL to encrypt all web traffic. Run the provided Python script to generate a self-signed certificate.  
 python generate\_cert.py
 
 This will create two files in your project directory: cert.pem and key.pem.
 
 ### **4\. Initialize the Encrypted Database**
 
-The first time you set up the project, you must run the initialization script. This script will create the encrypted brainhair.db file and prompt you to enter a master password and all your API keys. The script relies on a config.json file for default billing plans, features, and users. A default config.json is provided in the repository, but you may need to update it.  
-**How to create your custom config.json:**
-
-1. **Backup**: It's highly recommended to backup the existing config.json file.  
-2. **Edit**: You can manually edit the config.json file with your preferred default plans, features, and users. A developer utility called dump\_settings.py is available to export existing billing plans from an active database to a Python-friendly format, which can be adapted into the config.json file.
-
+The first time you set up the project, you must run the initialization script. This script will create the encrypted brainhair.db file and prompt you to enter a master password and all your API keys.  
+The initialization script uses a config.json file for default settings. You can create a local file named **config.override.json** to customize these settings without modifying the original. If config.override.json exists, the script will use its values instead of config.json. This is the recommended way to manage your custom configurations and keep them out of version control.  
 Run the initialization script:  
 python init\_db.py
 
@@ -77,14 +72,34 @@ Here is a breakdown of the Python files in this project and their functions:
 * **database.py**: Manages the connection to the encrypted SQLCipher database. It includes helper functions for querying and writing data, as well as logging all database transactions for auditing purposes.  
 * **init\_db.py**: A one-time setup script that creates the encrypted database, builds the schema, and prompts the user for their API keys. It can also be used to migrate data from an older version of the database.  
 * **scheduler.py**: A simple script that is called by the background scheduler to run the data sync jobs as separate processes. It handles logging the output and status of each job back to the database.  
+* **utils.py**: Contains a collection of helper functions used throughout the application, including custom Jinja2 template filters for formatting dates and text.  
 * **generate\_cert.py**: A utility script to generate the self-signed SSL certificate (cert.pem) and private key (key.pem) required to run the web server over HTTPS.  
 * **pull\_freshservice.py**: A data sync script that connects to the Freshservice API to pull in all company and user information and stores it in the local database.  
 * **pull\_datto.py**: A data sync script that connects to the Datto RMM API to pull in all client site and device (asset) information.  
 * **pull\_ticket\_details.py**: A data sync script that fetches all closed tickets from Freshservice and calculates the total time spent on each, which is then used for billing calculations.  
 * **set\_account\_numbers.py**: A utility script that can be run to automatically assign a unique account number to any company in Freshservice that is missing one.  
-* **push\_account\_nums\_to\_datto.py**: A utility script that matches clients between Freshservice and Datto RMM and pushes the Freshservice account number to a custom field in Datto RMM for cross-platform linking.  
+* **push\_account\_nums\_to\_datto.py**: A utility script that matches clients between Freshservice and Datto RMM and pushes the Freshservice account number to a custom field in Datto RMM for cross-platform linking.
+
+### **Routes**
+
+The routes/ directory contains Flask blueprints that organize the application's URL routes and views into modular components.
+
+* **routes/auth.py**: Handles user authentication, including logging in with the master password and selecting a user profile from the database.  
+* **routes/clients.py**: Manages the routes for the main billing dashboard, client detail pages, and all associated actions like adding notes, attachments, and exporting data.  
+* **routes/assets.py**: Contains the routes and logic for displaying the comprehensive list of all tracked assets.  
+* **routes/contacts.py**: Manages the routes for viewing and managing all client contacts.  
+* **routes/settings.py**: Provides routes for the application's settings, including managing billing plans, scheduler jobs, users, and custom links.  
+* **routes/\_\_init\_\_.py**: This file is an empty placeholder that marks the routes directory as a Python package.
+
+### **Debug Scripts**
+
+The debug/ directory contains developer utility scripts.
+
+* **debug\_datto\_client.py**: A command-line tool for developers to quickly fetch and view the raw JSON data for a specific client site from the Datto RMM API.  
+* **debug\_datto\_device.py**: A command-line tool to fetch raw JSON data for a specific device from the Datto RMM API.  
+* **debug\_freshservice\_client.py**: A command-line tool for developers to quickly fetch and view the raw JSON data for a specific client from the Freshservice API.  
 * **dump\_settings.py**: A developer utility to export the default billing plans from the database into a Python-friendly format that can be used in config.json.  
-* **debug\_freshservice\_client.py**: A command-line tool for developers to quickly fetch and view the raw JSON data for a specific client from the Freshservice API.
+* **dump\_widget\_settings.py**: A utility for exporting a user's widget layout settings to a JSON format for use in development or for backing up a specific layout.
 
 ## **Usage**
 
