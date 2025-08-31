@@ -1,0 +1,17 @@
+{
+    "default_plans_data": [
+        ["Default Plan", "Month to Month", 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "Billed Hourly", "Not Included", "Not Included", "Not Included", "Not Included", "Not Included"]
+    ],
+    "default_features": [
+        ["Antivirus", "Not Included"], ["Antivirus", "Included"],
+        ["Email", "No Business Email"], ["Email", "Microsoft 365"], ["Email", "Google Workspace"],
+        ["Network Management", "Not Included"], ["Network Management", "Included"],
+        ["Password Manager", "Not Included"], ["Password Manager", "Included"],
+        ["Phone", "No Business Phone"], ["Phone", "VoIP Phone"],
+        ["SAT", "Not Included"], ["SAT", "Included"],
+        ["SOC", "Not Included"], ["SOC", "Included"]
+    ],
+    "default_users": [
+        ["Admin", "Admin"]
+    ]
+}
