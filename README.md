@@ -1,9 +1,7 @@
 # **Integodash**
 
-Created by David Hamner
-
-Integodash is a comprehensive, self-hosted operations dashboard for Managed Service Providers. It integrates data from Freshservice and Datto RMM into a single, secure web interface, providing at-a-glance insights into both ticket management and client billing.
-
+Created by David Hamner  
+Integodash is a comprehensive, self-hosted operations dashboard for Managed Service Providers. It integrates data from Freshservice and Datto RMM into a single, secure web interface, providing at-a-glance insights into both ticket management and client billing.  
 Built with a focus on security and automation, Integodash uses a fully encrypted local database for all sensitive data and credentials. A built-in background scheduler keeps the data fresh automatically, making it a powerful tool for improving operational efficiency.
 
 ## **Features**
@@ -34,13 +32,12 @@ Follow these steps to get the project up and running.
 
 ### **1\. Clone the Repository**
 
-git clone https://github.com/hamnertime/Integodash.git  
+git clone \[https://github.com/hamnertime/Integodash.git\](https://github.com/hamnertime/Integodash.git)  
 cd Integodash
 
 ### **2\. Install Python Dependencies**
 
-This project requires Flask, Requests, SQLCipher support, and other libraries. The sqlcipher3-wheels package provides pre-compiled binaries for a pain-free installation on Windows, macOS, and Linux.
-
+This project requires Flask, Requests, SQLCipher support, and other libraries. The sqlcipher3-wheels package provides pre-compiled binaries for a pain-free installation on Windows, macOS, and Linux.  
 pip install Flask requests sqlcipher3-wheels cryptography APScheduler Markdown bleach
 
 ### **3\. Generate SSL Certificate**
@@ -53,8 +50,13 @@ This will create two files in your project directory: cert.pem and key.pem.
 
 ### **4\. Initialize the Encrypted Database**
 
-The first time you set up the project, you must run the initialization script. This script will create the encrypted brainhair.db file and prompt you to enter a master password and all your API keys.
+The first time you set up the project, you must run the initialization script. This script will create the encrypted brainhair.db file and prompt you to enter a master password and all your API keys. The script relies on a config.json file for default billing plans, features, and users. A default config.json is provided in the repository, but you may need to update it.  
+**How to create your custom config.json:**
 
+1. **Backup**: It's highly recommended to backup the existing config.json file.  
+2. **Edit**: You can manually edit the config.json file with your preferred default plans, features, and users. A developer utility called dump\_settings.py is available to export existing billing plans from an active database to a Python-friendly format, which can be adapted into the config.json file.
+
+Run the initialization script:  
 python init\_db.py
 
 You will be asked for:
@@ -63,8 +65,7 @@ You will be asked for:
 2. Your Freshservice API Key.  
 3. Your Datto RMM API Endpoint, Public Key, and Secret Key.
 
-These credentials will be stored securely inside the encrypted database.
-
+These credentials will be stored securely inside the encrypted database.  
 **Important**: If you ever need to reset the database or change your API keys, you must delete the brainhair.db file and run python init\_db.py again.
 
 ## **Project Structure**
@@ -82,15 +83,14 @@ Here is a breakdown of the Python files in this project and their functions:
 * **pull\_ticket\_details.py**: A data sync script that fetches all closed tickets from Freshservice and calculates the total time spent on each, which is then used for billing calculations.  
 * **set\_account\_numbers.py**: A utility script that can be run to automatically assign a unique account number to any company in Freshservice that is missing one.  
 * **push\_account\_nums\_to\_datto.py**: A utility script that matches clients between Freshservice and Datto RMM and pushes the Freshservice account number to a custom field in Datto RMM for cross-platform linking.  
-* **dump\_settings.py**: A developer utility to export the default billing plans from the database into a Python-friendly format that can be used in init\_db.py.  
+* **dump\_settings.py**: A developer utility to export the default billing plans from the database into a Python-friendly format that can be used in config.json.  
 * **debug\_freshservice\_client.py**: A command-line tool for developers to quickly fetch and view the raw JSON data for a specific client from the Freshservice API.
 
 ## **Usage**
 
 ### **1\. Run the Application**
 
-Start the entire application (web server and background scheduler) with a single command. No environment variables are required.
-
+Start the entire application (web server and background scheduler) with a single command. No environment variables are required.  
 python main.py
 
 The application will be running on https://0.0.0.0:5002/.
@@ -104,14 +104,12 @@ Open a web browser and navigate to **https://localhost:5002**.
 
 ### **3\. Manage the Scheduler**
 
-Navigate to the **Settings & Sync** page to view the status of the automated jobs, see their last run logs, change their schedules, and trigger them to run immediately.
-
+Navigate to the **Settings & Sync** page to view the status of the automated jobs, see their last run logs, change their schedules, and trigger them to run immediately.  
 **Note:** After saving changes to a job's interval or enabled status, you must restart the main.py application for the changes to take effect.
 
 ### **4\. Running as Systemd Services (Recommended for Production/Autostart)**
 
-This project includes example systemd service files in the ./startup/ directory (or you can create them as described below). These files allow main.py to run as background services and start automatically on boot.
-
+This project includes example systemd service files in the ./startup/ directory (or you can create them as described below). These files allow main.py to run as background services and start automatically on boot.  
 **Assumptions for service files:**
 
 * Your project is in /home/integotec/integodash.  
@@ -146,6 +144,5 @@ This project includes example systemd service files in the ./startup/ directory 
 
 ## **License**
 
-This project is licensed under the GNU Affero General Public License v3.0.
-
+This project is licensed under the GNU Affero General Public License v3.0.  
 Copyright (C) 2025 David Hamner
