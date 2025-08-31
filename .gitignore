@@ -3,6 +3,7 @@
 *.pem
 *.bak
 uploads/
+config.integotec.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
