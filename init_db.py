@@ -17,15 +17,22 @@ except ImportError:
 
 DB_FILE = "brainhair.db"
 CONFIG_FILE = "config.json"
+CONFIG_OVERRIDE_FILE = "config.override.json"
 UPLOAD_FOLDER = 'uploads'
 
 def load_config():
-    """Loads the configuration from the JSON file."""
-    if not os.path.exists(CONFIG_FILE):
-        print(f"Error: Configuration file '{CONFIG_FILE}' not found.", file=sys.stderr)
+    """Loads the configuration from the JSON file, preferring the override file if it exists."""
+    if os.path.exists(CONFIG_OVERRIDE_FILE):
+        print(f"Using custom configuration from '{CONFIG_OVERRIDE_FILE}'.")
+        with open(CONFIG_OVERRIDE_FILE, 'r') as f:
+            return json.load(f)
+    elif os.path.exists(CONFIG_FILE):
+        print(f"Using default configuration from '{CONFIG_FILE}'.")
+        with open(CONFIG_FILE, 'r') as f:
+            return json.load(f)
+    else:
+        print(f"Error: Neither '{CONFIG_OVERRIDE_FILE}' nor '{CONFIG_FILE}' found.", file=sys.stderr)
         sys.exit(1)
-    with open(CONFIG_FILE, 'r') as f:
-        return json.load(f)
 
 # --- Default Billing Plan Data ---
 # This data is used to populate a fresh database. It is ignored during migration.
