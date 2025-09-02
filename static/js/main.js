@@ -2,8 +2,9 @@ function initializeGrid(pageName, savedLayout, defaultLayout) {
     const grid = GridStack.init({
         minW: 2,
         minH: 2,
-        // Prevent dragging from starting on elements with the 'gs-no-drag' class
+        // Only allow dragging from the header
         draggable: {
+            handle: '.grid-stack-item-header',
             cancel: '.gs-no-drag'
         }
     });

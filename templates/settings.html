@@ -13,7 +13,9 @@
     <div class="grid-stack">
         <div class="grid-stack-item" gs-id="import-export-widget" gs-w="6" gs-h="3">
             <div class="grid-stack-item-content form-section">
-                <h2>Import / Export Settings</h2>
+                <div class="grid-stack-item-header">
+                    <h2>Import / Export Settings</h2>
+                </div>
                 <p>You can export all default billing plans and client-specific overrides to a single JSON file. This is useful for backups or migrating to a new instance. Importing will overwrite all existing settings.</p>
                 <div style="display: flex; gap: 20px; margin-top: 20px;">
                     <a href="{{ url_for('settings.export_settings') }}" class="button">Export All Settings</a>
@@ -29,7 +31,9 @@
 
         <div class="grid-stack-item" gs-id="scheduler-widget" gs-x="6" gs-w="6" gs-h="4">
             <div class="grid-stack-item-content form-section">
-                <h2>Automated Sync Scheduler</h2>
+                <div class="grid-stack-item-header">
+                    <h2>Automated Sync Scheduler</h2>
+                </div>
                 <p>Configure and monitor the background data sync jobs. <strong>Note:</strong> You must restart the application for changes to interval or enabled status to take effect.</p>
                 <table class="plan-table">
                     <thead>
@@ -67,7 +71,9 @@
 
         <div class="grid-stack-item" gs-id="users-auditing-widget" gs-y="4" gs-w="12" gs-h="5">
             <div class="grid-stack-item-content form-section">
-                <h2>Application Users & Auditing</h2>
+                <div class="grid-stack-item-header">
+                    <h2>Application Users & Auditing</h2>
+                </div>
                 <a href="{{ url_for('settings.view_audit_log') }}" class="button">View Full Audit Log</a>
                 <div class="user-management-grid">
                     <div>
@@ -137,17 +143,17 @@
 
         <div class="grid-stack-item" gs-id="billing-plans-widget" gs-y="9" gs-w="12" gs-h="8">
             <div class="grid-stack-item-content">
+                <div class="grid-stack-item-header">
+                    <h2>Default Billing Plan Settings</h2>
+                        <p>These are the default rates for each billing plan and contract term combination. Client-specific overrides can be set on each client's individual settings page.</p>
+                </div>
                 <div class="form-section">
-                    <h2>Add New Billing Plan</h2>
                     <form action="{{ url_for('settings.add_billing_plan') }}" method="POST" class="add-plan-form full-width">
                         <input type="text" name="new_plan_name" placeholder="Enter New Plan Name" required>
                         <button type="submit">Create Plan</button>
                     </form>
                 </div>
-
                 <div class="form-section">
-                    <h2>Default Billing Plan Settings</h2>
-                    <p>These are the default rates for each billing plan and contract term combination. Client-specific overrides can be set on each client's individual settings page.</p>
                     {% for plan_name, plans in grouped_plans.items() %}
                     <div class="plan-group">
                         <form method="POST" action="{{ url_for('settings.billing_settings_action') }}">
@@ -221,7 +227,9 @@
 
         <div class="grid-stack-item" gs-id="custom-links-widget" gs-y="17" gs-w="6" gs-h="4">
             <div class="grid-stack-item-content form-section">
-                <h2>Add Custom Links</h2>
+                <div class="grid-stack-item-header">
+                    <h2>Add Custom Links</h2>
+                </div>
                 <table class="plan-table">
                     <thead>
                         <tr>
@@ -262,12 +270,15 @@
 
         <div class="grid-stack-item" gs-id="feature-options-widget" gs-x="6" gs-y="17" gs-w="6" gs-h="5">
             <div class="grid-stack-item-content form-section">
-                <h2>Add New Feature Category</h2>
-                <form method="POST" action="{{ url_for('settings.add_feature_type') }}" class="add-plan-form full-width">
-                    <input type="text" name="feature_type" placeholder="New Feature Category Name" required>
-                    <button type="submit">Add Category</button>
-                </form>
-                <h2>Feature Options Management</h2>
+                <div class="grid-stack-item-header">
+                    <h2>Feature Options Management</h2>
+                </div>
+                <div class="form-section" style="margin-bottom: 20px;">
+                    <form method="POST" action="{{ url_for('settings.add_feature_type') }}" class="add-plan-form full-width">
+                        <input type="text" name="feature_type" placeholder="New Feature Category Name" required>
+                        <button type="submit">Add Category</button>
+                    </form>
+                </div>
                 <div class="feature-options-grid">
                     {% for feature_type, options in feature_options.items() %}
                     <div class="feature-type-card">

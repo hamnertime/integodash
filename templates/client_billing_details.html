@@ -12,27 +12,31 @@
     <div class="grid-stack">
         <div class="grid-stack-item" gs-id="billing-period-selector-widget" gs-w="12" gs-h="1">
             <div class="grid-stack-item-content billing-period-selector form-section">
-                {% if datto_portal_url %}
-                    <a href="{{ datto_portal_url }}" class="button" target="_blank">View in Datto RMM</a>
-                {% endif %}
-                <div style="display: flex; align-items: center; gap: 10px; margin-left: auto;">
-                    <form method="get" action="{{ url_for('clients.client_billing_details', account_number=client.account_number) }}" style="display: flex; align-items: center; gap: 10px; flex-wrap: nowrap;">
-                        <label for="billing_month" style="white-space: nowrap;"><strong>Select Billing Period:</strong></label>
-                        <select name="month" id="billing_month" onchange="this.form.submit()">
-                            {% for option in month_options %}
-                                <option value="{{ option.month }}" {% if option.month == selected_month %}selected{% endif %}>{{ option.name }}</option>
-                            {% endfor %}
-                        </select>
-                        <input type="hidden" name="year" value="{{ selected_year }}">
-                    </form>
-                    <a href="{{ url_for('clients.export_quickbooks_csv', account_number=client.account_number, year=selected_year, month=selected_month) }}" class="button">Export to QuickBooks (CSV)</a>
+                <div class="grid-stack-item-header" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    {% if datto_portal_url %}
+                        <a href="{{ datto_portal_url }}" class="button" target="_blank">View in Datto RMM</a>
+                    {% endif %}
+                    <div style="display: flex; align-items: center; gap: 10px; margin-left: auto;">
+                        <form method="get" action="{{ url_for('clients.client_billing_details', account_number=client.account_number) }}" style="display: flex; align-items: center; gap: 10px; flex-wrap: nowrap;">
+                            <label for="billing_month" style="white-space: nowrap;"><strong>Select Billing Period:</strong></label>
+                            <select name="month" id="billing_month" onchange="this.form.submit()">
+                                {% for option in month_options %}
+                                    <option value="{{ option.month }}" {% if option.month == selected_month %}selected{% endif %}>{{ option.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <input type="hidden" name="year" value="{{ selected_year }}">
+                        </form>
+                        <a href="{{ url_for('clients.export_quickbooks_csv', account_number=client.account_number, year=selected_year, month=selected_month) }}" class="button">Export to QuickBooks (CSV)</a>
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="grid-stack-item" gs-id="client-details-widget" gs-w="6" gs-h="4">
             <div class="grid-stack-item-content">
-                <h2>Client Details</h2>
+                <div class="grid-stack-item-header">
+                    <h2>Client Details</h2>
+                </div>
                 <p><strong>Account Number:</strong> {{ client.account_number }}</p>
                 <p><strong>Company Owner:</strong> {{ client.company_owner or 'N/A' }}</p>
                 <p><strong>Assigned Plan:</strong> <span {% if client.billing_plan == 'MSP Platinum' %}id="msp-platinum-plan"{% endif %}>{{ client.billing_plan }}</span></p>
@@ -46,7 +50,9 @@
 
         <div class="grid-stack-item" gs-id="locations-widget" gs-w="6" gs-h="2">
             <div class="grid-stack-item-content">
-                <h2>Locations</h2>
+                <div class="grid-stack-item-header">
+                    <h2>Locations</h2>
+                </div>
                 {% for location in locations %}
                     <p><strong>{{ location.location_name }}:</strong>
                         <a href="https://www.google.com/maps/search/?api=1&query={{ location.address | urlencode }}" target="_blank">
@@ -61,7 +67,9 @@
 
         <div class="grid-stack-item" gs-id="client-features-widget" gs-w="6" gs-h="3">
             <div class="grid-stack-item-content">
-                <h2>Client Features</h2>
+                <div class="grid-stack-item-header">
+                    <h2>Client Features</h2>
+                </div>
                 {% for feature_type, feature_value in effective_rates.items() %}
                     {% if feature_type.startswith('feature_') %}
                         {% set feature_name = feature_type.replace('feature_', '').replace('_', ' ') %}
@@ -79,7 +87,9 @@
 
         <div class="grid-stack-item" gs-id="contract-details-widget" gs-w="6" gs-h="3">
             <div class="grid-stack-item-content">
-                <h2>Contract Details</h2>
+                <div class="grid-stack-item-header">
+                    <h2>Contract Details</h2>
+                </div>
                 <p><strong>Client Start Date:</strong> {{ client.client_start_date | usa_date }}</p>
                 <p><strong>Contract Term:</strong> {{ client.contract_term_length }}</p>
                 <p><strong>Contract Start Date:</strong> {{ client.contract_start_date | usa_date }}</p>
@@ -94,7 +104,9 @@
 
         <div class="grid-stack-item" gs-id="billing-receipt-widget" gs-w="6" gs-h="5">
             <div class="grid-stack-item-content">
-                <h2>Billing Receipt for {{ selected_billing_period }}</h2>
+                <div class="grid-stack-item-header">
+                    <h2>Billing Receipt for {{ selected_billing_period }}</h2>
+                </div>
                 <table class="receipt-table">
 
                     <tr>
@@ -175,7 +187,9 @@
 
         <div class="grid-stack-item" gs-id="notes-widget" gs-w="6" gs-h="4">
             <div class="grid-stack-item-content">
-                <h2>Client Notes</h2>
+                <div class="grid-stack-item-header">
+                    <h2>Client Notes</h2>
+                </div>
                 <form method="POST" action="{{ url_for('clients.client_billing_details', account_number=client.account_number) }}">
                      <textarea name="note_content" rows="3" placeholder="Add a new client note..." style="width: 100%; padding: 8px; border: 1px solid var(--input-border); border-radius: 4px; box-sizing: border-box; background-color: var(--input-bg); color: var(--text-color);"></textarea>
                      <div style="text-align: right; margin-top: 10px;">
@@ -194,8 +208,10 @@
 
         <div class="grid-stack-item" gs-id="attachments-widget" gs-w="6" gs-h="4">
             <div class="grid-stack-item-content">
-                <div class="form-section" id="attachments-section">
+                <div class="grid-stack-item-header">
                     <h2>Client Attachments</h2>
+                </div>
+                <div class="form-section" id="attachments-section">
                     <div class="attachment-controls">
                         <form method="POST" action="{{ url_for('clients.upload_file', account_number=client.account_number) }}" enctype="multipart/form-data" class="upload-form">
                             <input type="file" name="file[]" id="file-upload" required multiple>
@@ -223,7 +239,9 @@
 
         <div class="grid-stack-item" gs-id="ticket-breakdown-widget" gs-w="12" gs-h="4">
             <div class="grid-stack-item-content">
-                <h2>Ticket Breakdown for Billing Period ({{ selected_billing_period }})</h2>
+                <div class="grid-stack-item-header">
+                    <h2>Ticket Breakdown for Billing Period ({{ selected_billing_period }})</h2>
+                </div>
                 <details open>
                     <summary>View Tickets ({{ tickets_for_billing_period|length }})</summary>
                     <table>
@@ -247,7 +265,9 @@
 
         <div class="grid-stack-item" gs-id="tracked-assets-widget" gs-w="12" gs-h="4">
             <div class="grid-stack-item-content">
-                <h2>Tracked Assets & Users</h2>
+                <div class="grid-stack-item-header">
+                    <h2>Tracked Assets & Users</h2>
+                </div>
                 <details open>
                     <summary>View All Tracked Items</summary>
                     <div class="grid-container">

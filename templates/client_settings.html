@@ -13,7 +13,9 @@
     <div class="grid-stack">
         <div class="grid-stack-item" gs-id="client-details-widget" gs-w="6" gs-h="4">
             <div class="grid-stack-item-content form-section">
-                <h2>Client Details</h2>
+                <div class="grid-stack-item-header">
+                    <h2>Client Details</h2>
+                </div>
                 <div class="form-grid" style="grid-template-columns: auto 1fr;">
                     <label for="account_number">Account Number</label>
                     <input type="text" id="account_number" value="{{ client.account_number or '' }}" readonly>
@@ -40,7 +42,9 @@
         </div>
         <div class="grid-stack-item" gs-id="contract-details-widget" gs-x="6" gs-w="6" gs-h="3">
             <div class="grid-stack-item-content form-section">
-                <h2>Contract Details</h2>
+                <div class="grid-stack-item-header">
+                    <h2>Contract Details</h2>
+                </div>
                 <div class="form-grid" style="grid-template-columns: auto 1fr;">
                     <label for="client_start_date">Client Start Date</label>
                     <input type="date" name="client_start_date" id="client_start_date" value="{{ client.client_start_date or '' }}">
@@ -60,7 +64,9 @@
         </div>
         <div class="grid-stack-item" gs-id="locations-settings-widget" gs-y="7" gs-w="12" gs-h="4">
             <div class="grid-stack-item-content form-section">
-                <h2>Locations</h2>
+                <div class="grid-stack-item-header">
+                    <h2>Locations</h2>
+                </div>
                 <table class="item-table">
                     <thead>
                         <tr>
@@ -99,7 +105,9 @@
 
         <div class="grid-stack-item" gs-id="billing-overrides-widget" gs-y="4" gs-w="12" gs-h="6">
             <div class="grid-stack-item-content form-section">
-                <h2>Billing Rate Overrides</h2>
+                <div class="grid-stack-item-header">
+                    <h2>Billing Rate Overrides</h2>
+                </div>
                 <div class="form-grid">
                     <div></div> <div class="header default">Default Value</div>
                     <div class="header override">Override Value</div>
@@ -157,7 +165,9 @@
 
         <div class="grid-stack-item" gs-id="feature-overrides-widget" gs-y="10" gs-w="12" gs-h="5">
             <div class="grid-stack-item-content form-section">
-                <h2>Feature Overrides</h2>
+                <div class="grid-stack-item-header">
+                    <h2>Feature Overrides</h2>
+                </div>
                 <div class="form-grid">
                     <div></div>
                     <div class="header default">Default Value</div>
@@ -183,7 +193,9 @@
 
         <div class="grid-stack-item" gs-id="asset-overrides-widget" gs-y="15" gs-w="12" gs-h="6">
             <div class="grid-stack-item-content form-section">
-                <h2>Asset Billing Overrides</h2>
+                <div class="grid-stack-item-header">
+                    <h2>Asset Billing Overrides</h2>
+                </div>
                 <table class="item-table">
                     <thead><tr><th>Hostname</th><th>Associated Contacts</th><th>Detected Type</th><th>Billing Type</th><th>Custom Cost ($)</th></tr></thead>
                     <tbody>
@@ -238,7 +250,9 @@
 
         <div class="grid-stack-item" gs-id="user-overrides-widget" gs-y="21" gs-w="12" gs-h="6">
             <div class="grid-stack-item-content form-section">
-                <h2>User Billing Overrides</h2>
+                <div class="grid-stack-item-header">
+                    <h2>User Billing Overrides</h2>
+                </div>
                 <table class="item-table">
                     <thead><tr><th>Full Name</th><th>Associated Assets</th><th>Employment Type</th><th>Billing Type</th><th>Custom Cost ($)</th></tr></thead>
                     <tbody>
@@ -311,7 +325,9 @@
 
         <div class="grid-stack-item" gs-id="add-manual-asset-widget" gs-y="27" gs-w="6" gs-h="3">
             <div class="grid-stack-item-content form-section simple-form" style="flex: 1;">
-                <h2>Add Manual Asset</h2>
+                <div class="grid-stack-item-header">
+                    <h2>Add Manual Asset</h2>
+                </div>
                 <div class="form-row">
                     <div>
                         <label for="manual_asset_hostname">Hostname:</label>
@@ -340,7 +356,9 @@
 
         <div class="grid-stack-item" gs-id="add-manual-user-widget" gs-x="6" gs-y="27" gs-w="6" gs-h="3">
             <div class="grid-stack-item-content form-section simple-form" style="flex: 1;">
-                <h2>Add Manual User</h2>
+                <div class="grid-stack-item-header">
+                    <h2>Add Manual User</h2>
+                </div>
                 <div class="form-row">
                     <div>
                         <label for="manual_user_name">Full Name:</label>
@@ -367,7 +385,9 @@
 
         <div class="grid-stack-item" gs-id="custom-line-items-widget" gs-y="30" gs-w="12" gs-h="5">
             <div class="grid-stack-item-content form-section simple-form">
-                <h2>Custom Line Items</h2>
+                <div class="grid-stack-item-header">
+                    <h2>Custom Line Items</h2>
+                </div>
                 <table class="item-table">
                     <thead><tr><th>Name</th><th>Type</th><th>Amount</th><th>Billing Period</th><th>Actions</th></tr></thead>
                     <tbody>
@@ -846,4 +866,3 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
-
