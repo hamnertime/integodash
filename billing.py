@@ -225,7 +225,7 @@ def get_billing_data_for_client(account_number, year, month):
         cost = 0.0
         item_type = None
         fee = 0.0
-        if item['monthly_fee'] is not None:
+        if item['monthly_fee'] is not none:
             try:
                 fee = float(item['monthly_fee'])
                 item_type = 'Recurring'
@@ -318,6 +318,37 @@ def get_billing_dashboard_data():
             client['hours_last_month'] = 0
             client['total_backup_bytes'] = 0
             client['total_bill'] = 0.00
+            client['support_level'] = client.get('support_level', 'N/A')
+
+            # --- Calculate Contract End Date for unconfigured plans ---
+            contract_end_date = "N/A"
+            contract_expired = False # Initialize here
+            if client.get('contract_start_date') and client.get('contract_term_length'):
+                try:
+                    # Ensure date string is handled correctly
+                    start_date_str = str(client['contract_start_date']).split('T')[0]
+                    start_date = datetime.fromisoformat(start_date_str)
+
+                    term = client['contract_term_length']
+                    years_to_add = 0
+                    if term == '1-Year': years_to_add = 1
+                    elif term == '2-Year': years_to_add = 2
+                    elif term == '3-Year': years_to_add = 3
+
+                    if years_to_add > 0:
+                        end_date = start_date.replace(year=start_date.year + years_to_add) - timedelta(days=1)
+                        contract_end_date = end_date.strftime('%Y-%m-%d')
+                        if datetime.now().date() > end_date.date(): # Check if expired
+                            contract_expired = True
+                    elif term == 'Month to Month':
+                        contract_end_date = "Month to Month"
+
+                except (ValueError, TypeError, IndexError):
+                    contract_end_date = "Invalid Start Date"
+            client['contract_end_date'] = contract_end_date
+            client['contract_expired'] = contract_expired # Add it to the dict
+            # --- End calculation ---
+
             clients_data.append(client)
             continue
 
@@ -334,6 +365,8 @@ def get_billing_dashboard_data():
         client['total_bill'] = data['receipt_data']['total']
         client['support_level'] = data['support_level_display']
         client['contract_term_length'] = data['client']['contract_term_length']
+        client['contract_end_date'] = data['contract_end_date']
+        client['contract_expired'] = data['contract_expired']
         clients_data.append(client)
 
     return clients_data
@@ -341,3 +374,4 @@ def get_billing_dashboard_data():
 def get_client_breakdown_data(account_number, year, month):
     """Wrapper function to get the billing data for the breakdown template."""
     return get_billing_data_for_client(account_number, year, month)
+

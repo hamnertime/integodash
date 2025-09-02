@@ -431,7 +431,7 @@ def create_database(new_password, existing_data=None):
         cur.executemany("INSERT INTO scheduler_jobs (job_name, script_path, interval_minutes, enabled) VALUES (?, ?, ?, ?)", default_jobs)
 
         print("Populating default billing plans...")
-        cur.executemany("INSERT INTO billing_plans (billing_plan, term_length, per_user_cost, per_server_cost, per_workstation_cost, per_vm_cost, per_switch_cost, per_firewall_cost, per_hour_ticket_cost, backup_base_fee_workstation, backup_base_fee_server, backup_included_tb, backup_per_tb_fee, support_level, feature_antivirus, feature_soc, feature_password_manager, feature_sat, feature_network_management) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", default_plans_data)
+        cur.executemany("INSERT INTO billing_plans (billing_plan, term_length, per_user_cost, per_server_cost, per_workstation_cost, per_vm_cost, per_switch_cost, per_firewall_cost, per_hour_ticket_cost, backup_base_fee_workstation, backup_base_fee_server, backup_included_tb, backup_per_tb_fee, support_level, feature_antivirus, feature_soc, feature_password_manager, feature_sat, feature_network_management, feature_email_security) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", default_plans_data)
 
         print("Populating default feature options...")
         cur.executemany("INSERT INTO feature_options (feature_type, option_name) VALUES (?, ?)", default_features)

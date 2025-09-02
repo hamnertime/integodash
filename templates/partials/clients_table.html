@@ -6,6 +6,7 @@
             {% if visible_columns.billing_plan %}<th><a href="#" class="sort-link" data-sort="billing_plan">Billing Plan<span class="sort-arrow">{% if sort_by == 'billing_plan' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
             {% if visible_columns.support_level %}<th><a href="#" class="sort-link" data-sort="support_level">Support Level<span class="sort-arrow">{% if sort_by == 'support_level' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
             {% if visible_columns.contract_term_length %}<th><a href="#" class="sort-link" data-sort="contract_term_length">Term<span class="sort-arrow">{% if sort_by == 'contract_term_length' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.contract_end_date %}<th><a href="#" class="sort-link" data-sort="contract_end_date">Contract End Date<span class="sort-arrow">{% if sort_by == 'contract_end_date' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
             {% if visible_columns.workstations %}<th><a href="#" class="sort-link" data-sort="workstations">Workstations<span class="sort-arrow">{% if sort_by == 'workstations' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
             {% if visible_columns.servers %}<th><a href="#" class="sort-link" data-sort="servers">Servers<span class="sort-arrow">{% if sort_by == 'servers' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
             {% if visible_columns.vms %}<th><a href="#" class="sort-link" data-sort="vms">VMs<span class="sort-arrow">{% if sort_by == 'vms' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
@@ -25,6 +26,7 @@
                 {% if visible_columns.billing_plan %}<td>{{ client.billing_plan }}</td>{% endif %}
                 {% if visible_columns.support_level %}<td>{{ client.support_level }}</td>{% endif %}
                 {% if visible_columns.contract_term_length %}<td>{{ client.contract_term_length }}</td>{% endif %}
+                {% if visible_columns.contract_end_date %}<td class="{% if client.contract_expired %}contract-expired-pulse{% endif %}">{{ client.contract_end_date | usa_date }}</td>{% endif %}
                 {% if visible_columns.workstations %}<td>{{ client.workstations }}</td>{% endif %}
                 {% if visible_columns.servers %}<td>{{ client.servers }}</td>{% endif %}
                 {% if visible_columns.vms %}<td>{{ client.vms }}</td>{% endif %}
@@ -75,3 +77,4 @@
         </select>
     </form>
 </div>
+

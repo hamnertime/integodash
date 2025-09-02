@@ -9,7 +9,7 @@
     <h1>Override Settings for {{ client.name }}</h1>
     <button id="restore-layout-btn" class="button">Restore Default Layout</button>
 </div>
-<form method="POST" action="{{ url_for('clients.client_settings', account_number=client.account_number) }}">
+<form id="client-settings-form" method="POST" action="{{ url_for('clients.client_settings', account_number=client.account_number) }}">
     <div class="grid-stack">
         <div class="grid-stack-item" gs-id="client-details-widget" gs-w="6" gs-h="4">
             <div class="grid-stack-item-content form-section">
@@ -458,10 +458,27 @@
             </div>
         </div>
     </div>
-    <div class="button-container" style="text-align: right; margin-top: 20px; padding-right: 20px;">
-        <button type="submit" name="action" value="save_overrides" class="button">Save All Settings</button>
-    </div>
+    <input type="hidden" name="action" value="save_overrides">
 </form>
+
+    <div id="save-fab-container" class="fab-container">
+        <button id="save-fab" class="button">Save All Settings</button>
+    </div>
+
+    <div id="saveConfirmationModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Confirm Changes</h2>
+                <span class="close-button">&times;</span>
+            </div>
+            <p>Please review the following changes before saving:</p>
+            <ul id="changes-list"></ul>
+            <div class="button-container">
+                <button type="button" class="button secondary" id="cancel-save-btn">Cancel</button>
+                <button type="button" class="button" id="confirm-save-btn">Confirm Save</button>
+            </div>
+        </div>
+    </div>
 
     <div id="manualAssetModal" class="modal">
         <div class="modal-content simple-form">
@@ -575,8 +592,115 @@ document.addEventListener('DOMContentLoaded', function() {
         {{ default_layout|tojson|safe }}
     );
 
+    const mainForm = document.getElementById('client-settings-form');
+    const fabContainer = document.getElementById('save-fab-container');
+    const saveFab = document.getElementById('save-fab');
+    const confirmationModal = document.getElementById('saveConfirmationModal');
+    const changesList = document.getElementById('changes-list');
+    const confirmSaveBtn = document.getElementById('confirm-save-btn');
+    const cancelSaveBtn = document.getElementById('cancel-save-btn');
+    const confirmationCloseBtn = confirmationModal.querySelector('.close-button');
+
+    let initialFormState = {};
+    let isDirty = false;
+
+    function getFormState(form) {
+        const state = {};
+        form.querySelectorAll('input, select, textarea').forEach(el => {
+            if (el.name) {
+                if (el.type === 'checkbox') {
+                    state[el.name] = el.checked;
+                } else {
+                    state[el.name] = el.value;
+                }
+            }
+        });
+        return state;
+    }
+
+    function getLabelForElement(element) {
+        if (element.id) {
+            const label = document.querySelector(`label[for="${element.id}"]`);
+            if (label) return label.textContent.trim();
+        }
+        // Fallback for more complex structures like asset/user overrides
+        const parentRow = element.closest('tr');
+        if (parentRow) {
+            const firstCell = parentRow.querySelector('td');
+            if(firstCell) {
+                 const baseName = firstCell.textContent.trim();
+                 if(element.name.includes('billing_type')) return `${baseName} - Billing Type`;
+                 if(element.name.includes('custom_cost')) return `${baseName} - Custom Cost`;
+                 if(element.name.includes('employment_type')) return `${baseName} - Employment Type`;
+            }
+        }
+        return element.name; // Fallback to element name
+    }
+
+
+    function compareStates(initial, current) {
+        const changes = [];
+        for (const key in current) {
+            if (initial[key] !== current[key]) {
+                const element = mainForm.elements[key];
+                const label = getLabelForElement(element);
+                let oldValue = initial[key];
+                let newValue = current[key];
+
+                if(element.type === 'checkbox'){
+                    oldValue = oldValue ? 'Enabled' : 'Disabled';
+                    newValue = newValue ? 'Enabled' : 'Disabled';
+                }
+
+                if(element.type === 'number' && (oldValue === '' || oldValue === null)) oldValue = '0';
+                if(element.type === 'number' && (newValue === '' || newValue === null)) newValue = '0';
+
+
+                changes.push({
+                    label: label,
+                    oldValue: oldValue || 'Empty',
+                    newValue: newValue || 'Empty'
+                });
+            }
+        }
+        return changes;
+    }
+
+
+    function handleFormChange() {
+        if (!isDirty) {
+            isDirty = true;
+            fabContainer.classList.add('visible');
+        }
+    }
+
+    initialFormState = getFormState(mainForm);
+    mainForm.addEventListener('input', handleFormChange);
+    mainForm.addEventListener('change', handleFormChange); // For select and checkbox
+
+    saveFab.addEventListener('click', function() {
+        const currentState = getFormState(mainForm);
+        const detectedChanges = compareStates(initialFormState, currentState);
+
+        if (detectedChanges.length > 0) {
+            changesList.innerHTML = '';
+            detectedChanges.forEach(change => {
+                const li = document.createElement('li');
+                li.innerHTML = `<span class="change-label">${change.label}:</span> <span class="old-value">${change.oldValue}</span> &rarr; <span class="new-value">${change.newValue}</span>`;
+                changesList.appendChild(li);
+            });
+            confirmationModal.style.display = 'block';
+        } else {
+            // Can provide feedback that there are no changes, though the button shouldn't be visible
+            alert('No changes to save.');
+        }
+    });
+
+    confirmSaveBtn.addEventListener('click', () => mainForm.submit());
+    cancelSaveBtn.addEventListener('click', () => confirmationModal.style.display = 'none');
+    confirmationCloseBtn.addEventListener('click', () => confirmationModal.style.display = 'none');
+
     function toggleLineItemFields(itemType) {
-        // Find the correct elements relative to the select element
         const formSection = document.querySelector('#custom-line-items-widget .grid-stack-item-content');
         const recurringFields = formSection.querySelector('#recurring_fields');
         const oneOffFields = formSection.querySelector('#one_off_fields');
@@ -597,9 +721,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const lineItemTypeSelect = document.getElementById('line_item_type');
     if (lineItemTypeSelect) {
-        // Initialize the view
         toggleLineItemFields(lineItemTypeSelect.value);
-        // Add event listener
         lineItemTypeSelect.addEventListener('change', (e) => toggleLineItemFields(e.target.value));
     }
 
@@ -609,23 +731,20 @@ document.addEventListener('DOMContentLoaded', function() {
     const lineItemModal = document.getElementById('lineItemModal');
     const locationModal = document.getElementById('locationModal');
     const widgetLibraryModal = document.getElementById('widgetLibraryModal');
-    const closeButtons = document.querySelectorAll('.close-button');
+    const closeButtons = document.querySelectorAll('.modal .close-button');
 
-    function closeModal() {
-        if(manualAssetModal) manualAssetModal.style.display = 'none';
-        if(manualUserModal) manualUserModal.style.display = 'none';
-        if(lineItemModal) lineItemModal.style.display = 'none';
-        if(locationModal) locationModal.style.display = 'none';
-        if(widgetLibraryModal) widgetLibraryModal.style.display = 'none';
+    function closeModal(modal) {
+        if(modal) modal.style.display = 'none';
     }
 
     closeButtons.forEach(button => {
-        button.onclick = closeModal;
+        button.addEventListener('click', () => closeModal(button.closest('.modal')));
     });
 
+
     window.onclick = (event) => {
-        if (event.target == manualAssetModal || event.target == manualUserModal || event.target == lineItemModal || event.target == locationModal || event.target == widgetLibraryModal) {
-            closeModal();
+        if (event.target.classList.contains('modal')) {
+             closeModal(event.target);
         }
     }
 
@@ -668,31 +787,23 @@ document.addEventListener('DOMContentLoaded', function() {
             const form = document.getElementById('lineItemModalForm');
             form.action = `{{ url_for('clients.edit_line_item', account_number=client.account_number, item_id=0) }}`.replace('0', itemId);
 
-            // Determine item type
             let itemType = 'recurring';
-            if (this.dataset.oneOffFee) {
-                itemType = 'one_off';
-            } else if (this.dataset.yearlyFee) {
-                itemType = 'yearly';
-            }
+            if (this.dataset.oneOffFee) itemType = 'one_off';
+            else if (this.dataset.yearlyFee) itemType = 'yearly';
 
-            // Populate the modal form dynamically
             let formContent = `
                 <label for="modal_line_item_name">Item Name:</label>
                 <input type="text" id="modal_line_item_name" name="line_item_name" value="${this.dataset.name}" required>
-
                 <label for="modal_line_item_type">Item Type:</label>
                 <select id="modal_line_item_type" name="line_item_type">
                     <option value="recurring" ${itemType === 'recurring' ? 'selected' : ''}>Recurring Monthly</option>
                     <option value="one_off" ${itemType === 'one_off' ? 'selected' : ''}>One-Off Charge</option>
                     <option value="yearly" ${itemType === 'yearly' ? 'selected' : ''}>Recurring Yearly</option>
                 </select>
-
                 <div id="modal_recurring_fields" style="display: ${itemType === 'recurring' ? 'block' : 'none'};">
                     <label>Monthly Fee:</label>
                     <input type="number" name="line_item_recurring_fee" step="0.01" value="${this.dataset.monthlyFee || ''}">
                 </div>
-
                 <div id="modal_one_off_fields" style="display: ${itemType === 'one_off' ? 'block' : 'none'};">
                     <label>One-Off Fee:</label>
                     <input type="number" name="line_item_one_off_fee" step="0.01" value="${this.dataset.oneOffFee || ''}">
@@ -705,7 +816,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         {% endfor %}
                     </select>
                 </div>
-
                 <div id="modal_yearly_fields" style="display: ${itemType === 'yearly' ? 'block' : 'none'};">
                     <label>Yearly Fee:</label>
                     <input type="number" name="line_item_yearly_fee" step="0.01" value="${this.dataset.yearlyFee || ''}">
@@ -718,14 +828,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         ${[...Array(31).keys()].map(i => `<option value="${i+1}" ${this.dataset.yearlyBillDay == i+1 ? 'selected' : ''}>${i+1}</option>`).join('')}
                     </select>
                 </div>
-
                 <div class="button-container">
                     <button type="submit">Save Changes</button>
                 </div>
             `;
             form.innerHTML = formContent;
 
-            // Add event listener for the new select dropdown
             form.querySelector('#modal_line_item_type').addEventListener('change', function() {
                 document.getElementById('modal_recurring_fields').style.display = this.value === 'recurring' ? 'block' : 'none';
                 document.getElementById('modal_one_off_fields').style.display = this.value === 'one_off' ? 'block' : 'none';
@@ -738,3 +846,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
+

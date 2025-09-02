@@ -19,6 +19,7 @@ CLIENTS_COLUMNS = {
     'billing_plan': {'label': 'Billing Plan', 'default': True},
     'support_level': {'label': 'Support Level', 'default': False},
     'contract_term_length': {'label': 'Term', 'default': False},
+    'contract_end_date': {'label': 'Contract End Date', 'default': True},
     'workstations': {'label': 'Workstations', 'default': True},
     'servers': {'label': 'Servers', 'default': True},
     'vms': {'label': 'VMs', 'default': True},
@@ -84,7 +85,7 @@ def get_clients_partial():
                search_query_lower in client.get('billing_plan', '').lower()
         ]
 
-    if sort_by in ['name', 'billing_plan', 'support_level', 'contract_term_length', 'account_number']:
+    if sort_by in ['name', 'billing_plan', 'support_level', 'contract_term_length', 'account_number', 'contract_end_date']:
         all_clients.sort(key=lambda x: str(x.get(sort_by, '')), reverse=sort_order == 'desc')
     else:
         all_clients.sort(key=lambda x: float(x.get(sort_by, 0) or 0), reverse=sort_order == 'desc')
@@ -144,7 +145,7 @@ def client_billing_details(account_number):
                 note_content = request.form.get('note_content')
                 if note_content:
                     log_and_execute("INSERT INTO billing_notes (company_account_number, note_content, created_at, author) VALUES (?, ?, ?, ?)",
-                               [account_number, datetime.now(timezone.utc).isoformat(), session.get('username')])
+                               [account_number, note_content, datetime.now(timezone.utc).isoformat(), session.get('username')])
                     flash('Note added successfully.', 'success')
                 else:
                     flash('Note content cannot be empty.', 'error')
