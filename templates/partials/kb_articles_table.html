@@ -1,12 +1,12 @@
 <table class="client-table">
     <thead>
         <tr>
-            <th><a href="#" class="sort-link" data-sort="title">Title<span class="sort-arrow">{% if sort_by == 'title' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>
-            <th><a href="#" class="sort-link" data-sort="categories">Categories<span class="sort-arrow">{% if sort_by == 'categories' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>
-            <th><a href="#" class="sort-link" data-sort="author">Author<span class="sort-arrow">{% if sort_by == 'author' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>
-            <th><a href="#" class="sort-link" data-sort="client">Client<span class="sort-arrow">{% if sort_by == 'client' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>
-            <th><a href="#" class="sort-link" data-sort="updated_at">Last Updated<span class="sort-arrow">{% if sort_by == 'updated_at' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>
-            {% if session['role'] in ['Admin', 'Editor', 'Contributor'] %}
+            {% if visible_columns.title %}<th><a href="#" class="sort-link" data-sort="title">Title<span class="sort-arrow">{% if sort_by == 'title' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.categories %}<th><a href="#" class="sort-link" data-sort="categories">Categories<span class="sort-arrow">{% if sort_by == 'categories' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.author %}<th><a href="#" class="sort-link" data-sort="author">Author<span class="sort-arrow">{% if sort_by == 'author' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.client %}<th><a href="#" class="sort-link" data-sort="client">Client<span class="sort-arrow">{% if sort_by == 'client' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.updated_at %}<th><a href="#" class="sort-link" data-sort="updated_at">Last Updated<span class="sort-arrow">{% if sort_by == 'updated_at' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
+            {% if visible_columns.actions and session['role'] in ['Admin', 'Editor', 'Contributor'] %}
             <th>Actions</th>
             {% endif %}
         </tr>
@@ -14,18 +14,18 @@
     <tbody>
         {% for article in articles %}
         <tr>
-            <td><a href="{{ url_for('kb.view_article', article_id=article.id) }}"><strong>{{ article.title }}</strong></a></td>
-            <td>{{ article.categories }}</td>
-            <td>{{ article.author_name }}</td>
-            <td>
+            {% if visible_columns.title %}<td><a href="{{ url_for('kb.view_article', article_id=article.id) }}"><strong>{{ article.title }}</strong></a></td>{% endif %}
+            {% if visible_columns.categories %}<td>{{ article.categories }}</td>{% endif %}
+            {% if visible_columns.author %}<td>{{ article.author_name }}</td>{% endif %}
+            {% if visible_columns.client %}<td>
                 {% if article.visibility == 'Client' %}
                     <a href="{{ url_for('clients.client_billing_details', account_number=article.company_account_number) }}">{{ article.company_name }}</a>
                 {% else %}
                     {{ article.visibility }}
                 {% endif %}
-            </td>
-            <td>{{ article.updated_at | humanize }}</td>
-            {% if session['role'] in ['Admin', 'Editor', 'Contributor'] %}
+            </td>{% endif %}
+            {% if visible_columns.updated_at %}<td>{{ article.updated_at | humanize }}</td>{% endif %}
+            {% if visible_columns.actions and session['role'] in ['Admin', 'Editor', 'Contributor'] %}
             <td class="actions-cell">
                 <a href="{{ url_for('kb.edit_article', article_id=article.id) }}" class="icon-button edit">
                     <svg viewBox="0 0 24 24"><path d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25Z" /></svg>

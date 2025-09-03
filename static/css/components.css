@@ -138,6 +138,9 @@ th, td {
     border-radius: 5px;
     cursor: pointer;
     font-size: 1em;
+    font-family: inherit;
+    line-height: normal;
+    vertical-align: middle;
     text-decoration: none !important; /* Remove underline from links styled as buttons */
     display: inline-block;
     transition: background-color 0.2s;

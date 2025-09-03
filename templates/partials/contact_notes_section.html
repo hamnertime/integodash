@@ -1,0 +1,35 @@
+<form method="POST" action="{{ url_for('contacts.contact_details', contact_id=contact.id) }}">
+    <textarea name="note_content" rows="3" placeholder="Add a new note for this contact..." style="width: 100%;"></textarea>
+    <div class="button-container">
+        <button type="submit" name="action" value="add_note">Add Note</button>
+    </div>
+</form>
+<hr>
+<div id="notes-list" style="max-height: 200px; overflow-y: auto;">
+    {% for note in notes %}
+        <div class="note">
+            <div>{{ note.note_content | markdown | safe }}</div>
+            <p class="note-meta">
+                <span>Added by {{ note.author }} on {{ note.created_at | humanize }}</span>
+            </p>
+        </div>
+    {% else %}
+        <p>No notes for this contact yet.</p>
+    {% endfor %}
+</div>
+
+<div class="pagination" style="margin-top: 20px; text-align: center; display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        {% if total_pages > 1 %}
+            {% if page > 1 %}
+                <a href="{{ url_for('contacts.get_contact_notes_partial', contact_id=contact.id, page=page-1, per_page=per_page) }}" class="button">&laquo; Previous</a>
+            {% endif %}
+
+            <span style="margin: 0 15px;">Page {{ page }} of {{ total_pages }}</span>
+
+            {% if page < total_pages %}
+                <a href="{{ url_for('contacts.get_contact_notes_partial', contact_id=contact.id, page=page+1, per_page=per_page) }}" class="button">Next &raquo;</a>
+            {% endif %}
+        {% endif %}
+    </div>
+</div>

@@ -6,7 +6,7 @@
     <h1>Unlock Database</h1>
     <p>Enter the master password to access the dashboard and start the background services.</p>
     <form method="POST" action="{{ url_for('auth.login') }}">
-        <input type="password" name="password" placeholder="Master Password" required>
+        <input type="password" name="password" placeholder="Master Password" required autofocus>
         <button type="submit">Unlock</button>
     </form>
 </div>

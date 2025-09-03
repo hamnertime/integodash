@@ -1,17 +1,33 @@
 # routes/knowledge_base.py
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from database import query_db, log_and_execute, get_db, get_user_widget_layout, default_widget_layouts
 from utils import role_required
 from datetime import datetime, timezone
 
 kb_bp = Blueprint('kb', __name__)
 
+KB_COLUMNS = {
+    'title': {'label': 'Title', 'default': True},
+    'categories': {'label': 'Categories', 'default': True},
+    'author': {'label': 'Author', 'default': True},
+    'client': {'label': 'Client', 'default': True},
+    'updated_at': {'label': 'Last Updated', 'default': True},
+    'actions': {'label': 'Actions', 'default': True}
+}
+
+
 @kb_bp.route('/')
 @role_required(['Admin', 'Editor', 'Contributor', 'Read-Only'])
 def kb():
+    if 'kb_cols' not in session:
+        session['kb_cols'] = {k: v['default'] for k, v in KB_COLUMNS.items()}
     layout = get_user_widget_layout(session['user_id'], 'kb')
     default_layout = default_widget_layouts.get('kb')
-    return render_template('knowledge_base.html', layout=layout, default_layout=default_layout)
+    return render_template('knowledge_base.html',
+                           layout=layout,
+                           default_layout=default_layout,
+                           columns=KB_COLUMNS,
+                           visible_columns=session['kb_cols'])
 
 @kb_bp.route('/partial')
 @role_required(['Admin', 'Editor', 'Contributor', 'Read-Only'])
@@ -73,7 +89,8 @@ def get_articles_partial():
         per_page=per_page,
         total_pages=total_pages,
         sort_by=sort_by,
-        sort_order=sort_order
+        sort_order=sort_order,
+        visible_columns=session.get('kb_cols', {k: v['default'] for k, v in KB_COLUMNS.items()})
     )
 
 
@@ -187,3 +204,12 @@ def delete_article(article_id):
     log_and_execute("DELETE FROM kb_articles WHERE id = ?", [article_id])
     flash('Article deleted successfully.', 'success')
     return redirect(url_for('kb.kb'))
+
+@kb_bp.route('/save_column_prefs/kb', methods=['POST'])
+def save_kb_column_prefs():
+    prefs = {}
+    for col in KB_COLUMNS.keys():
+        prefs[col] = col in request.form
+    session['kb_cols'] = prefs
+    session.modified = True
+    return jsonify({'status': 'success'})

@@ -55,8 +55,13 @@
             <div class="form-row">
                 <div>
                     <label for="company_account_number">Company</label>
-                    <input type="text" value="{{ contact.company_name }}" readonly>
-                    <input type="hidden" name="company_account_number" value="{{ contact.company_account_number }}">
+                    <select id="company_account_number" name="company_account_number">
+                        {% for company in companies %}
+                        <option value="{{ company.account_number }}" {% if contact.company_account_number == company.account_number %}selected{% endif %}>
+                            {{ company.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
                 </div>
                  <div>
                     <label for="status">Status</label>
@@ -123,22 +128,8 @@
              <div class="grid-stack-item-header">
                 <h2>Contact Notes</h2>
             </div>
-            <textarea name="note_content" rows="3" placeholder="Add a new note for this contact..." style="width: 100%;"></textarea>
-            <div class="button-container">
-                <button type="submit" name="action" value="add_note">Add Note</button>
-            </div>
-            <hr>
-            <div id="notes-list" style="max-height: 200px; overflow-y: auto;">
-                {% for note in notes %}
-                    <div class="note">
-                        <div>{{ note.note_content | markdown | safe }}</div>
-                        <p class="note-meta">
-                            <span>Added by {{ note.author }} on {{ note.created_at | humanize }}</span>
-                        </p>
-                    </div>
-                {% else %}
-                    <p>No notes for this contact yet.</p>
-                {% endfor %}
+            <div id="notes-table-container">
+                {# Notes will be loaded here dynamically #}
             </div>
         </div>
     </div>
@@ -181,6 +172,23 @@ document.addEventListener('DOMContentLoaded', function () {
         mainForm.querySelector('input[name="action"]').value = 'save_details';
         mainForm.submit();
     });
+
+    const notesTableContainer = document.getElementById('notes-table-container');
+
+    const fetchNotes = async () => {
+        const url = `{{ url_for('contacts.get_contact_notes_partial', contact_id=contact.id) }}`;
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Network response was not ok');
+            const html = await response.text();
+            notesTableContainer.innerHTML = html;
+        } catch (error) {
+            console.error('Failed to fetch notes:', error);
+            notesTableContainer.innerHTML = '<p class="flash-error">Error loading notes. Please try refreshing the page.</p>';
+        }
+    };
+
+    fetchNotes();
 });
 </script>
 {% endblock %}

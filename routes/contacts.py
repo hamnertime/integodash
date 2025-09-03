@@ -91,22 +91,42 @@ def contact_details(contact_id):
         flash('Contact not found.', 'error')
         return redirect(url_for('contacts.contacts'))
 
+    companies = query_db("SELECT account_number, name FROM companies ORDER BY name")
     company_assets = query_db("SELECT id, hostname FROM assets WHERE company_account_number = ? ORDER BY hostname", [contact['company_account_number']])
     linked_assets_raw = query_db("SELECT asset_id FROM asset_contact_links WHERE contact_id = ?", [contact_id])
     linked_assets = [row['asset_id'] for row in linked_assets_raw]
-    notes = query_db("SELECT * FROM contact_notes WHERE contact_id = ? ORDER BY created_at DESC", [contact_id])
 
     layout = get_user_widget_layout(session['user_id'], 'contact_details')
     default_layout = default_widget_layouts.get('contact_details')
 
     return render_template('contact_details.html',
         contact=contact,
+        companies=companies,
         company_assets=company_assets,
         linked_assets=linked_assets,
-        notes=notes,
         layout=layout,
         default_layout=default_layout)
 
+
+@contacts_bp.route('/<int:contact_id>/notes')
+@role_required(['Admin', 'Editor', 'Contributor', 'Read-Only'])
+def get_contact_notes_partial(contact_id):
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+
+    notes_count = query_db("SELECT COUNT(*) as count FROM contact_notes WHERE contact_id = ?", [contact_id], one=True)['count']
+    total_pages = (notes_count + per_page - 1) // per_page
+    offset = (page - 1) * per_page
+    notes = query_db("SELECT * FROM contact_notes WHERE contact_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?", [contact_id, per_page, offset])
+    contact = query_db("SELECT id FROM contacts WHERE id = ?", [contact_id], one=True)
+
+    return render_template('partials/contact_notes_section.html',
+        contact=contact,
+        notes=notes,
+        page=page,
+        per_page=per_page,
+        total_pages=total_pages
+    )
 
 @contacts_bp.route('/partial')
 @role_required(['Admin', 'Editor', 'Contributor', 'Read-Only'])
