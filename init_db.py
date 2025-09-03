@@ -120,13 +120,14 @@ default_widget_layouts = {
     "client_settings": [
         {"w": 6, "h": 5, "id": "client-details-widget", "x": 0, "y": 0},
         {"x": 6, "w": 6, "h": 5, "id": "contract-details-widget", "y": 0},
-        {"y": 5, "w": 12, "h": 7, "id": "billing-overrides-widget", "x": 0},
-        {"y": 12, "w": 12, "h": 4, "id": "feature-overrides-widget", "x": 0},
-        {"y": 16, "w": 12, "h": 4, "id": "custom-line-items-widget", "x": 0},
-        {"x": 0, "y": 20, "w": 6, "h": 4, "id": "add-manual-user-widget"},
-        {"y": 20, "w": 6, "h": 4, "id": "add-manual-asset-widget", "x": 6},
-        {"y": 24, "w": 12, "h": 3, "id": "user-overrides-widget", "x": 0},
-        {"y": 27, "w": 12, "h": 4, "id": "asset-overrides-widget", "x": 0}
+        {"y": 5, "w": 12, "h": 4, "id": "locations-settings-widget", "x": 0},
+        {"y": 9, "w": 12, "h": 7, "id": "billing-overrides-widget", "x": 0},
+        {"y": 16, "w": 12, "h": 4, "id": "feature-overrides-widget", "x": 0},
+        {"y": 20, "w": 12, "h": 4, "id": "custom-line-items-widget", "x": 0},
+        {"x": 0, "y": 24, "w": 6, "h": 4, "id": "add-manual-user-widget"},
+        {"y": 24, "w": 6, "h": 4, "id": "add-manual-asset-widget", "x": 6},
+        {"y": 28, "w": 12, "h": 3, "id": "user-overrides-widget", "x": 0},
+        {"y": 31, "w": 12, "h": 4, "id": "asset-overrides-widget", "x": 0}
     ],
     "clients": [
         {"x": 0, "y": 0, "w": 12, "h": 8, "id": "clients-table-widget"},

@@ -11,6 +11,7 @@ from .clients import CLIENTS_COLUMNS
 from .assets import ASSETS_COLUMNS
 from .contacts import CONTACTS_COLUMNS
 from werkzeug.security import generate_password_hash
+from utils import role_required
 
 
 settings_bp = Blueprint('settings', __name__)
@@ -71,10 +72,11 @@ def save_column_prefs(page_name):
     return jsonify({'status': 'success'})
 
 @settings_bp.route('/settings', methods=['GET', 'POST'])
+@role_required(['Admin', 'Editor', 'Contributor', 'Read-Only'])
 def billing_settings():
     if request.method == 'POST':
         action = request.form.get('action')
-        if action == 'add_user':
+        if action == 'add_user' and session['role'] == 'Admin':
             username = request.form.get('username')
             role = request.form.get('role')
             if username and role:
@@ -88,7 +90,7 @@ def billing_settings():
                 flash("Username and role are required.", "error")
             return redirect(url_for('settings.billing_settings'))
 
-        elif action == 'save_session_timeout':
+        elif action == 'save_session_timeout' and session['role'] == 'Admin':
             timeout = request.form.get('session_timeout_minutes')
             if timeout and timeout.isdigit():
                 log_and_execute("INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)", ('session_timeout_minutes', timeout))
@@ -171,12 +173,14 @@ def billing_settings():
     )
 
 @settings_bp.route('/settings/audit_log')
+@role_required(['Admin'])
 def view_audit_log():
     audit_logs = query_db("SELECT al.*, au.username FROM audit_log al LEFT JOIN app_users au ON al.user_id = au.id ORDER BY al.timestamp DESC")
     layout = get_user_widget_layout(session['user_id'], 'audit_log')
     return render_template('audit_log.html', audit_logs=audit_logs, layout=layout)
 
 @settings_bp.route('/settings/delete_user/<int:user_id>', methods=['POST'])
+@role_required(['Admin'])
 def delete_user(user_id):
     if user_id == 1:
         flash("Cannot delete the default Admin user.", "error")
@@ -190,6 +194,7 @@ def delete_user(user_id):
     return redirect(url_for('settings.billing_settings'))
 
 @settings_bp.route('/settings/links/add', methods=['POST'])
+@role_required(['Admin', 'Editor'])
 def add_link():
     name = request.form.get('name')
     url = request.form.get('url')
@@ -202,6 +207,7 @@ def add_link():
     return redirect(url_for('settings.billing_settings'))
 
 @settings_bp.route('/settings/links/edit/<int:link_id>', methods=['POST'])
+@role_required(['Admin', 'Editor'])
 def edit_link(link_id):
     name = request.form.get('name')
     url = request.form.get('url')
@@ -214,6 +220,7 @@ def edit_link(link_id):
     return redirect(url_for('settings.billing_settings'))
 
 @settings_bp.route('/settings/user/edit/<int:user_id>', methods=['POST'])
+@role_required(['Admin'])
 def edit_user(user_id):
     # Prevent editing the main Admin user
     if user_id == 1:
@@ -253,12 +260,14 @@ def edit_user(user_id):
 
 
 @settings_bp.route('/settings/links/delete/<int:link_id>', methods=['POST'])
+@role_required(['Admin', 'Editor'])
 def delete_link(link_id):
     log_and_execute("DELETE FROM custom_links WHERE id = ?", (link_id,))
     flash("Link deleted successfully.", "success")
     return redirect(url_for('settings.billing_settings'))
 
 @settings_bp.route('/settings/features/add', methods=['POST'])
+@role_required(['Admin', 'Editor'])
 def add_feature_option():
     feature_type = request.form.get('feature_type')
     option_name = request.form.get('option_name')
@@ -271,12 +280,14 @@ def add_feature_option():
     return redirect(url_for('settings.billing_settings'))
 
 @settings_bp.route('/settings/features/delete/<int:option_id>', methods=['POST'])
+@role_required(['Admin'])
 def delete_feature_option(option_id):
     log_and_execute("DELETE FROM feature_options WHERE id = ?", (option_id,))
     flash("Feature option deleted.", "success")
     return redirect(url_for('settings.billing_settings'))
 
 @settings_bp.route('/settings/features/edit/<int:option_id>', methods=['POST'])
+@role_required(['Admin', 'Editor'])
 def edit_feature_option(option_id):
     new_name = request.form.get('option_name')
     if new_name:
@@ -290,6 +301,7 @@ def edit_feature_option(option_id):
     return redirect(url_for('settings.billing_settings'))
 
 @settings_bp.route('/settings/features/type/add', methods=['POST'])
+@role_required(['Admin'])
 def add_feature_type():
     feature_type = request.form.get('feature_type')
     if feature_type:
@@ -308,6 +320,7 @@ def add_feature_type():
     return redirect(url_for('settings.billing_settings'))
 
 @settings_bp.route('/settings/features/type/delete', methods=['POST'])
+@role_required(['Admin'])
 def delete_feature_type():
     feature_type = request.form.get('feature_type')
     if feature_type:
@@ -319,6 +332,7 @@ def delete_feature_type():
     return redirect(url_for('settings.billing_settings'))
 
 @settings_bp.route('/settings/features/type/edit', methods=['POST'])
+@role_required(['Admin'])
 def edit_feature_type():
     original_feature_type = request.form.get('original_feature_type')
     new_feature_type = request.form.get('new_feature_type')
@@ -338,6 +352,7 @@ def edit_feature_type():
     return redirect(url_for('settings.billing_settings'))
 
 @settings_bp.route('/settings/export')
+@role_required(['Admin'])
 def export_settings():
     export_data = {
         'companies': [dict(row) for row in query_db("SELECT * FROM companies")],
@@ -360,6 +375,7 @@ def export_settings():
     return response
 
 @settings_bp.route('/settings/import', methods=['POST'])
+@role_required(['Admin'])
 def import_settings():
     if 'file' not in request.files:
         flash('No file part', 'error')
@@ -393,10 +409,11 @@ def import_settings():
     return redirect(url_for('settings.billing_settings'))
 
 @settings_bp.route('/settings/plan/action', methods=['POST'])
+@role_required(['Admin', 'Editor'])
 def billing_settings_action():
     form_action = request.form.get('form_action')
     plan_name = request.form.get('plan_name')
-    if form_action == 'delete':
+    if form_action == 'delete' and session['role'] == 'Admin':
         log_and_execute("DELETE FROM billing_plans WHERE billing_plan = ?", [plan_name])
         flash(f"Billing plan '{plan_name}' and all its terms have been deleted.", 'success')
     elif form_action == 'save':
@@ -443,6 +460,7 @@ def billing_settings_action():
     return redirect(url_for('settings.billing_settings'))
 
 @settings_bp.route('/settings/plan/add', methods=['POST'])
+@role_required(['Admin', 'Editor'])
 def add_billing_plan():
     plan_name = request.form.get('new_plan_name')
     if not plan_name:
@@ -458,6 +476,7 @@ def add_billing_plan():
     return redirect(url_for('settings.billing_settings'))
 
 @settings_bp.route('/settings/scheduler/update/<int:job_id>', methods=['POST'])
+@role_required(['Admin'])
 def update_scheduler_job(job_id):
     is_enabled = 1 if 'enabled' in request.form else 0
     interval = int(request.form.get('interval_minutes', 1))
@@ -466,6 +485,7 @@ def update_scheduler_job(job_id):
     return redirect(url_for('settings.billing_settings'))
 
 @settings_bp.route('/scheduler/run_now/<int:job_id>', methods=['POST'])
+@role_required(['Admin'])
 def run_now(job_id):
     from main import scheduler
     from scheduler import run_job
@@ -477,6 +497,7 @@ def run_now(job_id):
     return redirect(url_for('settings.billing_settings'))
 
 @settings_bp.route('/scheduler/log/<int:job_id>')
+@role_required(['Admin'])
 def get_log(job_id):
     log_data = query_db("SELECT last_run_log FROM scheduler_jobs WHERE id = ?", [job_id], one=True)
     return jsonify({'log': log_data['last_run_log'] if log_data and log_data['last_run_log'] else 'No log found.'})

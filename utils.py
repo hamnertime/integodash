@@ -3,11 +3,25 @@ import markdown
 import bleach
 import sys
 from datetime import datetime, timezone
-from flask import session, current_app
+from flask import session, current_app, abort
 from database import query_db
 from urllib.parse import quote_plus
 import json
 from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
+
+def role_required(allowed_roles):
+    """
+    A decorator to restrict access to routes based on user roles.
+    """
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if 'role' not in session or session['role'] not in allowed_roles:
+                abort(403)  # Forbidden
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
 
 def humanize_time(dt_str):
     if not dt_str: return "N/A"

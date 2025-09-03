@@ -1,6 +1,7 @@
 # routes/assets.py
 from flask import Blueprint, render_template, session, request
 from database import query_db, get_user_widget_layout, default_widget_layouts
+from utils import role_required
 
 assets_bp = Blueprint('assets', __name__)
 
@@ -19,6 +20,7 @@ ASSETS_COLUMNS = {
 }
 
 @assets_bp.route('/')
+@role_required(['Admin', 'Editor', 'Contributor', 'Read-Only'])
 def assets():
     if 'assets_cols' not in session:
         session['assets_cols'] = {k: v['default'] for k, v in ASSETS_COLUMNS.items()}
@@ -32,6 +34,7 @@ def assets():
     )
 
 @assets_bp.route('/partial')
+@role_required(['Admin', 'Editor', 'Contributor', 'Read-Only'])
 def get_assets_partial():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 50, type=int)

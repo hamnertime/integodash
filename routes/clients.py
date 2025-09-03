@@ -10,6 +10,7 @@ import csv
 import zipfile
 from werkzeug.utils import secure_filename
 from collections import defaultdict
+from utils import role_required
 
 clients_bp = Blueprint('clients', __name__)
 
@@ -37,6 +38,7 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @clients_bp.route('/')
+@role_required(['Admin', 'Editor', 'Contributor', 'Read-Only'])
 def billing_dashboard():
     try:
         today = datetime.now(timezone.utc)
@@ -68,6 +70,7 @@ def billing_dashboard():
         return redirect(url_for('auth.login'))
 
 @clients_bp.route('/clients/partial')
+@role_required(['Admin', 'Editor', 'Contributor', 'Read-Only'])
 def get_clients_partial():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 50, type=int)
@@ -108,6 +111,7 @@ def get_clients_partial():
     )
 
 @clients_bp.route('/client/add', methods=['POST'])
+@role_required(['Admin', 'Editor'])
 def add_client():
     account_number = request.form.get('account_number')
     name = request.form.get('name')
@@ -128,6 +132,7 @@ def add_client():
     return redirect(url_for('clients.billing_dashboard'))
 
 @clients_bp.route('/client/delete/<account_number>', methods=['POST'])
+@role_required(['Admin'])
 def delete_client(account_number):
     try:
         log_and_execute("DELETE FROM companies WHERE account_number = ?", [account_number])
@@ -137,9 +142,13 @@ def delete_client(account_number):
     return redirect(url_for('clients.billing_dashboard'))
 
 @clients_bp.route('/client/<account_number>/details', methods=['GET', 'POST'])
+@role_required(['Admin', 'Editor', 'Contributor', 'Read-Only'])
 def client_billing_details(account_number):
     try:
         if request.method == 'POST':
+            if session['role'] not in ['Admin', 'Editor', 'Contributor']:
+                flash('You do not have permission to perform this action.', 'error')
+                return redirect(url_for('clients.client_billing_details', account_number=account_number))
             action = request.form.get('action')
             if action == 'add_note':
                 note_content = request.form.get('note_content')
@@ -152,6 +161,9 @@ def client_billing_details(account_number):
             return redirect(url_for('clients.client_billing_details', account_number=account_number))
 
         if request.args.get('delete_note'):
+            if session['role'] not in ['Admin', 'Editor']:
+                flash('You do not have permission to perform this action.', 'error')
+                return redirect(url_for('clients.client_billing_details', account_number=account_number))
             log_and_execute("DELETE FROM billing_notes WHERE id = ?", [request.args.get('delete_note')])
             flash('Note deleted.', 'success')
             return redirect(url_for('clients.client_billing_details', account_number=account_number))
@@ -226,6 +238,7 @@ def client_billing_details(account_number):
         return redirect(url_for('auth.login'))
 
 @clients_bp.route('/client/<account_number>/note/<int:note_id>/edit', methods=['POST'])
+@role_required(['Admin', 'Editor', 'Contributor'])
 def edit_note(account_number, note_id):
     note = query_db("SELECT * FROM billing_notes WHERE id = ? AND company_account_number = ?", [note_id, account_number], one=True)
     if not note:
@@ -240,6 +253,7 @@ def edit_note(account_number, note_id):
     return redirect(url_for('clients.client_billing_details', account_number=account_number))
 
 @clients_bp.route('/client/<account_number>/notes')
+@role_required(['Admin', 'Editor', 'Contributor', 'Read-Only'])
 def get_notes_partial(account_number):
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 10, type=int)
@@ -271,6 +285,7 @@ def get_notes_partial(account_number):
     )
 
 @clients_bp.route('/client/<account_number>/attachments')
+@role_required(['Admin', 'Editor', 'Contributor', 'Read-Only'])
 def get_attachments_partial(account_number):
     sort_by = request.args.get('sort_by', 'uploaded_at')
     sort_order = request.args.get('sort_order', 'desc')
@@ -316,6 +331,7 @@ def get_attachments_partial(account_number):
     )
 
 @clients_bp.route('/client/<account_number>/upload', methods=['POST'])
+@role_required(['Admin', 'Editor', 'Contributor'])
 def upload_file(account_number):
     files = request.files.getlist('file[]')
     category = request.form.get('category')
@@ -346,6 +362,7 @@ def upload_file(account_number):
     return redirect(url_for('clients.client_billing_details', account_number=account_number))
 
 @clients_bp.route('/uploads/<account_number>/<filename>')
+@role_required(['Admin', 'Editor', 'Contributor', 'Read-Only'])
 def download_file(account_number, filename):
     attachment = query_db("SELECT original_filename FROM client_attachments WHERE stored_filename = ? AND company_account_number = ?", [filename, account_number], one=True)
     if not attachment:
@@ -360,6 +377,7 @@ def download_file(account_number, filename):
     return send_from_directory(client_upload_dir, filename, as_attachment=True, download_name=attachment['original_filename'])
 
 @clients_bp.route('/client/<account_number>/delete_attachment/<int:attachment_id>')
+@role_required(['Admin', 'Editor'])
 def delete_attachment(account_number, attachment_id):
     attachment = query_db("SELECT stored_filename FROM client_attachments WHERE id = ? AND company_account_number = ?", [attachment_id, account_number], one=True)
     if attachment:
@@ -373,6 +391,7 @@ def delete_attachment(account_number, attachment_id):
     return redirect(url_for('clients.client_billing_details', account_number=account_number))
 
 @clients_bp.route('/client/<account_number>/edit_attachment/<int:attachment_id>', methods=['POST'])
+@role_required(['Admin', 'Editor', 'Contributor'])
 def edit_attachment(account_number, attachment_id):
     original_filename = request.form.get('original_filename')
     category = request.form.get('category')
@@ -385,6 +404,7 @@ def edit_attachment(account_number, attachment_id):
     return redirect(url_for('clients.client_billing_details', account_number=account_number))
 
 @clients_bp.route('/export/all_bills', methods=['POST'])
+@role_required(['Admin', 'Editor'])
 def export_all_bills_zip():
     year = int(request.form.get('year'))
     month = int(request.form.get('month'))
@@ -431,6 +451,7 @@ def generate_quickbooks_csv(client_data):
     return output.getvalue()
 
 @clients_bp.route('/client/<account_number>/export/quickbooks')
+@role_required(['Admin', 'Editor'])
 def export_quickbooks_csv(account_number):
     year = request.args.get('year', datetime.now().year, type=int)
     month = request.args.get('month', datetime.now().month, type=int)
@@ -442,6 +463,7 @@ def export_quickbooks_csv(account_number):
     return Response(csv_content, mimetype="text/csv", headers={"Content-disposition": f"attachment; filename=quickbooks_export_{account_number}_{year}-{month:02d}.csv"})
 
 @clients_bp.route('/client/<account_number>/settings', methods=['GET', 'POST'])
+@role_required(['Admin', 'Editor', 'Contributor', 'Read-Only'])
 def client_settings(account_number):
     try:
         feature_options_raw = query_db("SELECT * FROM feature_options ORDER BY feature_type, option_name")
@@ -452,6 +474,9 @@ def client_settings(account_number):
         all_billing_plans = query_db("SELECT DISTINCT billing_plan FROM billing_plans ORDER BY billing_plan")
 
         if request.method == 'POST':
+            if session['role'] not in ['Admin', 'Editor', 'Contributor']:
+                flash('You do not have permission to perform this action.', 'error')
+                return redirect(url_for('clients.client_settings', account_number=account_number))
             action = request.form.get('action')
             if action == 'add_manual_asset':
                 log_and_execute("INSERT INTO manual_assets (company_account_number, hostname, billing_type, custom_cost) VALUES (?, ?, ?, ?)",
@@ -557,18 +582,30 @@ def client_settings(account_number):
                 flash("Overrides saved successfully!", 'success')
             return redirect(url_for('clients.client_settings', account_number=account_number))
         if request.args.get('delete_manual_asset'):
+            if session['role'] not in ['Admin', 'Editor']:
+                flash('You do not have permission to perform this action.', 'error')
+                return redirect(url_for('clients.client_settings', account_number=account_number))
             log_and_execute("DELETE FROM manual_assets WHERE id = ?", [request.args.get('delete_manual_asset')])
             flash('Manual asset deleted.', 'success')
             return redirect(url_for('clients.client_settings', account_number=account_number))
         if request.args.get('delete_manual_user'):
+            if session['role'] not in ['Admin', 'Editor']:
+                flash('You do not have permission to perform this action.', 'error')
+                return redirect(url_for('clients.client_settings', account_number=account_number))
             log_and_execute("DELETE FROM manual_users WHERE id = ?", [request.args.get('delete_manual_user')])
             flash('Manual user deleted.', 'success')
             return redirect(url_for('clients.client_settings', account_number=account_number))
         if request.args.get('delete_line_item'):
+            if session['role'] not in ['Admin', 'Editor']:
+                flash('You do not have permission to perform this action.', 'error')
+                return redirect(url_for('clients.client_settings', account_number=account_number))
             log_and_execute("DELETE FROM custom_line_items WHERE id = ?", [request.args.get('delete_line_item')])
             flash('Custom line item deleted.', 'success')
             return redirect(url_for('clients.client_settings', account_number=account_number))
         if request.args.get('delete_location'):
+            if session['role'] not in ['Admin', 'Editor']:
+                flash('You do not have permission to perform this action.', 'error')
+                return redirect(url_for('clients.client_settings', account_number=account_number))
             log_and_execute("DELETE FROM client_locations WHERE id = ?", [request.args.get('delete_location')])
             flash('Location deleted.', 'success')
             return redirect(url_for('clients.client_settings', account_number=account_number))
@@ -629,6 +666,7 @@ def client_settings(account_number):
         return redirect(url_for('auth.login'))
 
 @clients_bp.route('/client/<account_number>/edit_location/<int:location_id>', methods=['POST'])
+@role_required(['Admin', 'Editor', 'Contributor'])
 def edit_location(account_number, location_id):
     location_name = request.form.get('location_name')
     address = request.form.get('address')
@@ -641,6 +679,7 @@ def edit_location(account_number, location_id):
     return redirect(url_for('clients.client_settings', account_number=account_number))
 
 @clients_bp.route('/client/<account_number>/edit_manual_asset/<int:asset_id>', methods=['POST'])
+@role_required(['Admin', 'Editor', 'Contributor'])
 def edit_manual_asset(account_number, asset_id):
     hostname = request.form.get('hostname')
     billing_type = request.form.get('billing_type')
@@ -657,6 +696,7 @@ def edit_manual_asset(account_number, asset_id):
     return redirect(url_for('clients.client_settings', account_number=account_number))
 
 @clients_bp.route('/client/<account_number>/edit_manual_user/<int:user_id>', methods=['POST'])
+@role_required(['Admin', 'Editor', 'Contributor'])
 def edit_manual_user(account_number, user_id):
     full_name = request.form.get('full_name')
     billing_type = request.form.get('billing_type')
@@ -673,6 +713,7 @@ def edit_manual_user(account_number, user_id):
     return redirect(url_for('clients.client_settings', account_number=account_number))
 
 @clients_bp.route('/client/<account_number>/edit_line_item/<int:item_id>', methods=['POST'])
+@role_required(['Admin', 'Editor'])
 def edit_line_item(account_number, item_id):
     item = query_db("SELECT * FROM custom_line_items WHERE id = ? AND company_account_number = ?", [item_id, account_number], one=True)
     if not item:

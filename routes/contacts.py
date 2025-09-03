@@ -1,6 +1,7 @@
 # routes/contacts.py
 from flask import Blueprint, render_template, session, request, flash, redirect, url_for, jsonify
 from database import query_db, log_and_execute, get_user_widget_layout, default_widget_layouts, get_db
+from utils import role_required
 
 contacts_bp = Blueprint('contacts', __name__)
 
@@ -18,6 +19,7 @@ CONTACTS_COLUMNS = {
 }
 
 @contacts_bp.route('/')
+@role_required(['Admin', 'Editor', 'Contributor', 'Read-Only'])
 def contacts():
     if 'contacts_cols' not in session:
         session['contacts_cols'] = {k: v['default'] for k, v in CONTACTS_COLUMNS.items()}
@@ -33,6 +35,7 @@ def contacts():
     )
 
 @contacts_bp.route('/partial')
+@role_required(['Admin', 'Editor', 'Contributor', 'Read-Only'])
 def get_contacts_partial():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 50, type=int)
@@ -104,6 +107,7 @@ def get_contacts_partial():
     )
 
 @contacts_bp.route('/add', methods=['POST'])
+@role_required(['Admin', 'Editor', 'Contributor'])
 def add_contact():
     db = get_db()
     try:
@@ -137,6 +141,7 @@ def add_contact():
     return redirect(url_for('contacts.contacts'))
 
 @contacts_bp.route('/edit/<int:contact_id>', methods=['POST'])
+@role_required(['Admin', 'Editor', 'Contributor'])
 def edit_contact(contact_id):
     # This operation involves multiple steps, so we manage the transaction manually.
     db = get_db()
@@ -180,18 +185,21 @@ def edit_contact(contact_id):
 
 
 @contacts_bp.route('/delete/<int:contact_id>')
+@role_required(['Admin', 'Editor'])
 def delete_contact(contact_id):
     log_and_execute("DELETE FROM contacts WHERE id = ?", [contact_id])
     flash('Contact deleted successfully.', 'success')
     return redirect(url_for('contacts.contacts'))
 
 @contacts_bp.route('/api/get_assets_for_company/<account_number>')
+@role_required(['Admin', 'Editor', 'Contributor', 'Read-Only'])
 def get_assets_for_company(account_number):
     """API endpoint to fetch assets for a given company."""
     assets = query_db("SELECT id, hostname FROM assets WHERE company_account_number = ? ORDER BY hostname", [account_number])
     return jsonify([dict(row) for row in assets])
 
 @contacts_bp.route('/api/get_linked_assets/<int:contact_id>')
+@role_required(['Admin', 'Editor', 'Contributor', 'Read-Only'])
 def get_linked_assets(contact_id):
     """API endpoint to fetch assets already linked to a contact."""
     linked_assets = query_db("SELECT asset_id FROM asset_contact_links WHERE contact_id = ?", [contact_id])
