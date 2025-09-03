@@ -1,4 +1,16 @@
-<table class="client-table">
+<table class="client-table resizable-table">
+    <colgroup>
+        {% if visible_columns.name %}<col>{% endif %}
+        {% if visible_columns.email %}<col>{% endif %}
+        {% if visible_columns.company %}<col>{% endif %}
+        {% if visible_columns.title %}<col>{% endif %}
+        {% if visible_columns.work_phone %}<col>{% endif %}
+        {% if visible_columns.mobile_phone %}<col>{% endif %}
+        {% if visible_columns.employment_type %}<col>{% endif %}
+        {% if visible_columns.status %}<col>{% endif %}
+        {% if visible_columns.associated_assets %}<col>{% endif %}
+        {% if visible_columns.actions %}<col>{% endif %}
+    </colgroup>
     <thead>
         <tr>
             {% if visible_columns.name %}<th><a href="#" class="sort-link" data-sort="name">Name<span class="sort-arrow">{% if sort_by == 'name' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}

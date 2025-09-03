@@ -143,7 +143,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     const fetchClients = async () => {
-        // CORRECTED: Construct URL with url_for, but do not wrap in new URL() constructor
         let url = "{{ url_for('clients.get_clients_partial') }}";
         const params = new URLSearchParams({
             page: clientsState.page,
@@ -159,6 +158,10 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
             const html = await response.text();
             clientsContainer.innerHTML = html;
+            const newTable = clientsContainer.querySelector('.resizable-table');
+            if (newTable) {
+                makeTableResizable(newTable);
+            }
         } catch (error) {
             console.error('Failed to fetch clients:', error);
             clientsContainer.innerHTML = `<p class="flash-error">Error loading clients: ${error.message}. Please try refreshing the page.</p>`;

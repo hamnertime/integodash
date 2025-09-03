@@ -634,3 +634,27 @@ body.dark-mode input[type="number"]::-webkit-outer-spin-button {
     filter: invert(1);
 }
 
+/* --- Resizable Table Columns --- */
+.resizable-table {
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.resizable-table th {
+    position: relative;
+}
+
+.resizer {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 5px;
+    cursor: col-resize;
+    user-select: none;
+    height: 100%;
+}
+
+.resizer:hover,
+.resizing {
+    border-right: 2px solid var(--primary-color);
+}

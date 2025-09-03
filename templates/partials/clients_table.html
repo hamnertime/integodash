@@ -1,4 +1,20 @@
-<table class="client-table">
+<table class="client-table resizable-table">
+    <colgroup>
+        {% if visible_columns.name %}<col>{% endif %}
+        {% if visible_columns.account_number %}<col>{% endif %}
+        {% if visible_columns.billing_plan %}<col>{% endif %}
+        {% if visible_columns.support_level %}<col>{% endif %}
+        {% if visible_columns.contract_term_length %}<col>{% endif %}
+        {% if visible_columns.contract_end_date %}<col>{% endif %}
+        {% if visible_columns.workstations %}<col>{% endif %}
+        {% if visible_columns.servers %}<col>{% endif %}
+        {% if visible_columns.vms %}<col>{% endif %}
+        {% if visible_columns.regular_users %}<col>{% endif %}
+        {% if visible_columns.backup %}<col>{% endif %}
+        {% if visible_columns.hours %}<col>{% endif %}
+        {% if visible_columns.bill %}<col>{% endif %}
+        {% if visible_columns.actions %}<col>{% endif %}
+    </colgroup>
     <thead>
         <tr>
             {% if visible_columns.name %}<th><a href="#" class="sort-link" data-sort="name">Company Name<span class="sort-arrow">{% if sort_by == 'name' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
@@ -77,4 +93,3 @@
         </select>
     </form>
 </div>
-

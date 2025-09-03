@@ -215,6 +215,10 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
             const html = await response.text();
             contactsContainer.innerHTML = html;
+            const newTable = contactsContainer.querySelector('.resizable-table');
+            if (newTable) {
+                makeTableResizable(newTable);
+            }
         } catch (error) {
             console.error('Failed to fetch contacts:', error);
             contactsContainer.innerHTML = `<p class="flash-error">Error loading contacts: ${error.message}. Please try refreshing the page.</p>`;

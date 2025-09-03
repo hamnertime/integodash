@@ -97,7 +97,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     const fetchAssets = async () => {
-        // CORRECTED: Construct URL with url_for, but do not wrap in new URL() constructor
         let url = "{{ url_for('assets.get_assets_partial') }}";
         const params = new URLSearchParams({
             page: assetsState.page,
@@ -113,6 +112,10 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
             const html = await response.text();
             assetsContainer.innerHTML = html;
+            const newTable = assetsContainer.querySelector('.resizable-table');
+            if (newTable) {
+                makeTableResizable(newTable);
+            }
         } catch (error) {
             console.error('Failed to fetch assets:', error);
             assetsContainer.innerHTML = `<p class="flash-error">Error loading assets: ${error.message}. Please try refreshing the page.</p>`;

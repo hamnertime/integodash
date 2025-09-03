@@ -1,4 +1,17 @@
-<table class="client-table">
+<table class="client-table resizable-table">
+    <colgroup>
+        {% if visible_columns.hostname %}<col>{% endif %}
+        {% if visible_columns.company %}<col>{% endif %}
+        {% if visible_columns.associated_contacts %}<col>{% endif %}
+        {% if visible_columns.device_type %}<col>{% endif %}
+        {% if visible_columns.os %}<col>{% endif %}
+        {% if visible_columns.internal_ip %}<col>{% endif %}
+        {% if visible_columns.external_ip %}<col>{% endif %}
+        {% if visible_columns.last_user %}<col>{% endif %}
+        {% if visible_columns.last_seen %}<col>{% endif %}
+        {% if visible_columns.status %}<col>{% endif %}
+        {% if visible_columns.actions %}<col>{% endif %}
+    </colgroup>
     <thead>
         <tr>
             {% if visible_columns.hostname %}<th><a href="#" class="sort-link" data-sort="hostname">Hostname<span class="sort-arrow">{% if sort_by == 'hostname' %}{{ '▲' if sort_order == 'asc' else '▼' }}{% endif %}</span></a></th>{% endif %}
