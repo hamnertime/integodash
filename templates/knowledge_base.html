@@ -1,0 +1,118 @@
+{% extends "layout.html" %}
+{% block title %}Knowledge Base{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Knowledge Base</h1>
+    {% if session['role'] in ['Admin', 'Editor', 'Contributor'] %}
+    <a href="{{ url_for('kb.create_article') }}" class="button">New Article</a>
+    {% endif %}
+</div>
+
+<div class="form-section">
+    <form method="get" action="{{ url_for('kb.kb') }}">
+        <div class="search-clients" style="margin-bottom: 20px;">
+            <input type="text" id="kb-search" name="search" placeholder="Search articles..." value="{{ search_query }}">
+        </div>
+    </form>
+</div>
+
+<div class="grid-stack">
+    <div class="grid-stack-item" gs-id="kb-articles-table-widget" gs-w="12" gs-h="8">
+        <div class="grid-stack-item-content">
+            <div id="kb-articles-table-container">
+                {# This container will be filled dynamically by JavaScript #}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    initializeGrid(
+        'kb',
+        {{ layout|tojson|safe }},
+        {{ default_layout|tojson|safe }}
+    );
+
+    const articlesContainer = document.getElementById('kb-articles-table-container');
+    const searchInput = document.getElementById('kb-search');
+    let searchTimeout;
+
+    let kbState = {
+        page: 1,
+        per_page: 50,
+        search_query: '',
+        sort_by: 'updated_at',
+        sort_order: 'desc'
+    };
+
+    const fetchArticles = async () => {
+        const params = new URLSearchParams({
+            page: kbState.page,
+            per_page: kbState.per_page,
+            search: kbState.search_query,
+            sort_by: kbState.sort_by,
+            sort_order: kbState.sort_order
+        });
+        const url = `{{ url_for('kb.get_articles_partial') }}?${params.toString()}`;
+
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
+            const html = await response.text();
+            articlesContainer.innerHTML = html;
+        } catch (error) {
+            console.error('Failed to fetch articles:', error);
+            articlesContainer.innerHTML = `<p class="flash-error">Error loading articles: ${error.message}. Please try refreshing the page.</p>`;
+        }
+    };
+
+    if (searchInput) {
+        searchInput.addEventListener('input', function(e) {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                kbState.search_query = e.target.value;
+                kbState.page = 1;
+                fetchArticles();
+            }, 300);
+        });
+    }
+
+    articlesContainer.addEventListener('click', function(event) {
+        const sortLink = event.target.closest('.sort-link');
+        if (sortLink) {
+            event.preventDefault();
+            const column = sortLink.dataset.sort;
+            if (kbState.sort_by === column) {
+                kbState.sort_order = kbState.sort_order === 'asc' ? 'desc' : 'asc';
+            } else {
+                kbState.sort_by = column;
+                kbState.sort_order = 'asc';
+            }
+            fetchArticles();
+        }
+
+        const paginationLink = event.target.closest('.pagination-link');
+        if (paginationLink) {
+            event.preventDefault();
+            kbState.page = paginationLink.dataset.page;
+            fetchArticles();
+        }
+    });
+
+    articlesContainer.addEventListener('change', function(event) {
+        if (event.target.id === 'per_page') {
+            kbState.per_page = event.target.value;
+            kbState.page = 1;
+            fetchArticles();
+        }
+    });
+
+    fetchArticles();
+});
+</script>
+{% endblock %}

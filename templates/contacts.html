@@ -60,7 +60,7 @@
             <h2 id="contactModalTitle">Add New Contact</h2>
             <span class="close-button">&times;</span>
         </div>
-        <form id="contactForm" method="POST">
+        <form id="contactForm" method="POST" action="{{ url_for('contacts.add_contact') }}">
             <div class="form-row">
                 <div>
                     <label for="first_name">First Name</label>
@@ -225,33 +225,19 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     };
 
-    const populateAssetList = async (companyAccountNumber, contactId) => {
+    const populateAssetListForNewContact = async (companyAccountNumber) => {
         const assetListDiv = document.getElementById('associated-assets-list');
         assetListDiv.innerHTML = 'Loading assets...';
-
         try {
-            const [assetsRes, linkedAssetsRes] = await Promise.all([
-                fetch(`{{ url_for('contacts.get_assets_for_company', account_number=0) }}`.replace('0', companyAccountNumber)),
-                contactId ? fetch(`{{ url_for('contacts.get_linked_assets', contact_id=0) }}`.replace('0', contactId)) : Promise.resolve(null)
-            ]);
-
+            const assetsRes = await fetch(`{{ url_for('contacts.get_assets_for_company', account_number=0) }}`.replace('0', companyAccountNumber));
             const allAssets = await assetsRes.json();
-            const linkedAssetIds = contactId ? await linkedAssetsRes.json() : [];
-
             if (allAssets.length === 0) {
                 assetListDiv.innerHTML = 'No assets found for this company.';
                 return;
             }
-
             let assetHtml = '';
             allAssets.forEach(asset => {
-                const isChecked = linkedAssetIds.includes(asset.id);
-                assetHtml += `
-                    <label>
-                        <input type="checkbox" name="linked_assets" value="${asset.id}" ${isChecked ? 'checked' : ''}>
-                        ${asset.hostname}
-                    </label>
-                `;
+                assetHtml += `<label><input type="checkbox" name="linked_assets" value="${asset.id}">${asset.hostname}</label>`;
             });
             assetListDiv.innerHTML = assetHtml;
         } catch (error) {
@@ -261,7 +247,7 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     document.getElementById('company_account_number').addEventListener('change', function() {
-        populateAssetList(this.value, null); // No contactId for new contacts
+        populateAssetListForNewContact(this.value);
     });
 
     if(contactSearch) {
@@ -294,14 +280,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.addEventListener('click', function(event) {
         const form = document.getElementById('contactForm');
-        const modalTitle = document.getElementById('contactModalTitle');
 
         if (event.target.closest('#add-contact-btn')) {
-            modalTitle.textContent = 'Add New Contact';
-            form.action = "{{ url_for('contacts.add_contact') }}";
             form.reset();
             const companySelect = document.getElementById('company_account_number');
-            populateAssetList(companySelect.value, null);
+            populateAssetListForNewContact(companySelect.value);
             contactModal.style.display = 'block';
         }
 
@@ -327,27 +310,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 event.preventDefault();
                 contactsState.page = paginationLink.dataset.page;
                 fetchContacts();
-            }
-
-            const editButton = event.target.closest('.edit-contact');
-            if (editButton) {
-                modalTitle.textContent = 'Edit Contact';
-                form.action = `{{ url_for('contacts.edit_contact', contact_id=0) }}`.replace('0', editButton.dataset.contactId);
-                document.getElementById('first_name').value = editButton.dataset.firstName;
-                document.getElementById('last_name').value = editButton.dataset.lastName;
-                document.getElementById('email').value = editButton.dataset.email;
-                document.getElementById('title').value = editButton.dataset.title;
-                document.getElementById('company_account_number').value = editButton.dataset.companyAccountNumber;
-                document.getElementById('work_phone').value = editButton.dataset.workPhone;
-                document.getElementById('mobile_phone').value = editButton.dataset.mobilePhone;
-                document.getElementById('employment_type').value = editButton.dataset.employmentType;
-                document.getElementById('status').value = editButton.dataset.status;
-                document.getElementById('other_emails').value = editButton.dataset.otherEmails;
-                document.getElementById('address').value = editButton.dataset.address;
-                document.getElementById('notes').value = editButton.dataset.notes;
-
-                populateAssetList(editButton.dataset.companyAccountNumber, editButton.dataset.contactId);
-                contactModal.style.display = 'block';
             }
         }
     });

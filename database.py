@@ -51,6 +51,14 @@ default_widget_layouts = {
         {"y": 17, "w": 12, "h": 3, "id": "custom-links-widget", "x": 0},
         {"y": 20, "w": 12, "h": 8, "id": "billing-plans-widget", "x": 0},
         {"x": 0, "y": 28, "w": 12, "h": 8, "id": "feature-options-widget"}
+    ],
+    "kb": [
+        {"x": 0, "y": 0, "w": 12, "h": 8, "id": "kb-articles-table-widget"}
+    ],
+    "contact_details": [
+        {"x": 0, "y": 0, "w": 7, "h": 6, "id": "contact-info-widget"},
+        {"x": 7, "y": 0, "w": 5, "h": 6, "id": "associated-assets-widget"},
+        {"x": 0, "y": 6, "w": 12, "h": 4, "id": "contact-notes-widget"}
     ]
 }
 

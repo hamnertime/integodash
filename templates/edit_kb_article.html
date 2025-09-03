@@ -1,0 +1,66 @@
+{% extends "layout.html" %}
+{% block title %}{{ 'Edit' if article else 'New' }} Article{% endblock %}
+
+{% block head %}
+<style>
+    /* Basic styling for the multi-select dropdown to make it more usable */
+    .multi-select-dropdown {
+        width: 100%;
+        min-height: 150px;
+        border: 1px solid var(--input-border);
+        border-radius: 4px;
+        padding: 5px;
+        background-color: var(--input-bg);
+        color: var(--text-color);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ 'Edit' if article else 'New' }} Knowledge Base Article</h1>
+</div>
+
+<form method="post">
+    <div class="plan-group">
+        <div class="form-section">
+            <label for="title">Title</label>
+            <input type="text" name="title" id="title" value="{{ article.title if article else '' }}" required>
+        </div>
+
+        <div class="form-section">
+            <label for="content">Content (Markdown supported)</label>
+            <textarea name="content" id="content" rows="20" required>{{ article.content if article else '' }}</textarea>
+        </div>
+
+        <div class="form-row">
+            <div class="form-section">
+                <label for="visibility">Client</label>
+                <select name="visibility" id="visibility">
+                    <option value="Internal" {% if not article or article.visibility == 'Internal' %}selected{% endif %}>Internal</option>
+                    <optgroup label="Clients">
+                        {% for company in companies %}
+                        <option value="{{ company.account_number }}" {% if article and article.company_account_number == company.account_number %}selected{% endif %}>{{ company.name }}</option>
+                        {% endfor %}
+                    </optgroup>
+                </select>
+            </div>
+            <div class="form-section">
+                <label for="categories">Categories</label>
+                <select name="categories" id="categories" class="multi-select-dropdown" multiple>
+                    {% for category in categories %}
+                    <option value="{{ category.id }}" {% if category.id in current_categories %}selected{% endif %}>
+                        {{ category.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="button-container">
+        <a href="{{ url_for('kb.kb') }}" class="button secondary">Cancel</a>
+        <button type="submit" class="button">Save Article</button>
+    </div>
+</form>
+{% endblock %}

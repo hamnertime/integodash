@@ -200,6 +200,7 @@ def import_data_to_new_db(con, data):
         'assets',
         'users',
         'contacts',
+        'contact_notes',
         'client_locations',
         'manual_assets',
         'manual_users',
@@ -212,7 +213,10 @@ def import_data_to_new_db(con, data):
         'user_billing_overrides',
         'asset_contact_links',
         'audit_log',
-        'user_widget_layouts'
+        'user_widget_layouts',
+        'kb_categories',
+        'kb_articles',
+        'kb_article_category_link'
     ]
 
     for table_name in table_import_order:
@@ -368,6 +372,16 @@ def create_database(new_password, existing_data=None):
             FOREIGN KEY (company_account_number) REFERENCES companies (account_number) ON DELETE CASCADE
         )
     """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS contact_notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            contact_id INTEGER NOT NULL,
+            note_content TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            author TEXT,
+            FOREIGN KEY (contact_id) REFERENCES contacts (id) ON DELETE CASCADE
+        )
+    """)
 
     # Dynamically build the CREATE TABLE statements for billing_plans and client_billing_overrides
     billing_plans_sql = """
@@ -471,6 +485,37 @@ def create_database(new_password, existing_data=None):
             FOREIGN KEY (contact_id) REFERENCES contacts (id) ON DELETE CASCADE
         )
     """)
+    # --- New Knowledge Base Tables ---
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS kb_articles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            content TEXT NOT NULL,
+            author_id INTEGER NOT NULL,
+            visibility TEXT NOT NULL DEFAULT 'Internal', -- 'Internal' or 'Client'
+            company_account_number TEXT, -- NULL if Internal
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (author_id) REFERENCES app_users (id),
+            FOREIGN KEY (company_account_number) REFERENCES companies (account_number) ON DELETE SET NULL
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS kb_categories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS kb_article_category_link (
+            article_id INTEGER NOT NULL,
+            category_id INTEGER NOT NULL,
+            PRIMARY KEY (article_id, category_id),
+            FOREIGN KEY (article_id) REFERENCES kb_articles (id) ON DELETE CASCADE,
+            FOREIGN KEY (category_id) REFERENCES kb_categories (id) ON DELETE CASCADE
+        )
+    """)
+
 
     print("Schema creation complete.")
 
@@ -526,6 +571,14 @@ def create_database(new_password, existing_data=None):
                             (username, role, password_hash, force_reset))
             else:
                 print(f"    -> Skipping invalid user data in config: {user_data}", file=sys.stderr)
+
+        print("Populating default KB categories...")
+        default_kb_categories = [
+            ('Networking',), ('Hardware',), ('Software',), ('Security',),
+            ('Cloud Services',), ('Backups',), ('Standard Operating Procedures',),
+            ('Client Specific',), ('Internal Systems',)
+        ]
+        cur.executemany("INSERT INTO kb_categories (name) VALUES (?)", default_kb_categories)
 
 
         # This is a fresh install, so we must get the API keys
@@ -587,4 +640,3 @@ if __name__ == "__main__":
         new_password = get_masked_input("Enter a master password for the new encrypted database: ")
         create_database(new_password, existing_data=None)
         print(f"\n✅ Success! New encrypted database '{DB_FILE}' created and configured.")
-

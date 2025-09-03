@@ -14,6 +14,7 @@ from routes.clients import clients_bp
 from routes.assets import assets_bp
 from routes.contacts import contacts_bp
 from routes.settings import settings_bp
+from routes.knowledge_base import kb_bp
 from utils import register_template_filters, inject_custom_links
 
 def create_app():
@@ -39,6 +40,8 @@ def create_app():
     app.register_blueprint(assets_bp, url_prefix='/assets')
     app.register_blueprint(contacts_bp, url_prefix='/contacts')
     app.register_blueprint(settings_bp) # Handles '/settings' and other utility routes
+    app.register_blueprint(kb_bp, url_prefix='/kb')
+
 
     @app.before_request
     def before_request_tasks():

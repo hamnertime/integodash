@@ -2,6 +2,7 @@
 from flask import Blueprint, render_template, session, request, flash, redirect, url_for, jsonify
 from database import query_db, log_and_execute, get_user_widget_layout, default_widget_layouts, get_db
 from utils import role_required
+from datetime import datetime, timezone
 
 contacts_bp = Blueprint('contacts', __name__)
 
@@ -33,6 +34,79 @@ def contacts():
         layout=layout,
         default_layout=default_layout
     )
+
+@contacts_bp.route('/<int:contact_id>/details', methods=['GET', 'POST'])
+@role_required(['Admin', 'Editor', 'Contributor', 'Read-Only'])
+def contact_details(contact_id):
+    if request.method == 'POST':
+        if session['role'] not in ['Admin', 'Editor', 'Contributor']:
+            flash('You do not have permission to perform this action.', 'error')
+            return redirect(url_for('contacts.contact_details', contact_id=contact_id))
+
+        action = request.form.get('action')
+        db = get_db()
+
+        if action == 'save_details':
+            try:
+                with db:
+                    # Update main contact details
+                    log_and_execute("""
+                        UPDATE contacts
+                        SET first_name = ?, last_name = ?, email = ?, title = ?, company_account_number = ?, work_phone = ?, mobile_phone = ?, employment_type = ?, status = ?, other_emails = ?, address = ?, notes = ?
+                        WHERE id = ?
+                    """, [
+                        request.form.get('first_name'), request.form.get('last_name'),
+                        request.form.get('email'), request.form.get('title'),
+                        request.form.get('company_account_number'), request.form.get('work_phone'),
+                        request.form.get('mobile_phone'), request.form.get('employment_type'),
+                        request.form.get('status'), request.form.get('other_emails'),
+                        request.form.get('address'), request.form.get('notes'),
+                        contact_id
+                    ])
+
+                    # Update asset links
+                    linked_assets = request.form.getlist('linked_assets')
+                    db.execute("DELETE FROM asset_contact_links WHERE contact_id = ?", [contact_id])
+                    if linked_assets:
+                        for asset_id in linked_assets:
+                            db.execute("INSERT INTO asset_contact_links (contact_id, asset_id) VALUES (?, ?)", (contact_id, asset_id))
+                flash('Contact updated successfully.', 'success')
+            except Exception as e:
+                flash(f'An error occurred: {e}', 'error')
+
+        elif action == 'add_note':
+            note_content = request.form.get('note_content')
+            if note_content:
+                log_and_execute(
+                    "INSERT INTO contact_notes (contact_id, note_content, created_at, author) VALUES (?, ?, ?, ?)",
+                    [contact_id, note_content, datetime.now(timezone.utc).isoformat(), session.get('username')]
+                )
+                flash('Note added successfully.', 'success')
+
+        return redirect(url_for('contacts.contact_details', contact_id=contact_id))
+
+    # GET Request Logic
+    contact = query_db("SELECT c.*, co.name as company_name FROM contacts c JOIN companies co ON c.company_account_number = co.account_number WHERE c.id = ?", [contact_id], one=True)
+    if not contact:
+        flash('Contact not found.', 'error')
+        return redirect(url_for('contacts.contacts'))
+
+    company_assets = query_db("SELECT id, hostname FROM assets WHERE company_account_number = ? ORDER BY hostname", [contact['company_account_number']])
+    linked_assets_raw = query_db("SELECT asset_id FROM asset_contact_links WHERE contact_id = ?", [contact_id])
+    linked_assets = [row['asset_id'] for row in linked_assets_raw]
+    notes = query_db("SELECT * FROM contact_notes WHERE contact_id = ? ORDER BY created_at DESC", [contact_id])
+
+    layout = get_user_widget_layout(session['user_id'], 'contact_details')
+    default_layout = default_widget_layouts.get('contact_details')
+
+    return render_template('contact_details.html',
+        contact=contact,
+        company_assets=company_assets,
+        linked_assets=linked_assets,
+        notes=notes,
+        layout=layout,
+        default_layout=default_layout)
+
 
 @contacts_bp.route('/partial')
 @role_required(['Admin', 'Editor', 'Contributor', 'Read-Only'])
@@ -140,51 +214,7 @@ def add_contact():
 
     return redirect(url_for('contacts.contacts'))
 
-@contacts_bp.route('/edit/<int:contact_id>', methods=['POST'])
-@role_required(['Admin', 'Editor', 'Contributor'])
-def edit_contact(contact_id):
-    # This operation involves multiple steps, so we manage the transaction manually.
-    db = get_db()
-    try:
-        with db: # Start a transaction
-            # Step 1: Update the main contact details
-            log_and_execute("""
-                UPDATE contacts
-                SET first_name = ?, last_name = ?, email = ?, title = ?, company_account_number = ?, work_phone = ?, mobile_phone = ?, employment_type = ?, status = ?, other_emails = ?, address = ?, notes = ?
-                WHERE id = ?
-            """, [
-                request.form.get('first_name'),
-                request.form.get('last_name'),
-                request.form.get('email'),
-                request.form.get('title'),
-                request.form.get('company_account_number'),
-                request.form.get('work_phone'),
-                request.form.get('mobile_phone'),
-                request.form.get('employment_type'),
-                request.form.get('status'),
-                request.form.get('other_emails'),
-                request.form.get('address'),
-                request.form.get('notes'),
-                contact_id
-            ])
-
-            # Step 2: Update the asset links
-            linked_assets = request.form.getlist('linked_assets')
-            # First, remove all existing links for this contact
-            db.execute("DELETE FROM asset_contact_links WHERE contact_id = ?", [contact_id])
-            # Then, add the new links from the form
-            if linked_assets:
-                for asset_id in linked_assets:
-                    db.execute("INSERT INTO asset_contact_links (contact_id, asset_id) VALUES (?, ?)", (contact_id, asset_id))
-
-        flash('Contact and associated assets updated successfully.', 'success')
-    except Exception as e:
-        flash(f'An error occurred during update: {e}', 'error')
-
-    return redirect(url_for('contacts.contacts'))
-
-
-@contacts_bp.route('/delete/<int:contact_id>')
+@contacts_bp.route('/delete/<int:contact_id>', methods=['POST'])
 @role_required(['Admin', 'Editor'])
 def delete_contact(contact_id):
     log_and_execute("DELETE FROM contacts WHERE id = ?", [contact_id])

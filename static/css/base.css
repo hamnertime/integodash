@@ -82,27 +82,31 @@ h2, h3, h4 {
 .grid-stack-item-content a,
 .form-section a,
 .item-table a,
-.note-meta a {
+.note-meta a,
+.info-card a {
     color: var(--text-color);
     text-decoration: none;
 }
 .grid-stack-item-content a:hover,
 .form-section a:hover,
 .item-table a:hover,
-.note-meta a:hover {
+.note-meta a:hover,
+.info-card a:hover {
     color: var(--primary-color);
     text-decoration: underline;
 }
 body.dark-mode .grid-stack-item-content a,
 body.dark-mode .form-section a,
 body.dark-mode .item-table a,
-body.dark-mode .note-meta a {
+body.dark-mode .note-meta a,
+body.dark-mode .info-card a {
     color: white; /* Default color in dark mode */
 }
 body.dark-mode .grid-stack-item-content a:hover,
 body.dark-mode .form-section a:hover,
 body.dark-mode .item-table a:hover,
-body.dark-mode .note-meta a:hover {
+body.dark-mode .note-meta a:hover,
+body.dark-mode .info-card a:hover {
     color: var(--primary-color); /* Gold on hover in dark mode */
 }
 /* Ensure table header links are visible */
