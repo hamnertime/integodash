@@ -5,7 +5,6 @@ from collections import OrderedDict, defaultdict
 import json
 import re
 import time
-from routes.auth import active_sessions
 # Import column definitions from other blueprints
 from .clients import CLIENTS_COLUMNS
 from .assets import ASSETS_COLUMNS
@@ -167,7 +166,6 @@ def billing_settings():
         session_timeout_minutes=session_timeout_minutes,
         feature_options=feature_options,
         feature_types=feature_types,
-        active_sessions=active_sessions,
         layout=layout,
         default_layout=default_layout
     )

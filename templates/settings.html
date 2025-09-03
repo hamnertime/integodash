@@ -133,31 +133,6 @@
                         </form>
                         {% endif %}
                     </div>
-                    <div>
-                        <h3>Currently Logged-in Users</h3>
-                        <table class="plan-table" style="margin-top: 20px;">
-                            <thead>
-                                <tr>
-                                    <th>Username</th>
-                                    <th>Login Time</th>
-                                    <th>Last Activity</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for user_id, user_data in active_sessions.items() %}
-                                <tr>
-                                    <td>{{ user_data.username }}</td>
-                                    <td><span class="local-time" data-utc-time="{{ user_data.login_time.isoformat() }}"></span></td>
-                                    <td><span class="local-time" data-utc-time="{{ user_data.last_seen.isoformat() }}"></span></td>
-                                </tr>
-                                {% else %}
-                                <tr>
-                                    <td colspan="3" style="text-align: center;">No users are currently logged in.</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
                 </div>
             </div>
         </div>

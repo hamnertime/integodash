@@ -3,11 +3,17 @@
 
 {% block content %}
 <div class="login-container">
-    <h1>Unlock Database</h1>
-    <p>Enter the master password to access the dashboard and start the background services.</p>
+    <h1>Integodash Login</h1>
+    <p>Select your user profile and enter your password.</p>
     <form method="POST" action="{{ url_for('auth.login') }}">
-        <input type="password" name="password" placeholder="Master Password" required autofocus>
-        <button type="submit">Unlock</button>
+        <select name="username" required>
+            <option value="" disabled selected>-- Select User --</option>
+            {% for user in users %}
+                <option value="{{ user.username }}">{{ user.username }}</option>
+            {% endfor %}
+        </select>
+        <input type="password" name="password" placeholder="Password" required>
+        <button type="submit">Login</button>
     </form>
 </div>
 {% endblock %}
