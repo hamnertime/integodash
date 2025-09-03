@@ -296,82 +296,176 @@ def get_billing_data_for_client(account_number, year, month):
     }
 
 def get_billing_dashboard_data():
-    """Calculates and returns the data for the main billing dashboard."""
-    # Fetch all clients without sorting in the DB
-    clients_raw = query_db("SELECT * FROM companies")
-    clients_data = []
+    """
+    An optimized function to calculate and return data for the main billing dashboard.
+    It fetches data in bulk to reduce database queries.
+    """
     now = datetime.now()
+    year, month = now.year, now.month
+    start_of_year = datetime(year, 1, 1, tzinfo=timezone.utc)
+    start_of_billing_month = datetime(year, month, 1, tzinfo=timezone.utc)
 
-    for client_row in clients_raw:
-        # Get the full data package for each client for the current month
-        data = get_billing_data_for_client(client_row['account_number'], now.year, now.month)
-        if not data:
-            # If the billing plan isn't configured, we can't calculate a bill.
-            # We'll still show the client on the dashboard, but with 0 values for calculated fields.
-            client = dict(client_row)
-            client['workstations'] = 0
-            client['servers'] = 0
-            client['vms'] = 0
-            client['regular_users'] = 0
-            client['total_hours'] = 0
-            client['hours_this_month'] = 0
-            client['hours_last_month'] = 0
-            client['total_backup_bytes'] = 0
-            client['total_bill'] = 0.00
-            client['support_level'] = client.get('support_level', 'N/A')
+    # 1. Bulk Data Fetching
+    all_companies = [dict(r) for r in query_db("SELECT * FROM companies")]
+    all_assets = [dict(r) for r in query_db("SELECT id, company_account_number, hostname, billing_type, backup_data_bytes, datto_uid FROM assets")]
+    all_manual_assets = [dict(r) for r in query_db("SELECT id, company_account_number, hostname, billing_type, custom_cost FROM manual_assets")]
+    all_users = [dict(r) for r in query_db("SELECT id, company_account_number, full_name, freshservice_id FROM users WHERE status = 'Active'")]
+    all_manual_users = [dict(r) for r in query_db("SELECT id, company_account_number, full_name, billing_type, custom_cost FROM manual_users")]
+    all_tickets_this_year = [dict(r) for r in query_db("SELECT company_account_number, last_updated_at, total_hours_spent FROM ticket_details WHERE strftime('%Y', last_updated_at) = ?", [str(year)])]
+    all_line_items = [dict(r) for r in query_db("SELECT * FROM custom_line_items")]
+    all_asset_overrides = {r['asset_id']: dict(r) for r in query_db("SELECT * FROM asset_billing_overrides")}
+    all_user_overrides = {r['user_id']: dict(r) for r in query_db("SELECT * FROM user_billing_overrides")}
+    all_rate_overrides = {r['company_account_number']: dict(r) for r in query_db("SELECT * FROM client_billing_overrides")}
+    all_plans_raw = query_db("SELECT * FROM billing_plans")
+    plans_map = {(p['billing_plan'], p['term_length']): dict(p) for p in all_plans_raw}
 
-            # --- Calculate Contract End Date for unconfigured plans ---
-            contract_end_date = "N/A"
-            contract_expired = False # Initialize here
-            if client.get('contract_start_date') and client.get('contract_term_length'):
-                try:
-                    # Ensure date string is handled correctly
-                    start_date_str = str(client['contract_start_date']).split('T')[0]
-                    start_date = datetime.fromisoformat(start_date_str)
+    # 2. Group data by client for fast access
+    assets_by_client = defaultdict(list)
+    for asset in all_assets + all_manual_assets:
+        assets_by_client[asset['company_account_number']].append(asset)
+    users_by_client = defaultdict(list)
+    for user in all_users + all_manual_users:
+        users_by_client[user['company_account_number']].append(user)
+    tickets_by_client = defaultdict(list)
+    for ticket in all_tickets_this_year:
+        tickets_by_client[ticket['company_account_number']].append(ticket)
+    line_items_by_client = defaultdict(list)
+    for item in all_line_items:
+        line_items_by_client[item['company_account_number']].append(item)
 
-                    term = client['contract_term_length']
-                    years_to_add = 0
-                    if term == '1-Year': years_to_add = 1
-                    elif term == '2-Year': years_to_add = 2
-                    elif term == '3-Year': years_to_add = 3
+    clients_data = []
 
-                    if years_to_add > 0:
-                        end_date = start_date.replace(year=start_date.year + years_to_add) - timedelta(days=1)
-                        contract_end_date = end_date.strftime('%Y-%m-%d')
-                        if datetime.now().date() > end_date.date(): # Check if expired
-                            contract_expired = True
-                    elif term == 'Month to Month':
-                        contract_end_date = "Month to Month"
+    # 3. Loop and Calculate for each client
+    for client_info in all_companies:
+        account_number = client_info['account_number']
+        client_assets = assets_by_client.get(account_number, [])
+        client_users = users_by_client.get(account_number, [])
+        client_tickets_this_year = tickets_by_client.get(account_number, [])
+        client_line_items = line_items_by_client.get(account_number, [])
+        rate_overrides = all_rate_overrides.get(account_number, {})
 
-                except (ValueError, TypeError, IndexError):
-                    contract_end_date = "Invalid Start Date"
-            client['contract_end_date'] = contract_end_date
-            client['contract_expired'] = contract_expired # Add it to the dict
-            # --- End calculation ---
+        if not client_info.get('contract_term_length'):
+            client_info['contract_term_length'] = 'Month to Month'
 
-            clients_data.append(client)
+        billing_plan_name = (client_info.get('billing_plan') or '').strip()
+        if rate_overrides.get('override_billing_plan_enabled') and rate_overrides.get('billing_plan'):
+            billing_plan_name = rate_overrides['billing_plan']
+        client_info['billing_plan'] = billing_plan_name
+
+        contract_term = client_info['contract_term_length'].strip()
+        plan_details = plans_map.get((billing_plan_name, contract_term))
+
+        if not plan_details:
+            client_info.update({'workstations': 0, 'servers': 0, 'vms': 0, 'regular_users': 0, 'total_hours': 0, 'total_backup_bytes': 0, 'total_bill': 0.0, 'support_level': client_info.get('support_level', 'N/A')})
+            clients_data.append(client_info)
             continue
 
-        client = data['client']
-        # Populate the dictionary with calculated values
-        client['workstations'] = data['quantities'].get('workstation', 0)
-        client['servers'] = data['quantities'].get('server', 0)
-        client['vms'] = data['quantities'].get('vm', 0)
-        client['regular_users'] = data['quantities'].get('regular_users', 0)
-        client['total_hours'] = sum(t['total_hours_spent'] for t in data['all_tickets_this_year'])
-        client['hours_this_month'] = data['hours_this_month']
-        client['hours_last_month'] = data['hours_last_month']
-        client['total_backup_bytes'] = data['backup_info']['total_backup_bytes']
-        client['total_bill'] = data['receipt_data']['total']
-        client['support_level'] = data['support_level_display']
-        client['contract_term_length'] = data['client']['contract_term_length']
-        client['contract_end_date'] = data['contract_end_date']
-        client['contract_expired'] = data['contract_expired']
-        clients_data.append(client)
+        effective_rates = dict(plan_details) # Start with base plan
+        # Apply global rate overrides
+        if rate_overrides:
+             rate_key_map = {'puc': 'per_user_cost', 'psc': 'per_server_cost', 'pwc': 'per_workstation_cost', 'pvc': 'per_vm_cost', 'pswitchc': 'per_switch_cost', 'pfirewallc': 'per_firewall_cost', 'phtc': 'per_hour_ticket_cost', 'bbfw': 'backup_base_fee_workstation', 'bbfs': 'backup_base_fee_server', 'bit': 'backup_included_tb', 'bpt': 'backup_per_tb_fee'}
+             for short_key, rate_key in rate_key_map.items():
+                if f'override_{short_key}_enabled' in rate_overrides and rate_overrides[f'override_{short_key}_enabled']:
+                    effective_rates[rate_key] = rate_overrides[rate_key]
+
+        # Calculate Asset Charges and Quantities
+        quantities = defaultdict(int)
+        total_asset_charges = 0.0
+        backup_info = {'total_backup_bytes': 0, 'backed_up_workstations': 0, 'backed_up_servers': 0}
+        for asset in client_assets:
+            is_manual = 'datto_uid' not in asset
+            override = all_asset_overrides.get(asset.get('id')) if not is_manual else asset
+            billing_type = (override.get('billing_type') if override else None) or asset.get('billing_type', 'Workstation')
+            cost = 0.0
+            if billing_type == 'Custom':
+                cost = float(override.get('custom_cost') or 0.0) if override else 0.0
+            elif billing_type != 'No Charge':
+                rate_key = f"per_{billing_type.lower()}_cost"
+                cost = float(effective_rates.get(rate_key, 0.0) or 0.0)
+            total_asset_charges += cost
+            quantities[billing_type.lower()] += 1
+            if not is_manual and asset.get('backup_data_bytes'):
+                backup_info['total_backup_bytes'] += asset.get('backup_data_bytes', 0)
+                if asset.get('billing_type') == 'Workstation':
+                    backup_info['backed_up_workstations'] += 1
+                elif asset.get('billing_type') in ('Server', 'VM'):
+                    backup_info['backed_up_servers'] += 1
+
+        # Calculate User Charges
+        total_user_charges = 0.0
+        for user in client_users:
+            is_manual = 'freshservice_id' not in user
+            override = all_user_overrides.get(user.get('id')) if not is_manual else user
+            billing_type = (override.get('billing_type') if override else None) or 'Paid'
+            cost = 0.0
+            if billing_type == 'Custom':
+                cost = float(override.get('custom_cost') or 0.0) if override else 0.0
+            elif billing_type == 'Paid':
+                cost = float(effective_rates.get('per_user_cost', 0.0) or 0.0)
+            total_user_charges += cost
+            quantities['regular_users' if billing_type == 'Paid' else 'free_users'] += 1
+
+        # Calculate Ticket Charges
+        hours_for_period = sum(t['total_hours_spent'] for t in client_tickets_this_year if datetime.fromisoformat(t['last_updated_at'].replace('Z', '+00:00')).month == month)
+        prepaid_monthly = float((rate_overrides.get('prepaid_hours_monthly') if rate_overrides.get('override_prepaid_hours_monthly_enabled') else 0) or 0)
+        billable_hours = max(0, hours_for_period - prepaid_monthly) # Simplified for dashboard
+        ticket_charge = billable_hours * float((effective_rates.get('per_hour_ticket_cost', 0) or 0))
+
+        # Calculate Backup Charges
+        total_backup_tb = backup_info['total_backup_bytes'] / 1099511627776.0
+        included_tb = (backup_info['backed_up_workstations'] + backup_info['backed_up_servers']) * float((effective_rates.get('backup_included_tb', 1) or 1))
+        overage_tb = max(0, total_backup_tb - included_tb)
+        backup_charge = (backup_info['backed_up_workstations'] * float((effective_rates.get('backup_base_fee_workstation', 0) or 0))) + \
+                        (backup_info['backed_up_servers'] * float((effective_rates.get('backup_base_fee_server', 0) or 0))) + \
+                        (overage_tb * float((effective_rates.get('backup_per_tb_fee', 0) or 0)))
+
+        # Calculate Custom Line Item Charges
+        total_line_item_charges = 0.0
+        for item in client_line_items:
+            if item['monthly_fee'] is not None:
+                total_line_item_charges += float(item['monthly_fee'])
+            elif item['one_off_year'] == year and item['one_off_month'] == month:
+                total_line_item_charges += float(item.get('one_off_fee') or 0.0)
+            elif item['yearly_bill_month'] == month:
+                total_line_item_charges += float(item.get('yearly_fee') or 0.0)
+
+        # Final Bill and Data Assembly
+        total_bill = total_asset_charges + total_user_charges + ticket_charge + backup_charge + total_line_item_charges
+
+        client_info.update({
+            'workstations': quantities.get('workstation', 0), 'servers': quantities.get('server', 0),
+            'vms': quantities.get('vm', 0), 'regular_users': quantities.get('regular_users', 0),
+            'total_hours': sum(t['total_hours_spent'] for t in client_tickets_this_year),
+            'total_backup_bytes': backup_info['total_backup_bytes'], 'total_bill': total_bill,
+            'support_level': effective_rates.get('support_level', 'Billed Hourly'),
+        })
+
+        # Contract End Date
+        contract_end_date = "N/A"
+        contract_expired = False
+        if client_info.get('contract_start_date') and client_info.get('contract_term_length'):
+            try:
+                start_date_str = str(client_info['contract_start_date']).split('T')[0]
+                start_date = datetime.fromisoformat(start_date_str)
+                term = client_info['contract_term_length']
+                years_to_add = {'1-Year': 1, '2-Year': 2, '3-Year': 3}.get(term, 0)
+                if years_to_add > 0:
+                    end_date = start_date.replace(year=start_date.year + years_to_add) - timedelta(days=1)
+                    contract_end_date = end_date.strftime('%Y-%m-%d')
+                    if datetime.now().date() > end_date.date():
+                        contract_expired = True
+                elif term == 'Month to Month':
+                    contract_end_date = "Month to Month"
+            except (ValueError, TypeError):
+                contract_end_date = "Invalid Start Date"
+        client_info['contract_end_date'] = contract_end_date
+        client_info['contract_expired'] = contract_expired
+
+        clients_data.append(client_info)
 
     return clients_data
+
 
 def get_client_breakdown_data(account_number, year, month):
     """Wrapper function to get the billing data for the breakdown template."""
     return get_billing_data_for_client(account_number, year, month)
-
