@@ -84,6 +84,15 @@ def billing_settings():
             else:
                 flash("Username and role are required.", "error")
             return redirect(url_for('settings.billing_settings'))
+        elif action == 'save_session_timeout':
+            timeout = request.form.get('session_timeout_minutes')
+            if timeout and timeout.isdigit():
+                log_and_execute("INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)", ('session_timeout_minutes', timeout))
+                flash("Session timeout updated successfully.", "success")
+            else:
+                flash("Invalid timeout value.", "error")
+            return redirect(url_for('settings.billing_settings'))
+
 
     all_plans_raw = query_db("SELECT * FROM billing_plans")
     grouped_plans_unsorted = OrderedDict()
@@ -109,6 +118,9 @@ def billing_settings():
     app_users = query_db("SELECT * FROM app_users ORDER BY username")
     custom_links = query_db("SELECT * FROM custom_links ORDER BY link_order")
 
+    session_timeout_setting = query_db("SELECT value FROM app_settings WHERE key = 'session_timeout_minutes'", one=True)
+    session_timeout_minutes = session_timeout_setting['value'] if session_timeout_setting else 30
+
     feature_options_raw = query_db("SELECT * FROM feature_options ORDER BY feature_type, option_name")
     feature_options = defaultdict(list)
     feature_types = []
@@ -125,6 +137,7 @@ def billing_settings():
         scheduler_jobs=scheduler_jobs,
         app_users=app_users,
         custom_links=custom_links,
+        session_timeout_minutes=session_timeout_minutes,
         feature_options=feature_options,
         feature_types=feature_types,
         active_sessions=active_sessions,
@@ -428,3 +441,4 @@ def run_now(job_id):
 def get_log(job_id):
     log_data = query_db("SELECT last_run_log FROM scheduler_jobs WHERE id = ?", [job_id], one=True)
     return jsonify({'log': log_data['last_run_log'] if log_data and log_data['last_run_log'] else 'No log found.'})
+

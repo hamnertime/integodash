@@ -74,7 +74,15 @@
                 <div class="grid-stack-item-header">
                     <h2>Application Users & Auditing</h2>
                 </div>
-                <a href="{{ url_for('settings.view_audit_log') }}" class="button">View Full Audit Log</a>
+                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <a href="{{ url_for('settings.view_audit_log') }}" class="button">View Full Audit Log</a>
+                    <form method="POST" action="{{ url_for('settings.billing_settings') }}" style="display: flex; align-items: center; gap: 10px;">
+                         <input type="hidden" name="action" value="update_timeout">
+                         <label for="session_timeout">Auto-logout Time (minutes):</label>
+                         <input type="number" id="session_timeout" name="session_timeout_minutes" value="{{ session_timeout_minutes }}" style="width: 80px;">
+                         <button type="submit">Save Timeout</button>
+                    </form>
+                </div>
                 <div class="user-management-grid">
                     <div>
                         <h3>User Accounts</h3>
@@ -108,6 +116,7 @@
                             <input type="text" name="username" placeholder="Enter username" required>
                             <select name="role">
                                 <option value="Read-Only">Read-Only</option>
+                                <option value="Contributor">Contributor</option>
                                 <option value="Editor">Editor</option>
                                 <option value="Admin">Admin</option>
                             </select>
@@ -121,6 +130,7 @@
                                 <tr>
                                     <th>Username</th>
                                     <th>Login Time</th>
+                                    <th>Last Activity</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -128,10 +138,11 @@
                                 <tr>
                                     <td>{{ user_data.username }}</td>
                                     <td><span class="local-time" data-utc-time="{{ user_data.login_time.isoformat() }}"></span></td>
+                                    <td><span class="local-time" data-utc-time="{{ user_data.last_seen.isoformat() }}"></span></td>
                                 </tr>
                                 {% else %}
                                 <tr>
-                                    <td colspan="2" style="text-align: center;">No users are currently logged in.</td>
+                                    <td colspan="3" style="text-align: center;">No users are currently logged in.</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -401,6 +412,7 @@
                 <label for="userModalRole">Role:</label>
                 <select name="role" id="userModalRole" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--input-border); background-color: var(--input-bg); color: var(--text-color);">
                     <option value="Read-Only">Read-Only</option>
+                    <option value="Contributor">Contributor</option>
                     <option value="Editor">Editor</option>
                     <option value="Admin">Admin</option>
                 </select>
@@ -542,3 +554,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
+

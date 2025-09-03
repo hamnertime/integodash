@@ -2,12 +2,12 @@
 import os
 import sys
 from datetime import datetime, timezone, timedelta
-from flask import Flask, session, redirect, url_for, request, current_app
+from flask import Flask, session, redirect, url_for, request, current_app, flash
 from apscheduler.schedulers.background import BackgroundScheduler
 from threading import Lock
 
 # Local module imports
-from database import init_app_db, log_page_view
+from database import init_app_db, log_page_view, query_db
 from scheduler import run_job
 from routes.auth import auth_bp, active_sessions, sessions_lock
 from routes.clients import clients_bp
@@ -22,6 +22,9 @@ def create_app():
     app.secret_key = 'a_permanent_secret_key_for_production'
     app.config['DB_PASSWORD'] = None
     app.config['UPLOAD_FOLDER'] = 'uploads'
+    # Set a default session lifetime, will be updated dynamically
+    app.permanent_session_lifetime = timedelta(hours=3)
+
 
     # Initialize database
     init_app_db(app)
@@ -39,11 +42,9 @@ def create_app():
 
     @app.before_request
     def before_request_tasks():
-        session.permanent = False
-        if 'user_id' in session:
-            with sessions_lock:
-                if session['user_id'] in active_sessions:
-                    active_sessions[session['user_id']]['last_seen'] = datetime.now(timezone.utc)
+        # Make session permanent so its lifetime is controlled by app.permanent_session_lifetime
+        # and it will be refreshed on each request.
+        session.permanent = True
 
         # Allow access to login and static files without authentication
         if request.endpoint and (request.endpoint.startswith('static') or request.endpoint in ['auth.login']):
@@ -52,8 +53,52 @@ def create_app():
         if not current_app.config.get('DB_PASSWORD'):
             return redirect(url_for('auth.login'))
 
+        # Check if user is logged in first
         if 'user_id' not in session and request.endpoint != 'auth.select_user':
-            return redirect(url_for('auth.select_user'))
+             return redirect(url_for('auth.select_user'))
+
+        # If a user is logged in, perform session checks
+        if 'user_id' in session:
+            # Dynamically set session lifetime from DB
+            timeout_setting = query_db("SELECT value FROM app_settings WHERE key = 'session_timeout_minutes'", one=True)
+            timeout_minutes = int(timeout_setting['value']) if timeout_setting and timeout_setting['value'] else 180
+            app.permanent_session_lifetime = timedelta(minutes=timeout_minutes)
+
+            # Check for session timeout based on last activity
+            if 'last_activity' in session:
+                try:
+                    # Session stores datetime as an ISO string, so we parse it back
+                    last_activity_time = datetime.fromisoformat(session['last_activity'])
+                    time_since_activity = datetime.now(timezone.utc) - last_activity_time
+
+                    if time_since_activity > timedelta(minutes=timeout_minutes):
+                        user_id_to_logout = session.get('user_id')
+                        with sessions_lock:
+                            if user_id_to_logout in active_sessions:
+                                del active_sessions[user_id_to_logout]
+                        session.clear()
+                        flash('You have been automatically logged out due to inactivity.', 'info')
+                        return redirect(url_for('auth.select_user'))
+
+                    # If the session is valid, update the activity time to now. This resets the timer.
+                    session['last_activity'] = datetime.now(timezone.utc).isoformat()
+
+                except (ValueError, TypeError):
+                    # If parsing fails for any reason, the session is corrupt. Log out.
+                    session.clear()
+                    flash('Invalid session. Please select your user again.', 'info')
+                    return redirect(url_for('auth.select_user'))
+            else:
+                # If there's no last_activity, it's an old or invalid session, so log them out
+                session.clear()
+                flash('Your session has expired. Please select your user again.', 'info')
+                return redirect(url_for('auth.select_user'))
+
+            # If session is valid, update last seen time for the "who is online" view
+            with sessions_lock:
+                if session['user_id'] in active_sessions:
+                    active_sessions[session['user_id']]['last_seen'] = datetime.now(timezone.utc)
+
 
     @app.after_request
     def after_request_tasks(response):
@@ -73,19 +118,6 @@ def create_app():
 
     return app
 
-def cleanup_inactive_sessions():
-    """Removes users from active_sessions if they haven't been seen recently."""
-    now = datetime.now(timezone.utc)
-    inactive_threshold = timedelta(minutes=2)
-    with sessions_lock:
-        inactive_users = [
-            user_id for user_id, data in active_sessions.items()
-            if now - data.get('last_seen', data['login_time']) > inactive_threshold
-        ]
-        for user_id in inactive_users:
-            print(f"--- Cleaning up inactive session for user ID: {user_id} ---")
-            del active_sessions[user_id]
-
 app = create_app()
 scheduler = BackgroundScheduler()
 
@@ -102,9 +134,6 @@ if __name__ == '__main__':
     if not os.path.exists(STATIC_JS_FOLDER):
         os.makedirs(STATIC_JS_FOLDER)
 
-    with app.app_context():
-        scheduler.add_job(cleanup_inactive_sessions, 'interval', minutes=1, id='cleanup_sessions')
-
     print("--- Starting Flask Web Server ---")
     try:
         app.run(debug=True, host='0.0.0.0', port=5002, ssl_context=('cert.pem', 'key.pem'))
@@ -112,3 +141,4 @@ if __name__ == '__main__':
         if scheduler.running:
             print("--- Shutting down scheduler ---")
             scheduler.shutdown()
+

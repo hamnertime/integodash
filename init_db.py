@@ -125,6 +125,7 @@ def import_data_to_new_db(con, data):
     # Define the correct order for table imports to respect foreign key constraints
     table_import_order = [
         'api_keys',
+        'app_settings',
         'companies',
         'app_users',
         'billing_plans',
@@ -377,6 +378,7 @@ def create_database(new_password, existing_data=None):
     cur.execute("CREATE TABLE IF NOT EXISTS audit_log (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, timestamp TEXT NOT NULL, action TEXT NOT NULL, table_name TEXT NOT NULL, record_id INTEGER, details TEXT, FOREIGN KEY (user_id) REFERENCES app_users (id))")
     cur.execute("CREATE TABLE IF NOT EXISTS custom_links (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, url TEXT NOT NULL, link_order INTEGER DEFAULT 0)")
     cur.execute("CREATE TABLE IF NOT EXISTS feature_options (id INTEGER PRIMARY KEY AUTOINCREMENT, feature_type TEXT NOT NULL, option_name TEXT NOT NULL, UNIQUE (feature_type, option_name))")
+    cur.execute("CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT)")
     cur.execute("""
         CREATE TABLE IF NOT EXISTS user_widget_layouts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -429,6 +431,9 @@ def create_database(new_password, existing_data=None):
             ('Push Account Numbers to Datto RMM', 'push_account_nums_to_datto.py', 1440, 0)
         ]
         cur.executemany("INSERT INTO scheduler_jobs (job_name, script_path, interval_minutes, enabled) VALUES (?, ?, ?, ?)", default_jobs)
+
+        print("Populating default application settings...")
+        cur.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('session_timeout_minutes', '180')")
 
         print("Populating default billing plans...")
         cur.executemany("INSERT INTO billing_plans (billing_plan, term_length, per_user_cost, per_server_cost, per_workstation_cost, per_vm_cost, per_switch_cost, per_firewall_cost, per_hour_ticket_cost, backup_base_fee_workstation, backup_base_fee_server, backup_included_tb, backup_per_tb_fee, support_level, feature_antivirus, feature_soc, feature_password_manager, feature_sat, feature_network_management, feature_email_security) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", default_plans_data)
@@ -498,3 +503,4 @@ if __name__ == "__main__":
         new_password = getpass.getpass("Enter a master password for the new encrypted database: ")
         create_database(new_password, existing_data=None)
         print(f"\n✅ Success! New encrypted database '{DB_FILE}' created and configured.")
+
