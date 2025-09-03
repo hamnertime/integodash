@@ -637,7 +637,8 @@ body.dark-mode input[type="number"]::-webkit-outer-spin-button {
 /* --- Resizable Table Columns --- */
 .resizable-table {
     border-collapse: collapse;
-    table-layout: fixed;
+    width: 100%;
+    table-layout: fixed; /* This is crucial for resizing to work as expected */
 }
 
 .resizable-table th {

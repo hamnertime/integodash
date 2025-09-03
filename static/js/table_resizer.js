@@ -21,9 +21,11 @@ function makeTableResizable(table) {
         const padding = parseInt(style.paddingLeft) + parseInt(style.paddingRight);
         let maxTextWidth = 0;
 
-        // Use a temporary, unconstrained span to accurately measure the required width for the content
+        // Use a temporary, off-screen span to accurately measure content width
         const tempSpan = document.createElement("span");
-        tempSpan.style.whiteSpace = "nowrap";
+        tempSpan.style.position = 'absolute';
+        tempSpan.style.visibility = 'hidden';
+        tempSpan.style.whiteSpace = 'nowrap';
         document.body.appendChild(tempSpan);
 
         const headerText = header.querySelector('a') ? header.querySelector('a').textContent : header.textContent;
@@ -41,8 +43,8 @@ function makeTableResizable(table) {
 
         document.body.removeChild(tempSpan);
 
-        // Set the initial width with a small buffer
-        const initialWidth = maxTextWidth + padding + 15; // Added a bit more buffer
+        // Set the initial width with a small buffer for aesthetics
+        const initialWidth = maxTextWidth + padding + 20;
         col.style.width = `${initialWidth}px`;
         minWidths[index] = initialWidth;
     });
@@ -64,8 +66,10 @@ function makeTableResizable(table) {
         const mouseDownHandler = function(e) {
             e.preventDefault();
             x = e.clientX;
-            const col = cols[index];
-            w = col.offsetWidth;
+
+            // Get the precise, computed width of the <col> element
+            const styles = window.getComputedStyle(cols[index]);
+            w = parseInt(styles.width, 10);
 
             document.addEventListener('mousemove', mouseMoveHandler);
             document.addEventListener('mouseup', mouseUpHandler);
@@ -75,10 +79,9 @@ function makeTableResizable(table) {
         const mouseMoveHandler = function(e) {
             const dx = e.clientX - x;
             const newWidth = w + dx;
-            const col = cols[index];
 
             if (newWidth > minWidths[index]) {
-                col.style.width = `${newWidth}px`;
+                cols[index].style.width = `${newWidth}px`;
             }
         };
 
