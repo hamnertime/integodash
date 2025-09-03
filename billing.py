@@ -46,7 +46,7 @@ def get_billing_data_for_client(account_number, year, month):
     """, [account_number])]
     manual_assets = [dict(r) for r in query_db("SELECT * FROM manual_assets WHERE company_account_number = ? ORDER BY hostname", [account_number])]
     users = [dict(r) for r in query_db("""
-        SELECT u.*, '[' || GROUP_CONCAT(json_object('hostname', a.hostname, 'portal_url', a.portal_url)) || ']' as associated_assets
+        SELECT u.*, c.id as contact_id, '[' || GROUP_CONCAT(json_object('hostname', a.hostname, 'portal_url', a.portal_url)) || ']' as associated_assets
         FROM users u
         LEFT JOIN contacts c ON u.email = c.email
         LEFT JOIN asset_contact_links acl ON c.id = acl.contact_id
@@ -225,7 +225,7 @@ def get_billing_data_for_client(account_number, year, month):
         cost = 0.0
         item_type = None
         fee = 0.0
-        if item['monthly_fee'] is not none:
+        if item['monthly_fee'] is not None:
             try:
                 fee = float(item['monthly_fee'])
                 item_type = 'Recurring'

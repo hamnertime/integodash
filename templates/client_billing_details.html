@@ -298,9 +298,15 @@
                             </tbody></table>
                         </div>
                         <div>
-                            <h4>Freshservice Users ({{ users|length }})</h4>
+                            <h4>Users ({{ users|length }})</h4>
                             <table><thead><tr><th>Full Name</th><th>Associated Assets</th><th>Email</th><th>Billing Type</th></tr></thead><tbody>
-                                {% for user in users %}<tr><td>{{ user.full_name }}</td><td>
+                                {% for user in users %}<tr><td>
+                                    {% if user.contact_id %}
+                                        <a href="{{ url_for('contacts.contact_details', contact_id=user.contact_id) }}">{{ user.full_name }}</a>
+                                    {% else %}
+                                        {{ user.full_name }}
+                                    {% endif %}
+                                </td><td>
                                 {% if user.associated_assets %}
                                     {% set assets = user.associated_assets | fromjson %}
                                     {% for asset in assets %}

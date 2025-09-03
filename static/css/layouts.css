@@ -103,6 +103,13 @@
 .grid-stack-item-header {
     cursor: move;
 }
+.grid-stack-item-header h2,
+.grid-stack-item-header h3,
+.grid-stack-item-header h4 {
+    margin: 0 0 15px 0;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--primary-color);
+}
 .grid-stack-item-content {
     background-color: var(--card-bg);
     border-radius: 8px;
