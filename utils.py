@@ -7,6 +7,7 @@ from flask import session, current_app
 from database import query_db
 from urllib.parse import quote_plus
 import json
+from werkzeug.security import generate_password_hash, check_password_hash
 
 def humanize_time(dt_str):
     if not dt_str: return "N/A"

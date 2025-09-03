@@ -1,11 +1,11 @@
 # hamnertime/integodash/integodash-b7a03f16877fb4e6590039b6f2c0b632176ef6cd/init_db.py
 import sys
 import os
-import getpass
 import time
 import shutil
 import re
 import json
+from werkzeug.security import generate_password_hash
 
 # This is provided by the sqlcipher3-wheels package
 try:
@@ -14,6 +14,69 @@ except ImportError:
     print("Error: sqlcipher3-wheels is not installed. Please install it using: pip install sqlcipher3-wheels", file=sys.stderr)
     sys.exit(1)
 
+def get_masked_input(prompt=''):
+    """
+    Reads masked input from the console (for passwords and API keys).
+    Shows '*' for each character typed. Works on Windows and Unix-like systems.
+    """
+    sys.stdout.write(prompt)
+    sys.stdout.flush()
+
+    password = ''
+
+    # Windows implementation
+    try:
+        import msvcrt
+        while True:
+            char = msvcrt.getch()
+            if char in b'\r\n': # Enter key
+                sys.stdout.write('\n')
+                sys.stdout.flush()
+                return password
+            elif char == b'\x08': # Backspace
+                if password:
+                    password = password[:-1]
+                    # Erase the last asterisk from the console
+                    sys.stdout.write('\b \b')
+                    sys.stdout.flush()
+            elif char == b'\x03': # Ctrl+C
+                raise KeyboardInterrupt
+            else:
+                try:
+                    char_decoded = char.decode('utf-8')
+                    password += char_decoded
+                    sys.stdout.write('*')
+                    sys.stdout.flush()
+                except UnicodeDecodeError:
+                    # Ignore characters that can't be decoded
+                    pass
+    # Non-Windows (Linux/macOS) implementation
+    except ImportError:
+        import termios, tty
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+        try:
+            tty.setraw(sys.stdin.fileno())
+            while True:
+                char = sys.stdin.read(1)
+                if char in ('\r', '\n'): # Enter key
+                    sys.stdout.write('\n')
+                    sys.stdout.flush()
+                    return password
+                elif char in ('\x08', '\x7f'): # Backspace
+                    if password:
+                        password = password[:-1]
+                        # Erase the last asterisk from the console
+                        sys.stdout.write('\b \b')
+                        sys.stdout.flush()
+                elif char == '\x03': # Ctrl+C
+                    raise KeyboardInterrupt
+                else:
+                    password += char
+                    sys.stdout.write('*')
+                    sys.stdout.flush()
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
 DB_FILE = "brainhair.db"
 CONFIG_FILE = "config.json"
@@ -73,9 +136,10 @@ default_widget_layouts = {
         {"w": 12, "h": 2, "id": "import-export-widget", "x": 0, "y": 0},
         {"x": 0, "w": 12, "h": 4, "id": "scheduler-widget", "y": 2},
         {"y": 6, "w": 12, "h": 7, "id": "users-auditing-widget", "x": 0},
-        {"y": 13, "w": 12, "h": 3, "id": "custom-links-widget", "x": 0},
-        {"y": 16, "w": 12, "h": 8, "id": "billing-plans-widget", "x": 0},
-        {"x": 0, "y": 24, "w": 12, "h": 8, "id": "feature-options-widget"}
+        {"y": 13, "w": 12, "h": 4, "id": "password-reset-widget", "x": 0},
+        {"y": 17, "w": 12, "h": 3, "id": "custom-links-widget", "x": 0},
+        {"y": 20, "w": 12, "h": 8, "id": "billing-plans-widget", "x": 0},
+        {"x": 0, "y": 28, "w": 12, "h": 8, "id": "feature-options-widget"}
     ]
 }
 
@@ -374,7 +438,15 @@ def create_database(new_password, existing_data=None):
     cur.execute("CREATE TABLE IF NOT EXISTS billing_notes (id INTEGER PRIMARY KEY AUTOINCREMENT, company_account_number TEXT NOT NULL, note_content TEXT NOT NULL, created_at TEXT NOT NULL, author TEXT, FOREIGN KEY (company_account_number) REFERENCES companies (account_number) ON DELETE CASCADE)")
     cur.execute("CREATE TABLE IF NOT EXISTS client_attachments (id INTEGER PRIMARY KEY AUTOINCREMENT, company_account_number TEXT NOT NULL, original_filename TEXT NOT NULL, stored_filename TEXT NOT NULL UNIQUE, uploaded_at TEXT NOT NULL, file_size INTEGER, category TEXT, FOREIGN KEY (company_account_number) REFERENCES companies (account_number) ON DELETE CASCADE)")
     cur.execute("CREATE TABLE IF NOT EXISTS custom_line_items (id INTEGER PRIMARY KEY AUTOINCREMENT, company_account_number TEXT NOT NULL, name TEXT NOT NULL, monthly_fee REAL, one_off_fee REAL, one_off_month INTEGER, one_off_year INTEGER, yearly_fee REAL, yearly_bill_month INTEGER, yearly_bill_day INTEGER, FOREIGN KEY (company_account_number) REFERENCES companies (account_number) ON DELETE CASCADE)")
-    cur.execute("CREATE TABLE IF NOT EXISTS app_users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL UNIQUE, role TEXT NOT NULL DEFAULT 'Read-Only')")
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS app_users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            password_hash TEXT,
+            role TEXT NOT NULL DEFAULT 'Read-Only',
+            force_password_reset BOOLEAN NOT NULL DEFAULT 1
+        )
+    """)
     cur.execute("CREATE TABLE IF NOT EXISTS audit_log (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, timestamp TEXT NOT NULL, action TEXT NOT NULL, table_name TEXT NOT NULL, record_id INTEGER, details TEXT, FOREIGN KEY (user_id) REFERENCES app_users (id))")
     cur.execute("CREATE TABLE IF NOT EXISTS custom_links (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, url TEXT NOT NULL, link_order INTEGER DEFAULT 0)")
     cur.execute("CREATE TABLE IF NOT EXISTS feature_options (id INTEGER PRIMARY KEY AUTOINCREMENT, feature_type TEXT NOT NULL, option_name TEXT NOT NULL, UNIQUE (feature_type, option_name))")
@@ -442,7 +514,18 @@ def create_database(new_password, existing_data=None):
         cur.executemany("INSERT INTO feature_options (feature_type, option_name) VALUES (?, ?)", default_features)
 
         print("Adding default application users...")
-        cur.executemany("INSERT INTO app_users (username, role) VALUES (?, ?)", default_users)
+        for user_data in default_users:
+            if len(user_data) == 3:
+                username, role, password = user_data
+                password_hash = generate_password_hash(password) if password else None
+                force_reset = 1
+                if username == 'Admin':
+                    force_reset = 0
+                cur.execute("INSERT INTO app_users (username, role, password_hash, force_password_reset) VALUES (?, ?, ?, ?)",
+                            (username, role, password_hash, force_reset))
+            else:
+                print(f"    -> Skipping invalid user data in config: {user_data}", file=sys.stderr)
+
 
         # This is a fresh install, so we must get the API keys
         get_and_set_api_keys(cur)
@@ -463,10 +546,10 @@ def create_database(new_password, existing_data=None):
 def get_and_set_api_keys(cursor):
     """Prompts the user for API keys and saves them to the database."""
     print("\nPlease enter your API credentials. They will be stored securely.")
-    freshservice_key = getpass.getpass("  - Freshservice API Key: ")
+    freshservice_key = get_masked_input("  - Freshservice API Key: ")
     datto_endpoint = input("  - Datto RMM API Endpoint (e.g., https://api.rmm.datto.com): ")
-    datto_key = getpass.getpass("  - Datto RMM Public Key: ")
-    datto_secret = getpass.getpass("  - Datto RMM Secret Key: ")
+    datto_key = get_masked_input("  - Datto RMM Public Key: ")
+    datto_secret = get_masked_input("  - Datto RMM Secret Key: ")
     if not all([freshservice_key, datto_endpoint, datto_key, datto_secret]):
         print("Error: All API credentials are required.", file=sys.stderr)
         # We don't want to leave the DB in a broken state, so we exit here.
@@ -486,7 +569,7 @@ if __name__ == "__main__":
         print(f"An existing database file ('{DB_FILE}') was found.")
         print("This script will export your data, create a new database with the latest schema, and re-import your data.")
 
-        old_password = getpass.getpass("Enter the CURRENT master password to unlock the database: ")
+        old_password = get_masked_input("Enter the CURRENT master password to unlock the database: ")
         exported_data = export_data_from_old_db(old_password)
 
         if exported_data:
@@ -494,13 +577,13 @@ if __name__ == "__main__":
             shutil.move(DB_FILE, backup_filename)
             print(f"\nOld database has been backed up to '{backup_filename}'")
 
-            new_password = getpass.getpass("Enter the NEW master password for the recreated database: ")
+            new_password = get_masked_input("Enter the NEW master password for the recreated database: ")
             create_database(new_password, existing_data=exported_data)
             print(f"\n✅ Success! Database has been migrated and re-encrypted.")
 
     else:
         print("--- New Database Setup ---")
-        new_password = getpass.getpass("Enter a master password for the new encrypted database: ")
+        new_password = get_masked_input("Enter a master password for the new encrypted database: ")
         create_database(new_password, existing_data=None)
         print(f"\n✅ Success! New encrypted database '{DB_FILE}' created and configured.")
 

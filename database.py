@@ -47,9 +47,10 @@ default_widget_layouts = {
         {"w": 12, "h": 2, "id": "import-export-widget", "x": 0, "y": 0},
         {"x": 0, "w": 12, "h": 4, "id": "scheduler-widget", "y": 2},
         {"y": 6, "w": 12, "h": 7, "id": "users-auditing-widget", "x": 0},
-        {"y": 13, "w": 12, "h": 3, "id": "custom-links-widget", "x": 0},
-        {"y": 16, "w": 12, "h": 8, "id": "billing-plans-widget", "x": 0},
-        {"x": 0, "y": 24, "w": 12, "h": 8, "id": "feature-options-widget"}
+        {"y": 13, "w": 12, "h": 4, "id": "password-reset-widget", "x": 0},
+        {"y": 17, "w": 12, "h": 3, "id": "custom-links-widget", "x": 0},
+        {"y": 20, "w": 12, "h": 8, "id": "billing-plans-widget", "x": 0},
+        {"x": 0, "y": 28, "w": 12, "h": 8, "id": "feature-options-widget"}
     ]
 }
 
@@ -91,6 +92,10 @@ def query_db(query, args=(), one=False):
     if one:
         return rv[0] if rv else None
     return rv
+
+def get_user_by_username(username):
+    """Gets a user by their username."""
+    return query_db("SELECT * FROM app_users WHERE username = ?", [username], one=True)
 
 def log_and_execute(query, args=()):
     """Logs and executes a database write operation."""

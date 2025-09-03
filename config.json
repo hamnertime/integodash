@@ -13,6 +13,6 @@
         ["SOC", "Not Included"], ["SOC", "Included"]
     ],
     "default_users": [
-        ["Admin", "Admin"]
+        ["Admin", "Admin", "admin"],
     ]
 }

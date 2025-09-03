@@ -208,6 +208,11 @@ gap: 10px;
     width: 100%;
     margin-bottom: 20px;
 }
+.selection-container input[type="password"] {
+    width: 100%;
+    margin-bottom: 20px;
+    box-sizing: border-box;
+}
 .login-container button, .selection-container button {
     width: 100%;
     padding: 10px 20px;

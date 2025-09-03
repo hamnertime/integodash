@@ -10,6 +10,8 @@ from routes.auth import active_sessions
 from .clients import CLIENTS_COLUMNS
 from .assets import ASSETS_COLUMNS
 from .contacts import CONTACTS_COLUMNS
+from werkzeug.security import generate_password_hash
+
 
 settings_bp = Blueprint('settings', __name__)
 
@@ -77,13 +79,15 @@ def billing_settings():
             role = request.form.get('role')
             if username and role:
                 try:
-                    log_and_execute("INSERT INTO app_users (username, role) VALUES (?, ?)", (username, role))
-                    flash(f"User '{username}' added successfully.", "success")
+                    # By default, new users have no password and must have it set by an admin.
+                    log_and_execute("INSERT INTO app_users (username, role, force_password_reset) VALUES (?, ?, ?)", (username, role, 1))
+                    flash(f"User '{username}' added successfully. Please set their initial password.", "success")
                 except Exception as e:
                     flash(f"Error adding user: {e}", "error")
             else:
                 flash("Username and role are required.", "error")
             return redirect(url_for('settings.billing_settings'))
+
         elif action == 'save_session_timeout':
             timeout = request.form.get('session_timeout_minutes')
             if timeout and timeout.isdigit():
@@ -91,6 +95,27 @@ def billing_settings():
                 flash("Session timeout updated successfully.", "success")
             else:
                 flash("Invalid timeout value.", "error")
+            return redirect(url_for('settings.billing_settings'))
+
+        elif action == 'reset_password':
+            new_password = request.form.get('new_password')
+            confirm_password = request.form.get('confirm_password')
+            current_user_id = session.get('user_id')
+
+            if not new_password or not confirm_password:
+                flash("Both password fields are required.", "error")
+                return redirect(url_for('settings.billing_settings'))
+
+            if new_password != confirm_password:
+                flash("Passwords do not match.", "error")
+                return redirect(url_for('settings.billing_settings'))
+
+            # This form only allows users to reset their own password.
+            password_hash = generate_password_hash(new_password)
+            log_and_execute("UPDATE app_users SET password_hash = ?, force_password_reset = 0 WHERE id = ?",
+                            (password_hash, current_user_id))
+            flash("Your password has been successfully reset.", "success")
+
             return redirect(url_for('settings.billing_settings'))
 
 
@@ -190,12 +215,16 @@ def edit_link(link_id):
 
 @settings_bp.route('/settings/user/edit/<int:user_id>', methods=['POST'])
 def edit_user(user_id):
+    # Prevent editing the main Admin user
     if user_id == 1:
         flash("The Admin user cannot be edited.", "error")
         return redirect(url_for('settings.billing_settings'))
 
     new_username = request.form.get('username')
     new_role = request.form.get('role')
+    new_password = request.form.get('new_password')
+
+    # Update username and role
     if new_username and new_role:
         try:
             existing_user = query_db("SELECT id FROM app_users WHERE username = ? AND id != ?", [new_username, user_id], one=True)
@@ -208,10 +237,20 @@ def edit_user(user_id):
                     session['username'] = new_username
                     session['role'] = new_role
         except Exception as e:
-            flash(f"An error occurred: {e}", "error")
+            flash(f"An error occurred updating user details: {e}", "error")
     else:
         flash("Username and role are required.", "error")
+
+    # Handle password reset by an Admin
+    if session.get('role') == 'Admin' and new_password:
+        password_hash = generate_password_hash(new_password)
+        # Force the user to reset this password on their next login
+        log_and_execute("UPDATE app_users SET password_hash = ?, force_password_reset = 1 WHERE id = ?",
+                        (password_hash, user_id))
+        flash(f"Password for user '{new_username}' has been reset. They will be required to change it on next login.", "success")
+
     return redirect(url_for('settings.billing_settings'))
+
 
 @settings_bp.route('/settings/links/delete/<int:link_id>', methods=['POST'])
 def delete_link(link_id):
@@ -441,4 +480,3 @@ def run_now(job_id):
 def get_log(job_id):
     log_data = query_db("SELECT last_run_log FROM scheduler_jobs WHERE id = ?", [job_id], one=True)
     return jsonify({'log': log_data['last_run_log'] if log_data and log_data['last_run_log'] else 'No log found.'})
-

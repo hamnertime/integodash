@@ -1,8 +1,9 @@
 # routes/auth.py
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, current_app
-from database import query_db, get_db_connection
+from database import query_db, get_db_connection, log_and_execute
 from threading import Lock
 from datetime import datetime, timezone, timedelta
+from werkzeug.security import check_password_hash, generate_password_hash
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -38,8 +39,9 @@ def login():
 def select_user():
     if request.method == 'POST':
         user_id = request.form.get('user_id')
+        password = request.form.get('password')
         user = query_db("SELECT * FROM app_users WHERE id = ?", [user_id], one=True)
-        if user:
+        if user and user['password_hash'] and check_password_hash(user['password_hash'], password):
             now = datetime.now(timezone.utc)
             session['user_id'] = user['id']
             session['username'] = user['username']
@@ -53,12 +55,38 @@ def select_user():
                     'login_time': now, # Keep as datetime object for in-memory display
                     'last_seen': now
                 }
+
+            if user['force_password_reset']:
+                flash('You must reset your password before continuing.', 'info')
+                return redirect(url_for('auth.reset_password'))
+
             return redirect(url_for('clients.billing_dashboard'))
         else:
-            flash("Invalid user selected.", 'error')
+            flash("Invalid user or password.", 'error')
 
     users = query_db("SELECT * FROM app_users ORDER BY username")
     return render_template('user_selection.html', users=users)
+
+@auth_bp.route('/reset_password', methods=['GET', 'POST'])
+def reset_password():
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
+
+    if request.method == 'POST':
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+
+        if new_password != confirm_password:
+            flash('Passwords do not match.', 'error')
+        else:
+            password_hash = generate_password_hash(new_password)
+            log_and_execute("UPDATE app_users SET password_hash = ?, force_password_reset = 0 WHERE id = ?",
+                          (password_hash, session['user_id']))
+            flash('Password updated successfully. You can now use the dashboard.', 'success')
+            return redirect(url_for('clients.billing_dashboard'))
+
+    return render_template('reset_password.html')
+
 
 @auth_bp.route('/logout')
 def logout():

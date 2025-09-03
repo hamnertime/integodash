@@ -47,7 +47,7 @@ def create_app():
         session.permanent = True
 
         # Allow access to login and static files without authentication
-        if request.endpoint and (request.endpoint.startswith('static') or request.endpoint in ['auth.login']):
+        if request.endpoint and (request.endpoint.startswith('static') or request.endpoint in ['auth.login', 'auth.select_user', 'auth.reset_password']):
             return
 
         if not current_app.config.get('DB_PASSWORD'):
@@ -141,4 +141,3 @@ if __name__ == '__main__':
         if scheduler.running:
             print("--- Shutting down scheduler ---")
             scheduler.shutdown()
-
