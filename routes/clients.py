@@ -1,4 +1,4 @@
-# routes/clients.py
+# hamnertime/integodash/integodash-api-refactor/routes/clients.py
 from flask import (
     Blueprint, render_template, request, redirect, url_for, flash, session,
     jsonify, Response, send_from_directory, current_app
@@ -13,6 +13,7 @@ from werkzeug.utils import secure_filename
 from collections import defaultdict
 from utils import role_required
 from api_client import api_request
+from database import get_user_widget_layout, default_widget_layouts
 
 clients_bp = Blueprint('clients', __name__)
 
@@ -55,8 +56,8 @@ def billing_dashboard():
             session['clients_cols'] = {k: v['default'] for k, v in CLIENTS_COLUMNS.items()}
 
         user_id = session['user_id']
-        layout = api_request('get', f'settings/layouts/{user_id}/clients')
-        default_layout = api_request('get', 'settings/layouts/default/clients')
+        layout = get_user_widget_layout(user_id, 'clients')
+        default_layout = default_widget_layouts.get('clients')
 
         return render_template('clients.html',
             month_options=month_options,
@@ -134,6 +135,7 @@ def delete_client(account_number):
 @role_required(['Admin', 'Editor', 'Contributor', 'Read-Only'])
 def client_billing_details(account_number):
     try:
+        # Redirect to login if API is unavailable on post
         if request.method == 'POST':
             if session['role'] not in ['Admin', 'Editor', 'Contributor']:
                 flash('You do not have permission to perform this action.', 'error')
@@ -142,8 +144,11 @@ def client_billing_details(account_number):
             note_content = request.form.get('note_content')
             if note_content:
                 note_data = {"note_content": note_content, "author": session.get('username')}
-                api_request('post', f'clients/{account_number}/notes', json_data=note_data)
-                flash('Note added successfully.', 'success')
+                response = api_request('post', f'clients/{account_number}/notes', json_data=note_data)
+                if response:
+                    flash('Note added successfully.', 'success')
+                else:
+                    flash('Error adding note via API.', 'error')
             else:
                 flash('Note content cannot be empty.', 'error')
 
@@ -154,8 +159,10 @@ def client_billing_details(account_number):
                 flash('You do not have permission to perform this action.', 'error')
             else:
                 note_id = request.args.get('delete_note')
-                api_request('delete', f'clients/notes/{note_id}')
-                flash('Note deleted.', 'success')
+                if api_request('delete', f'clients/notes/{note_id}'):
+                    flash('Note deleted.', 'success')
+                else:
+                    flash('Error deleting note via API.', 'error')
             return redirect(url_for('clients.client_billing_details', account_number=account_number))
 
         today = datetime.now(timezone.utc)
@@ -168,7 +175,7 @@ def client_billing_details(account_number):
         breakdown_data = api_request('get', f'clients/{account_number}/billing-details', params={'year': year, 'month': month})
 
         if not breakdown_data:
-            flash(f"Could not retrieve details for client {account_number}.", 'error')
+            flash(f"Could not retrieve details for client {account_number}. Client may not exist or the API is unavailable.", 'error')
             return redirect(url_for('clients.billing_dashboard'))
 
         month_options = []
@@ -176,8 +183,8 @@ def client_billing_details(account_number):
              month_options.append({'year': today.year if i <= today.month else today.year -1, 'month': i, 'name': datetime(today.year, i, 1).strftime('%B %Y')})
 
         user_id = session['user_id']
-        layout = api_request('get', f'settings/layouts/{user_id}/client_details')
-        default_layout = api_request('get', 'settings/layouts/default/client_details')
+        layout = get_user_widget_layout(user_id, 'client_details')
+        default_layout = default_widget_layouts.get('client_details')
 
         return render_template(
             'client_billing_details.html',
@@ -190,14 +197,10 @@ def client_billing_details(account_number):
             **breakdown_data
         )
     except Exception as e:
-        current_app.config['DB_PASSWORD'] = None
         session.clear()
         flash(f"An error occurred on details page: {e}. Please log in again.", 'error')
         return redirect(url_for('auth.login'))
 
-
-# ... (Other routes like edit_note, get_notes_partial, uploads, etc. would follow this pattern)
-# For example, here is the refactored upload_file function:
 
 @clients_bp.route('/client/<account_number>/upload', methods=['POST'])
 @role_required(['Admin', 'Editor', 'Contributor'])
@@ -212,8 +215,6 @@ def upload_file(account_number):
     uploaded_count = 0
     for file in files:
         if file and allowed_file(file.filename):
-            # The API client needs to be adapted to handle multipart/form-data
-            # This is a conceptual example. `api_request` would need modification.
             files_data = {'file': (file.filename, file.stream, file.mimetype)}
             form_data = {'category': category}
             response = api_request('post', f'clients/{account_number}/attachments', data=form_data, files=files_data)

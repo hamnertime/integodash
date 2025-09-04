@@ -1,5 +1,5 @@
 import os
-from flask import Flask, session, redirect, url_for, request
+from flask import Flask, session, redirect, url_for, request, flash
 from datetime import timedelta
 
 # Import blueprints
@@ -16,10 +16,10 @@ def create_app():
     app = Flask(__name__)
     app.secret_key = os.urandom(24)
     app.config['UPLOAD_FOLDER'] = 'uploads'
-    app.config['API_BASE_URL'] = 'http://127.0.0.1:8000/api/v1' # Central config for the API
+    app.config['API_BASE_URL'] = 'http://127.0.0.1:8000/api/v1'
     app.permanent_session_lifetime = timedelta(hours=8)
 
-    # Register utilities and blueprints
+    # Register blueprints
     register_template_filters(app)
     app.context_processor(inject_custom_links)
     app.register_blueprint(auth_bp)
@@ -33,10 +33,11 @@ def create_app():
     def before_request_tasks():
         session.permanent = True
         # Allow access to login, user selection, and static files without a token
-        if request.endpoint and (request.endpoint.startswith('static') or request.endpoint in ['auth.login']):
+        if request.endpoint and (request.endpoint.startswith('static') or request.endpoint in ['auth.login', 'auth.select_user']):
             return
         # If there's no token, redirect to login
         if 'api_token' not in session:
+            flash("Your session has expired. Please log in again.", "error")
             return redirect(url_for('auth.login'))
 
     return app

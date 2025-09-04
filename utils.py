@@ -4,11 +4,10 @@ import bleach
 import sys
 from datetime import datetime, timezone
 from flask import session, current_app, abort
-from database import query_db
 from urllib.parse import quote_plus
 import json
-from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
+from api_client import api_request
 
 def role_required(allowed_roles):
     """
@@ -84,11 +83,7 @@ def register_template_filters(app):
     app.template_filter('fromjson')(from_json)
 
 def inject_custom_links():
-    if current_app.config.get('DB_PASSWORD') and 'user_id' in session:
-        try:
-            links = query_db("SELECT * FROM custom_links ORDER BY link_order")
-            return dict(custom_links=links)
-        except Exception as e:
-            print(f"Error fetching custom links for sidebar: {e}", file=sys.stderr)
-            return dict(custom_links=[])
+    if 'api_token' in session and 'user_id' in session:
+        links = api_request('get', 'settings/links')
+        return dict(custom_links=links or [])
     return dict(custom_links=[])
