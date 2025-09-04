@@ -4,6 +4,8 @@ from api_client import api_request
 from database import get_user_widget_layout, default_widget_layouts, save_user_widget_layout, delete_user_widget_layout
 from collections import OrderedDict, defaultdict
 import json
+import re
+from datetime import datetime
 from utils import role_required
 # Import column definitions from other blueprints
 from .clients import CLIENTS_COLUMNS
@@ -13,6 +15,10 @@ from .knowledge_base import KB_COLUMNS
 
 
 settings_bp = Blueprint('settings', __name__)
+
+def sanitize_column_name(name: str) -> str:
+    """Sanitizes a string to be a valid column name for a feature, matching the template logic."""
+    return 'feature_' + re.sub(r'[^a-zA-Z0-9_]', '', name.lower().replace(' ', '_'))
 
 @settings_bp.route('/save_layout/<page_name>', methods=['POST'])
 def save_layout(page_name):
@@ -24,12 +30,8 @@ def save_layout(page_name):
     if not layout:
         return jsonify({'status': 'error', 'message': 'No layout data provided'}), 400
 
-    try:
-        save_user_widget_layout(session['user_id'], page_name, layout)
-        return jsonify({'status': 'success'})
-    except Exception as e:
-        print(f"Error saving layout: {e}", file=sys.stderr)
-        return jsonify({'status': 'error', 'message': 'Internal server error'}), 500
+    save_user_widget_layout(session['user_id'], page_name, layout)
+    return jsonify({'status': 'success'})
 
 @settings_bp.route('/delete_layout/<page_name>', methods=['POST'])
 def delete_layout(page_name):
@@ -37,12 +39,8 @@ def delete_layout(page_name):
     if 'user_id' not in session:
         return jsonify({'status': 'error', 'message': 'Not logged in'}), 401
 
-    try:
-        delete_user_widget_layout(session['user_id'], page_name)
-        return jsonify({'status': 'success'})
-    except Exception as e:
-        print(f"Error deleting layout: {e}", file=sys.stderr)
-        return jsonify({'status': 'error', 'message': 'Internal server error'}), 500
+    delete_user_widget_layout(session['user_id'], page_name)
+    return jsonify({'status': 'success'})
 
 @settings_bp.route('/save_column_prefs/<page_name>', methods=['POST'])
 def save_column_prefs(page_name):
